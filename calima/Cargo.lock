@@ -3,8 +3,3 @@
 [[package]]
 name = "calima"
 version = "0.1.0"
-
-[[package]]
-name = "calimac"
-version = "0.1.0"
-
