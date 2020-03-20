@@ -14,6 +14,7 @@ pub enum Token<'input> {
     NumberLiteral(&'input str),
     Do,
     Let,
+    Fun,
     If,
     Then,
     Else,
@@ -25,5 +26,6 @@ pub enum Token<'input> {
     Equal,
     Pipe,
     Import,
-    Colon
+    Colon,
+    Arrow
 }
