@@ -1,7 +1,7 @@
 use std::str::Chars;
 use crate::token::{Token, Location};
 use crate::lexer::ErrorKind::TabIndent;
-use crate::token::Token::{StringLiteral, NumberLiteral};
+use crate::token::Token::{StringLiteral, NumberLiteral, Identifier};
 
 pub struct Lexer<'input> {
     chars: Chars<'input>,
@@ -128,6 +128,21 @@ impl<'input> Lexer<'input> {
         let end = self.current_pos();
         Some(Ok((start, NumberLiteral(lit), end)))
     }
+
+    fn identifier(&mut self) -> Option<LexerResult<'input>> {
+        let start = self.current_pos();
+        let start_idx = self.pos;
+        let end_idx = loop {
+            match self.advance() {
+                None => break(self.pos),
+                Some(c) if is_separator(c) => break(self.pos),
+                Some(_) => ()
+            }
+        };
+        let lit = &self.input[start_idx..end_idx];
+        let end = self.current_pos();
+        Some(Ok((start, Identifier(lit), end)))
+    }
 }
 
 impl<'input> Iterator for Lexer<'input> {
@@ -144,7 +159,7 @@ impl<'input> Iterator for Lexer<'input> {
                 Some('#') => self.comment(),
                 Some('"') => break self.string_literal(),
                 Some(x) if x.is_numeric() => break self.number_literal(),
-                Some(_) => ()
+                Some(_) => break self.identifier()
             }
         }
     }
