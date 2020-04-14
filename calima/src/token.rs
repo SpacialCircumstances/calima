@@ -29,3 +29,4 @@ pub enum Token<'input> {
     Colon,
     Arrow
 }
+
