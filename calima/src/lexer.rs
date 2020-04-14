@@ -1,6 +1,7 @@
 use std::str::Chars;
 use crate::token::{Token, Location};
 use crate::lexer::ErrorKind::TabIndent;
+use crate::token::Token::StringLiteral;
 
 pub struct Lexer<'input> {
     chars: Chars<'input>,
@@ -9,6 +10,19 @@ pub struct Lexer<'input> {
     pos: usize,
     col: usize,
 }
+
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
+pub enum ErrorKind {
+    TabIndent
+}
+
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
+pub struct Error {
+    location: Location,
+    kind: ErrorKind
+}
+
+type LexerResult<'input> = Result<(Location, Token<'input>, Location), Error>;
 
 impl<'input> Lexer<'input> {
     pub fn new(input: &'input str) -> Self {
@@ -52,21 +66,25 @@ impl<'input> Lexer<'input> {
             }
         }
     }
-}
 
-#[derive(Debug, Eq, PartialEq, Copy, Clone)]
-pub enum ErrorKind {
-    TabIndent
-}
-
-#[derive(Debug, Eq, PartialEq, Copy, Clone)]
-pub struct Error {
-    location: Location,
-    kind: ErrorKind
+    fn string_literal(&mut self) -> Option<LexerResult<'input>> {
+        let start = self.current_pos();
+        let start_idx = self.pos;
+        let end_idx = loop {
+            match self.chars.next() {
+                None => break(self.pos),
+                Some('"') => break(self.pos),
+                Some(_) => ()
+            }
+        };
+        let lit = &self.input[start_idx..end_idx];
+        let end = self.current_pos();
+        Some(Ok((start, StringLiteral(lit), end)))
+    }
 }
 
 impl<'input> Iterator for Lexer<'input> {
-    type Item = Result<(Location, Token<'input>, Location), Error>;
+    type Item = LexerResult<'input>;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -77,6 +95,7 @@ impl<'input> Iterator for Lexer<'input> {
                 Some('\r') => self.incr_pos(),
                 Some('\t') => break Some(Err(Error { location: self.current_pos(), kind: TabIndent })),
                 Some('#') => self.comment(),
+                Some('"') => break self.string_literal(),
                 Some(_) => ()
             }
         }
