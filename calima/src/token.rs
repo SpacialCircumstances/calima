@@ -39,9 +39,9 @@ impl<'input> Display for Token<'input> {
 
 #[derive(Debug, Eq, PartialEq, Clone, Copy, Default)]
 pub struct Location {
-    line: usize,
-    col: usize,
-    pos: usize,
+    pub line: usize,
+    pub col: usize,
+    pub pos: usize,
 }
 
 impl Display for Location {
