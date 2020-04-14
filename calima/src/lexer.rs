@@ -22,7 +22,7 @@ pub enum Token<'input> {
     Of,
     End,
     Type,
-    Data,
+    Region,
     Equal,
     Pipe,
     Import,
