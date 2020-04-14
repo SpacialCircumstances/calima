@@ -1,3 +1,5 @@
+use std::fmt::{Display, Formatter};
+
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum Token<'input> {
     CurlyBraceOpen,
@@ -10,7 +12,6 @@ pub enum Token<'input> {
     Comma,
     Identifier(&'input str),
     StringLiteral(&'input str),
-    StringTemplateLiteral(&'input str),
     NumberLiteral(&'input str),
     Do,
     Let,
@@ -30,3 +31,21 @@ pub enum Token<'input> {
     Arrow
 }
 
+impl<'input> Display for Token<'input> {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, Copy, Default)]
+pub struct Location {
+    line: usize,
+    col: usize,
+    pos: usize,
+}
+
+impl Display for Location {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        write!(f, "Line: {}, Col: {}", self.line, self.col)
+    }
+}
