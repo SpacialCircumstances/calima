@@ -24,6 +24,22 @@ pub struct Error {
 
 type LexerResult<'input> = Result<(Location, Token<'input>, Location), Error>;
 
+fn is_separator(c: char) -> bool {
+    match c {
+        '.' => true,
+        ',' => true,
+        '#' => true,
+        '"' => true,
+        '(' => true,
+        ')' => true,
+        '[' => true,
+        ']' => true,
+        '{' => true,
+        '}' => true,
+        _ => false
+    }
+}
+
 impl<'input> Lexer<'input> {
     pub fn new(input: &'input str) -> Self {
         Lexer {
@@ -54,9 +70,23 @@ impl<'input> Lexer<'input> {
         self.pos += 1;
     }
 
+    fn advance(&mut self) -> Option<char> {
+        match self.chars.next() {
+            None => None,
+            Some('\n') => {
+                self.incr_line();
+                Some('\n')
+            },
+            Some(x) => {
+                self.incr_pos();
+                Some(x)
+            }
+        }
+    }
+
     fn comment(&mut self) {
         loop {
-            match self.chars.next() {
+            match self.advance() {
                 None => break,
                 Some('\n') => {
                     self.incr_line();
@@ -71,7 +101,7 @@ impl<'input> Lexer<'input> {
         let start = self.current_pos();
         let start_idx = self.pos;
         let end_idx = loop {
-            match self.chars.next() {
+            match self.advance() {
                 None => break(self.pos),
                 Some('"') => break(self.pos),
                 Some(_) => ()
@@ -80,6 +110,10 @@ impl<'input> Lexer<'input> {
         let lit = &self.input[start_idx..end_idx];
         let end = self.current_pos();
         Some(Ok((start, StringLiteral(lit), end)))
+    }
+
+    fn number_literal(&mut self) -> Option<LexerResult<'input>> {
+        None
     }
 }
 
@@ -90,12 +124,13 @@ impl<'input> Iterator for Lexer<'input> {
         loop {
             match self.chars.next() {
                 None => break None,
-                Some(' ') => self.incr_pos(),
-                Some('\n') => self.incr_line(),
-                Some('\r') => self.incr_pos(),
+                Some(' ') => (),
+                Some('\n') => (),
+                Some('\r') => (),
                 Some('\t') => break Some(Err(Error { location: self.current_pos(), kind: TabIndent })),
                 Some('#') => self.comment(),
                 Some('"') => break self.string_literal(),
+                Some(x) if x.is_numeric() => break self.number_literal(),
                 Some(_) => ()
             }
         }
