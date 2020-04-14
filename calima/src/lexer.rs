@@ -1,7 +1,7 @@
 use std::str::Chars;
 use crate::token::{Token, Location};
 use crate::lexer::ErrorKind::TabIndent;
-use crate::token::Token::StringLiteral;
+use crate::token::Token::{StringLiteral, NumberLiteral};
 
 pub struct Lexer<'input> {
     chars: Chars<'input>,
@@ -113,7 +113,20 @@ impl<'input> Lexer<'input> {
     }
 
     fn number_literal(&mut self) -> Option<LexerResult<'input>> {
-        None
+        //TODO: Improve literals
+        let start = self.current_pos();
+        let start_idx = self.pos;
+        let end_idx = loop {
+            match self.advance() {
+                None => break(self.pos),
+                Some('.') => (),
+                Some(x) if x.is_numeric() => (),
+                _ => break(self.pos)
+            }
+        };
+        let lit = &self.input[start_idx..end_idx];
+        let end = self.current_pos();
+        Some(Ok((start, NumberLiteral(lit), end)))
     }
 }
 
