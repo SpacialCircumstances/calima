@@ -48,6 +48,12 @@ fn single_char_token<'input>(c: char) -> Option<Token<'input>> {
         ':' => Some(Colon),
         '.' => Some(Period),
         ',' => Some(Comma),
+        '(' => Some(ParenOpen),
+        ')' => Some(ParenClose),
+        '{' => Some(CurlyBraceOpen),
+        '}' => Some(CurlyBraceClose),
+        '[' => Some(SquareBracketOpen),
+        ']' => Some(SquareBracketClose),
         _ => None
     }
 }
