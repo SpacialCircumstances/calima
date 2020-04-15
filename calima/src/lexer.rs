@@ -186,3 +186,30 @@ impl<'input> Iterator for Lexer<'input> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::token::Token;
+    use crate::token::Token::*;
+    use crate::lexer::Lexer;
+
+    fn lex_equal(code: &str, tokens: Vec<Token>) {
+        let lexer = Lexer::new(code);
+        let res: Vec<Token> = lexer.map(|tk| tk.unwrap()).map(|(_, t, _)| t).collect();
+        assert_eq!(res, tokens);
+    }
+
+    #[test]
+    fn lex1() {
+        let code = "ab cd, .: ->";
+        let tokens = vec![ Identifier("ab"), Identifier("cd"), Comma, Period, Colon, Arrow ];
+        lex_equal(code, tokens)
+    }
+
+    #[test]
+    fn lex2() {
+        let code = "\"test\" test";
+        let tokens = vec! [StringLiteral("test"), Identifier("test") ];
+        lex_equal(code, tokens)
+    }
+}
