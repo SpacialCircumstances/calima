@@ -250,4 +250,18 @@ mod tests {
         let tokens = vec![ Case, Identifier("x"), Of, Pipe, Identifier("a"), Colon, Identifier("Int"), Arrow, NumberLiteral("2") ];
         lex_equal(code, tokens);
     }
+
+    #[test]
+    fn lex5() {
+        let code = "{ a = \"test\", b = 12.4, c = d (a b) }";
+        let tokens = vec![ CurlyBraceOpen, Identifier("a"), Equal, StringLiteral("test"), Comma, Identifier("b"), Equal, NumberLiteral("12.4"), Identifier("c"), Equal, Identifier("d"), ParenOpen, Identifier("a"), Identifier("b"), ParenClose, CurlyBraceClose ];
+        lex_equal(code, tokens)
+    }
+
+    #[test]
+    fn lex6() {
+        let code = "if (x == asdf) then fun a -> a else 12";
+        let tokens = vec![ If, ParenOpen, Identifier("x"), Identifier("=="), Identifier("asdf"), ParenClose, Then, Fun, Identifier("a"), Arrow, Identifier("a"), Else, NumberLiteral("12") ];
+        lex_equal(code, tokens);
+    }
 }
