@@ -36,6 +36,8 @@ fn is_separator(c: char) -> bool {
         ']' => true,
         '{' => true,
         '}' => true,
+        ':' => true,
+        c if c.is_whitespace() => true,
         _ => false
     }
 }
