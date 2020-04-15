@@ -137,13 +137,13 @@ impl<'input> Lexer<'input> {
     fn number_literal(&mut self) -> Option<LexerResult<'input>> {
         //TODO: Improve literals
         let start = self.current_pos();
-        let start_idx = self.pos;
+        let start_idx = self.pos -  1;
         let end_idx = loop {
             match self.advance() {
                 None => break(self.pos),
                 Some('.') => (),
                 Some(x) if x.is_numeric() => (),
-                _ => break(self.pos)
+                _ => break(self.pos - 1)
             }
         };
         let lit = &self.input[start_idx..end_idx];
@@ -153,11 +153,11 @@ impl<'input> Lexer<'input> {
 
     fn identifier(&mut self) -> Option<LexerResult<'input>> {
         let start = self.current_pos();
-        let start_idx = self.pos;
+        let start_idx = self.pos - 1;
         let end_idx = loop {
             match self.advance() {
                 None => break(self.pos),
-                Some(c) if is_separator(c) => break(self.pos),
+                Some(c) if is_separator(c) => break(self.pos - 1),
                 Some(_) => ()
             }
         };
