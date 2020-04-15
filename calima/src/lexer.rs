@@ -1,7 +1,7 @@
 use std::str::Chars;
 use crate::token::{Token, Location};
 use crate::lexer::ErrorKind::TabIndent;
-use crate::token::Token::{StringLiteral, NumberLiteral, Identifier};
+use crate::token::Token::{StringLiteral, NumberLiteral, Identifier, Let, Type, Fun, Do, If, Then, Else, Case, Of, End, Region, Import, Arrow, Equal};
 
 pub struct Lexer<'input> {
     chars: Chars<'input>,
@@ -37,6 +37,26 @@ fn is_separator(c: char) -> bool {
         '{' => true,
         '}' => true,
         _ => false
+    }
+}
+
+fn try_to_keyword<'input>(ident: &'input str) -> Token<'input> {
+    match ident {
+        "do" => Do,
+        "let" => Let,
+        "fun" => Fun,
+        "if" => If,
+        "then" => Then,
+        "else" => Else,
+        "case" => Case,
+        "of" => Of,
+        "end" => End,
+        "type" => Type,
+        "region" => Region,
+        "import" => Import,
+        "->" => Arrow,
+        "=" => Equal,
+        _ => Identifier(ident)
     }
 }
 
@@ -141,7 +161,7 @@ impl<'input> Lexer<'input> {
         };
         let lit = &self.input[start_idx..end_idx];
         let end = self.current_pos();
-        Some(Ok((start, Identifier(lit), end)))
+        Some(Ok((start, try_to_keyword(lit), end)))
     }
 }
 
