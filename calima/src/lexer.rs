@@ -1,10 +1,11 @@
 use std::str::Chars;
 use crate::token::{Token, Location};
 use crate::lexer::ErrorKind::TabIndent;
-use crate::token::Token::{StringLiteral, NumberLiteral, Identifier, Let, Type, Fun, Do, If, Then, Else, Case, Of, End, Region, Import, Arrow, Equal};
+use crate::token::Token::{StringLiteral, NumberLiteral, Identifier, Let, Type, Fun, Do, If, Then, Else, Case, Of, End, Region, Import, Arrow, Equal, Colon, Period, Comma};
+use std::iter::Peekable;
 
 pub struct Lexer<'input> {
-    chars: Chars<'input>,
+    chars: Peekable<Chars<'input>>,
     input: &'input str,
     line: usize,
     pos: usize,
@@ -58,6 +59,9 @@ fn try_to_keyword<'input>(ident: &'input str) -> Token<'input> {
         "import" => Import,
         "->" => Arrow,
         "=" => Equal,
+        ":" => Colon,
+        "." => Period,
+        "," => Comma,
         _ => Identifier(ident)
     }
 }
@@ -66,7 +70,7 @@ impl<'input> Lexer<'input> {
     pub fn new(input: &'input str) -> Self {
         Lexer {
             input,
-            chars: input.chars(),
+            chars: input.chars().peekable(),
             line: 1,
             pos: 0,
             col: 1
@@ -155,11 +159,12 @@ impl<'input> Lexer<'input> {
         let start = self.current_pos();
         let start_idx = self.pos - 1;
         let end_idx = loop {
-            match self.advance() {
+            match self.chars.peek() {
                 None => break(self.pos),
-                Some(c) if is_separator(c) => break(self.pos - 1),
+                Some(&c) if is_separator(c) => break(self.pos),
                 Some(_) => ()
             }
+            self.advance();
         };
         let lit = &self.input[start_idx..end_idx];
         let end = self.current_pos();
@@ -210,6 +215,13 @@ mod tests {
     fn lex2() {
         let code = "\"test\" test";
         let tokens = vec! [StringLiteral("test"), Identifier("test") ];
+        lex_equal(code, tokens)
+    }
+
+    #[test]
+    fn lex3() {
+        let code = "12.3 344.45 9900";
+        let tokens = vec![ NumberLiteral("12.3"), NumberLiteral("344.45"), NumberLiteral("9900") ];
         lex_equal(code, tokens)
     }
 }
