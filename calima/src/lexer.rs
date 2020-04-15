@@ -1,7 +1,7 @@
 use std::str::Chars;
 use crate::token::{Token, Location};
 use crate::lexer::ErrorKind::TabIndent;
-use crate::token::Token::{StringLiteral, NumberLiteral, Identifier, Let, Type, Fun, Do, If, Then, Else, Case, Of, End, Region, Import, Arrow, Equal, Colon, Period, Comma};
+use crate::token::Token::*;
 use std::iter::Peekable;
 
 pub struct Lexer<'input> {
@@ -43,7 +43,16 @@ fn is_separator(c: char) -> bool {
     }
 }
 
-fn try_to_keyword<'input>(ident: &'input str) -> Token<'input> {
+fn single_char_token<'input>(c: char) -> Option<Token<'input>> {
+    match c {
+        ':' => Some(Colon),
+        '.' => Some(Period),
+        ',' => Some(Comma),
+        _ => None
+    }
+}
+
+fn try_to_keyword(ident: &str) -> Token {
     match ident {
         "do" => Do,
         "let" => Let,
@@ -59,9 +68,7 @@ fn try_to_keyword<'input>(ident: &'input str) -> Token<'input> {
         "import" => Import,
         "->" => Arrow,
         "=" => Equal,
-        ":" => Colon,
-        "." => Period,
-        "," => Comma,
+        "|" => Pipe,
         _ => Identifier(ident)
     }
 }
@@ -177,6 +184,7 @@ impl<'input> Iterator for Lexer<'input> {
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
+            let last_pos = self.current_pos();
             match self.advance() {
                 None => break None,
                 Some(' ') => (),
@@ -185,8 +193,13 @@ impl<'input> Iterator for Lexer<'input> {
                 Some('\t') => break Some(Err(Error { location: self.current_pos(), kind: TabIndent })),
                 Some('#') => self.comment(),
                 Some('"') => break self.string_literal(),
-                Some(x) if x.is_numeric() => break self.number_literal(),
-                Some(_) => break self.identifier()
+                Some(x) => {
+                    if x.is_numeric() { break self.number_literal() }
+                    if let Some(t) = single_char_token(x) {
+                        break Some(Ok((last_pos, t, self.current_pos())))
+                    }
+                    break self.identifier()
+                }
             }
         }
     }
@@ -223,5 +236,12 @@ mod tests {
         let code = "12.3 344.45 9900";
         let tokens = vec![ NumberLiteral("12.3"), NumberLiteral("344.45"), NumberLiteral("9900") ];
         lex_equal(code, tokens)
+    }
+
+    #[test]
+    fn lex4() {
+        let code = "case x of | a:Int -> 2";
+        let tokens = vec![ Case, Identifier("x"), Of, Pipe, Identifier("a"), Colon, Identifier("Int"), Arrow, NumberLiteral("2") ];
+        lex_equal(code, tokens);
     }
 }
