@@ -125,7 +125,7 @@ impl<'input> Lexer<'input> {
         let end_idx = loop {
             match self.advance() {
                 None => break(self.pos),
-                Some('"') => break(self.pos),
+                Some('"') => break(self.pos - 1),
                 Some(_) => ()
             }
         };
@@ -172,7 +172,7 @@ impl<'input> Iterator for Lexer<'input> {
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            match self.chars.next() {
+            match self.advance() {
                 None => break None,
                 Some(' ') => (),
                 Some('\n') => (),
