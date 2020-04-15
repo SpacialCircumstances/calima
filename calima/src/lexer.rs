@@ -264,4 +264,15 @@ mod tests {
         let tokens = vec![ If, ParenOpen, Identifier("x"), Identifier("=="), Identifier("asdf"), ParenClose, Then, Fun, Identifier("a"), Arrow, Identifier("a"), Else, NumberLiteral("12") ];
         lex_equal(code, tokens);
     }
+
+    #[test]
+    fn lex7() {
+        let code = "
+test #asdf d.
+      , (
+      #)
+#";
+        let tokens = vec![ Identifier("test"), Comma, ParenOpen ];
+        lex_equal(code, tokens);
+    }
 }
