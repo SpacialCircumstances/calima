@@ -34,6 +34,7 @@ pub enum Pattern<'a> {
 pub enum Statement<'a, Data> {
     Let(Pattern<'a>, Expr<'a, Data>, Data),
     Do(Expr<'a, Data>, Data),
+    Import(&'a str) //TODO: Support complex imports
 }
 
 pub struct Block<'a, Data> {
