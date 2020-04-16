@@ -31,6 +31,16 @@ pub enum Pattern<'a> {
     Union { constr: &'a str, params: Vec<Pattern<'a>> },
 }
 
+pub enum Statement<'a, Data> {
+    Let(Pattern<'a>, Expr<'a, Data>, Data),
+    Do(Expr<'a, Data>, Data),
+}
+
+pub struct Block<'a, Data> {
+    pub statements: Vec<Statement<'a, Data>>,
+    pub result: Expr<'a, Data>
+}
+
 pub enum Expr<'a, Data> {
     Variable(Vec<&'a str>, Data),
     FunctionCall(Box<Expr<'a, Data>>, Vec<Expr<'a, Data>>, Data),
