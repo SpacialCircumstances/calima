@@ -39,7 +39,7 @@ pub enum Statement<'a, Data> {
 
 pub struct Block<'a, Data> {
     pub statements: Vec<Statement<'a, Data>>,
-    pub result: Expr<'a, Data>
+    pub result: Box<Expr<'a, Data>>
 }
 
 pub enum Expr<'a, Data> {
@@ -48,4 +48,6 @@ pub enum Expr<'a, Data> {
     OperatorCall(Box<Expr<'a, Data>>, &'a str, Box<Expr<'a, Data>>, Data),
     RecordConstruction(Vec<(&'a str, Expr<'a, Data>)>, Data),
     Literal(Literal<'a>),
+    If { data: Data, cond: Box<Expr<'a, Data>>, if_true: Block<'a, Data>, if_false: Block<'a, Data> },
+    Case { value: Box<Expr<'a, Data>>, matches: Vec<(Pattern<'a>, Block<'a, Data>)> }
 }
