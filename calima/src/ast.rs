@@ -49,5 +49,6 @@ pub enum Expr<'a, Data> {
     RecordConstruction(Vec<(&'a str, Expr<'a, Data>)>, Data),
     Literal(Literal<'a>),
     If { data: Data, cond: Box<Expr<'a, Data>>, if_true: Block<'a, Data>, if_false: Block<'a, Data> },
-    Case { value: Box<Expr<'a, Data>>, matches: Vec<(Pattern<'a>, Block<'a, Data>)> }
+    Case { value: Box<Expr<'a, Data>>, matches: Vec<(Pattern<'a>, Block<'a, Data>)> },
+    ListExpression(Vec<Expr<'a, Data>>)
 }
