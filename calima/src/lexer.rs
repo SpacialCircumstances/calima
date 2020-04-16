@@ -58,7 +58,7 @@ fn single_char_token<'input>(c: char) -> Option<Token<'input>> {
     }
 }
 
-fn try_to_keyword(ident: &str) -> Token {
+fn handle_identifier(ident: &str) -> Token {
     match ident {
         "do" => Do,
         "let" => Let,
@@ -75,7 +75,18 @@ fn try_to_keyword(ident: &str) -> Token {
         "->" => Arrow,
         "=" => Equal,
         "|" => Pipe,
-        _ => Identifier(ident)
+        x => {
+            let first = x.chars().next().expect(fmt!("Fatal Error: Unrecognized identifier '{}'", ident));
+            if first.is_alphabetic() {
+                if first.is_uppercase() {
+                    TypeIdentifier(ident)
+                } else {
+                    NameIdentifier(ident)
+                }
+            } else {
+                OperatorIdentifier(ident)
+            }
+        }
     }
 }
 
@@ -181,7 +192,7 @@ impl<'input> Lexer<'input> {
         };
         let lit = &self.input[start_idx..end_idx];
         let end = self.current_pos();
-        Some(Ok((start, try_to_keyword(lit), end)))
+        Some(Ok((start, handle_identifier(lit), end)))
     }
 }
 
