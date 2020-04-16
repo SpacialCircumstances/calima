@@ -31,10 +31,18 @@ pub enum Pattern<'a> {
     Union { constr: &'a str, params: Vec<Pattern<'a>> },
 }
 
+pub enum TypeDefinition<'a> {
+    Alias(&'a str),
+    Record(Vec<(&'a str, TypeAnnotation<'a>)>),
+    Union(Vec<(&'a str, TypeAnnotation<'a>)>)
+}
+
 pub enum Statement<'a, Data> {
     Let(Pattern<'a>, Expr<'a, Data>, Data),
     Do(Expr<'a, Data>, Data),
-    Import(&'a str) //TODO: Support complex imports
+    Import(&'a str, Data), //TODO: Support complex imports
+    Region(&'a str, Data),
+    Type(&'a str, TypeDefinition<'a>, Data)
 }
 
 pub struct Block<'a, Data> {
