@@ -1,14 +1,17 @@
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum NumberType {
     Integer,
     Float,
 }
 
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Literal<'a> {
     String(&'a str),
     Number(&'a str, NumberType),
     Unit
 }
 
+#[derive(Debug, PartialEq, Clone)]
 pub enum TypeAnnotation<'a> {
     Name(&'a str),
     //First letter uppercase
@@ -18,11 +21,13 @@ pub enum TypeAnnotation<'a> {
     Parameterized(Box<TypeAnnotation<'a>>, Vec<TypeAnnotation<'a>>),
 }
 
+#[derive(Debug, PartialEq, Clone)]
 pub enum Identifier<'a> {
     Simple(&'a str),
     Annotated(&'a str, TypeAnnotation<'a>),
 }
 
+#[derive(Debug, PartialEq, Clone)]
 pub enum Pattern<'a> {
     Name(Identifier<'a>),
     Tuple(Vec<Pattern<'a>>),
@@ -31,12 +36,14 @@ pub enum Pattern<'a> {
     Union { constr: &'a str, params: Vec<Pattern<'a>> },
 }
 
+#[derive(Debug, PartialEq, Clone)]
 pub enum TypeDefinition<'a> {
     Alias(&'a str),
     Record(Vec<(&'a str, TypeAnnotation<'a>)>),
     Union(Vec<(&'a str, TypeAnnotation<'a>)>)
 }
 
+#[derive(Debug, PartialEq, Clone)]
 pub enum Statement<'a, Data> {
     Let(Pattern<'a>, Expr<'a, Data>, Data),
     Do(Expr<'a, Data>, Data),
@@ -45,11 +52,13 @@ pub enum Statement<'a, Data> {
     Type(&'a str, TypeDefinition<'a>, Data)
 }
 
+#[derive(Debug, PartialEq, Clone)]
 pub struct Block<'a, Data> {
     pub statements: Vec<Statement<'a, Data>>,
     pub result: Box<Expr<'a, Data>>
 }
 
+#[derive(Debug, PartialEq, Clone)]
 pub enum Expr<'a, Data> {
     Variable(Vec<&'a str>, Data),
     FunctionCall(Box<Expr<'a, Data>>, Vec<Expr<'a, Data>>, Data),
