@@ -76,7 +76,7 @@ fn handle_identifier(ident: &str) -> Token {
         "=" => Equal,
         "|" => Pipe,
         x => {
-            let first = x.chars().next().expect(fmt!("Fatal Error: Unrecognized identifier '{}'", ident));
+            let first = x.chars().next().expect(format!("Fatal Error: Unrecognized identifier '{}'", ident).as_ref());
             if first.is_alphabetic() {
                 if first.is_uppercase() {
                     TypeIdentifier(ident)
