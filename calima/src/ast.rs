@@ -1,22 +1,26 @@
 pub enum NumberType {
     Integer,
-    Float
+    Float,
 }
 
 pub enum Literal<'a> {
     String(&'a str),
-    Number(&'a str, NumberType)
+    Number(&'a str, NumberType),
+    Unit
 }
 
 pub enum TypeAnnotation<'a> {
     Name(&'a str),
+    //First letter uppercase
+    Generic(&'a str),
+    //First letter lowercase
     Function(Box<TypeAnnotation<'a>>, Box<TypeAnnotation<'a>>),
-    Parameterized(Box<TypeAnnotation<'a>>, Vec<TypeAnnotation<'a>>)
+    Parameterized(Box<TypeAnnotation<'a>>, Vec<TypeAnnotation<'a>>),
 }
 
 pub enum Identifier<'a> {
     Simple(&'a str),
-    Annotated(&'a str, TypeAnnotation<'a>)
+    Annotated(&'a str, TypeAnnotation<'a>),
 }
 
 pub enum Pattern<'a> {
@@ -24,5 +28,13 @@ pub enum Pattern<'a> {
     Tuple(Vec<Pattern<'a>>),
     Literal(Literal<'a>),
     Record(Vec<(&'a str, Pattern<'a>)>),
-    Union { constr: &'a str, params: Vec<Pattern<'a>> }
+    Union { constr: &'a str, params: Vec<Pattern<'a>> },
+}
+
+pub enum Expr<'a, Data> {
+    Variable(Vec<&'a str>, Data),
+    FunctionCall(Box<Expr<'a, Data>>, Vec<Expr<'a, Data>>, Data),
+    OperatorCall(Box<Expr<'a, Data>>, &'a str, Box<Expr<'a, Data>>, Data),
+    RecordConstruction(Vec<(&'a str, Expr<'a, Data>)>, Data),
+    Literal(Literal<'a>),
 }
