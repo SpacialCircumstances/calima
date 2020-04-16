@@ -8,7 +8,8 @@ pub enum NumberType {
 pub enum Literal<'a> {
     String(&'a str),
     Number(&'a str, NumberType),
-    Unit
+    Unit,
+    Boolean(bool)
 }
 
 #[derive(Debug, PartialEq, Clone)]
