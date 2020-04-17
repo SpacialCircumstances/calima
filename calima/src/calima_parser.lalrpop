@@ -42,6 +42,6 @@ extern {
     }
 }
 
-pub Program: Vec<Statement<'input, ()>> = Import*;
+pub Program: Vec<Statement<'input, Location>> = Import*;
 
-Import: Statement<'input, ()> = "import" <n:"name"> => Statement::Import(n, ());
+Import: Statement<'input, Location> = "import" <n:"name"> <pos:@L> => Statement::Import(n, pos);
