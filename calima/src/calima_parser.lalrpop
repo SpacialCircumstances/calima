@@ -42,6 +42,19 @@ extern {
     }
 }
 
+Sep<T, S>: Vec<T> = { // (1)
+    <v:(<T> S)*> <e:T?> => match e { // (2)
+        None => v,
+        Some(e) => {
+            let mut v = v;
+            v.push(e);
+            v
+        }
+    }
+};
+
 pub Program: Vec<Statement<'input, Location>> = Import*;
 
 Import: Statement<'input, Location> = "import" <n:"name"> <pos:@L> => Statement::Import(n, pos);
+
+Variable: Expr<'input, Location> = <elements:Sep<"name", ".">> <pos:@L> => Expr::Variable(elements, pos);
