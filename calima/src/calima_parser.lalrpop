@@ -1,0 +1,47 @@
+use crate::ast::{Block, Statement, Expr};
+use crate::token::{Location, Token};
+use crate::token::Token::*;
+use crate::lexer::Error;
+
+grammar<'input>(input: &'input str);
+
+extern {
+    type Location = Location;
+    type Error = Error;
+
+    enum Token<'input> {
+        "{" => CurlyBraceOpen,
+        "}" => CurlyBraceClose,
+        "(" => ParenOpen,
+        ")" => ParenClose,
+        "[" => SquareBracketOpen,
+        "]" => SquareBracketClose,
+        "." => Period,
+        "," => Comma,
+        "name" => NameIdentifier(<&'input str>),
+        "typename" => TypeIdentifier(<&'input str>),
+        "operator" => OperatorIdentifier(<&'input str>),
+        "string" => StringLiteral(<&'input str>),
+        "number" => NumberLiteral(<&'input str>),
+        "do" => Do,
+        "let" => Let,
+        "fun" => Fun,
+        "if" => If,
+        "then" => Then,
+        "else" => Else,
+        "case" => Case,
+        "of" => Of,
+        "end" => End,
+        "type" => Type,
+        "region" => Region,
+        "=" => Equal,
+        "|" => Pipe,
+        "import" => Import,
+        ":" => Colon,
+        "->" => Arrow
+    }
+}
+
+pub Program: Vec<Statement<'input, ()>> = Import*;
+
+Import: Statement<'input, ()> = "import" <n:"name"> => Statement::Import(n, ());
