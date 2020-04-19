@@ -15,6 +15,7 @@ pub enum Token<'input> {
     OperatorIdentifier(&'input str),
     StringLiteral(&'input str),
     NumberLiteral(&'input str),
+    BooleanLiteral(bool),
     Do,
     Let,
     Fun,
