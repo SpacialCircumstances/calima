@@ -43,18 +43,25 @@ extern {
     }
 }
 
-Sep<T, S>: Vec<T> = { // (1)
-    <v:(<T> S)*> <e:T?> => match e { // (2)
-        None => v,
-        Some(e) => {
-            let mut v = v;
-            v.push(e);
-            v
-        }
+Sep1<T, S>: Vec<T> = { // (1)
+    <v:(<T> S)*> <e:T> => {
+        let mut v = v;
+        v.push(e);
+        v
     }
 };
 
-pub Program: Vec<Statement<'input, Location>> = Import*;
+pub Block: Block<'input, Location> = <sts:Statement*> <e:Expression> => Block {
+    statements: sts,
+    result: Box::new(e)
+};
+
+Statement: Statement<'input, Location> = {
+    Do,
+    Import
+};
+
+Do: Statement<'input, Location> = "do" <e:Expression> <pos:@L> => Statement::Do(e, pos);
 
 Import: Statement<'input, Location> = "import" <n:"name"> <pos:@L> => Statement::Import(n, pos);
 
@@ -63,7 +70,7 @@ Expression: Expr<'input, Location> = {
     LiteralExpr
 };
 
-Variable: Expr<'input, Location> = <elements:Sep<"name", ".">> <pos:@L> => Expr::Variable(elements, pos);
+Variable: Expr<'input, Location> = <elements:Sep1<"name", ".">> <pos:@L> => Expr::Variable(elements, pos);
 
 LiteralExpr: Expr<'input, Location> = <lit:Literal> <pos:@L> => Expr::Literal(lit, pos);
 
