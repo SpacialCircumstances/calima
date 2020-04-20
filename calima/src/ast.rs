@@ -65,7 +65,7 @@ pub enum Expr<'a, Data> {
     FunctionCall(Box<Expr<'a, Data>>, Vec<Expr<'a, Data>>, Data),
     OperatorCall(Box<Expr<'a, Data>>, &'a str, Box<Expr<'a, Data>>, Data),
     RecordConstruction(Vec<(&'a str, Expr<'a, Data>)>, Data),
-    Literal(Literal<'a>),
+    Literal(Literal<'a>, Data),
     If { data: Data, cond: Box<Expr<'a, Data>>, if_true: Block<'a, Data>, if_false: Block<'a, Data> },
     Case { value: Box<Expr<'a, Data>>, matches: Vec<(Pattern<'a>, Block<'a, Data>)> },
     ListExpression(Vec<Expr<'a, Data>>)

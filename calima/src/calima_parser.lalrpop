@@ -1,4 +1,4 @@
-use crate::ast::{Block, Statement, Expr};
+use crate::ast::{Block, Statement, Expr, Literal, NumberType};
 use crate::token::{Location, Token};
 use crate::token::Token::*;
 use crate::lexer::Error;
@@ -23,6 +23,7 @@ extern {
         "operator" => OperatorIdentifier(<&'input str>),
         "string" => StringLiteral(<&'input str>),
         "number" => NumberLiteral(<&'input str>),
+        "bool" => BooleanLiteral(<bool>),
         "do" => Do,
         "let" => Let,
         "fun" => Fun,
@@ -57,4 +58,18 @@ pub Program: Vec<Statement<'input, Location>> = Import*;
 
 Import: Statement<'input, Location> = "import" <n:"name"> <pos:@L> => Statement::Import(n, pos);
 
+Expression: Expr<'input, Location> = {
+    Variable,
+    LiteralExpr
+};
+
 Variable: Expr<'input, Location> = <elements:Sep<"name", ".">> <pos:@L> => Expr::Variable(elements, pos);
+
+LiteralExpr: Expr<'input, Location> = <lit:Literal> <pos:@L> => Expr::Literal(lit, pos);
+
+Literal: Literal<'input> = {
+    "(" ")" => Literal::Unit,
+    <"bool"> => Literal::Boolean(<>),
+    <"number"> => Literal::Number(<>, NumberType::Float),
+    <"string"> => Literal::String(<>)
+}
