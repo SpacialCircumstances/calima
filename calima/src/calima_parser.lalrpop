@@ -58,8 +58,11 @@ pub Block: Block<'input, Location> = <sts:Statement*> <e:Expression> => Block {
 
 Statement: Statement<'input, Location> = {
     Do,
-    Import
+    Import,
+    Region
 };
+
+Region: Statement<'input, Location> = "region" <n:"name"> <pos:@L> => Statement::Region(n, pos);
 
 Do: Statement<'input, Location> = "do" <e:Expression> <pos:@L> => Statement::Do(e, pos);
 
