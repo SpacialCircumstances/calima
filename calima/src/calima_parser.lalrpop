@@ -60,7 +60,7 @@ Sep2<T, S>: Vec<T> = { // (1)
     }
 };
 
-pub Block: Block<'input, Location> = <sts:Statement*> <e:Expression0> => Block {
+pub Block: Block<'input, Location> = <sts:Statement*> <e:Expression1> => Block {
     statements: sts,
     result: Box::new(e)
 };
@@ -82,16 +82,24 @@ Let: Statement<'input, Location> = "let" <pat:Pattern0> "=" <expr:Expression0> "
 Import: Statement<'input, Location> = "import" <n:"name"> <pos:@L> => Statement::Import(n, pos);
 
 Expression0: Expr<'input, Location> = {
-    FunctionCall,
     Expression1
-}
-
-Expression1: Expr<'input, Location> = {
-    Variable,
-    LiteralExpr
 };
 
-FunctionCall: Expr<'input, Location> = <func:Expression1> <args:Expression1+> <pos:@L> => Expr::FunctionCall(Box::new(func), args, pos);
+Expression1: Expr<'input, Location> = {
+    FunctionCall,
+    OperatorCall,
+    Expression2
+};
+
+FunctionCall: Expr<'input, Location> = <func:Expression2> <args:Expression2+> <pos:@L> => Expr::FunctionCall(Box::new(func), args, pos);
+
+OperatorCall: Expr<'input, Location> = <f1:Expression2> <op:"operator"> <f2:Expression2> <pos:@L> => Expr::OperatorCall(Box::new(f1), op, Box::new(f2), pos);
+
+Expression2: Expr<'input, Location> = {
+    Variable,
+    LiteralExpr,
+    "(" <Expression0> ")" => <>
+};
 
 Variable: Expr<'input, Location> = <elements:Sep1<"name", ".">> <pos:@L> => Expr::Variable(elements, pos);
 
