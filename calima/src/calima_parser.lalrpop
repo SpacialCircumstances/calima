@@ -101,7 +101,8 @@ OperatorCall: Expr<'input, Location> = <f1:Expression2> <op:"operator"> <f2:Expr
 Expression2: Expr<'input, Location> = {
     Variable,
     LiteralExpr,
-    "(" <Expression0> ")" => <>
+    "(" <Expression0> ")" => <>,
+    "[" <exprs: Sep1<Expression0, ",">> "]" <pos:@L> => Expr::List(exprs, pos)
 };
 
 Variable: Expr<'input, Location> = <elements:Sep1<"name", ".">> <pos:@L> => Expr::Variable(elements, pos);
