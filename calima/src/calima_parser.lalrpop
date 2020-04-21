@@ -1,4 +1,4 @@
-use crate::ast::{Block, Statement, Expr, Literal, NumberType};
+use crate::ast::{Block, Statement, Expr, Literal, NumberType, Pattern, Identifier};
 use crate::token::{Location, Token};
 use crate::token::Token::*;
 use crate::lexer::Error;
@@ -58,6 +58,7 @@ pub Block: Block<'input, Location> = <sts:Statement*> <e:Expression1> => Block {
 };
 
 Statement: Statement<'input, Location> = {
+    Let,
     Do,
     Import,
     Region
@@ -66,6 +67,8 @@ Statement: Statement<'input, Location> = {
 Region: Statement<'input, Location> = "region" <n:"name"> <pos:@L> => Statement::Region(n, pos);
 
 Do: Statement<'input, Location> = "do" <e:Expression1> "in" <pos:@L> => Statement::Do(e, pos);
+
+Let: Statement<'input, Location> = "let" <pat:Pattern0> "=" <expr:Expression1> "in" <pos:@L> => Statement::Let(pat, expr, pos);
 
 Import: Statement<'input, Location> = "import" <n:"name"> <pos:@L> => Statement::Import(n, pos);
 
@@ -85,9 +88,28 @@ Variable: Expr<'input, Location> = <elements:Sep1<"name", ".">> <pos:@L> => Expr
 
 LiteralExpr: Expr<'input, Location> = <lit:Literal> <pos:@L> => Expr::Literal(lit, pos);
 
+Pattern0: Pattern<'input> = {
+    Pattern1,
+    <variant:"typename"> <patt:Pattern1> => Pattern::UnionUnwrap(variant, Box::new(patt)),
+    "{" <Sep1<RecordRow, ",">> "}" => Pattern::Record(<>),
+    "(" <Sep1<Pattern1, ",">> ")" => Pattern::Tuple(<>)
+};
+
+RecordRow: (&'input str, Pattern<'input>) = <name:"name"> "=" <patt:Pattern0> => (name, patt);
+
+Pattern1: Pattern<'input> = {
+    Identifier => Pattern::Name(<>),
+    <Literal> => Pattern::Literal(<>),
+};
+
+Identifier: Identifier<'input> = {
+    <"name"> => Identifier::Simple(<>),
+    //TODO: Type annotations
+};
+
 Literal: Literal<'input> = {
     "(" ")" => Literal::Unit,
     <"bool"> => Literal::Boolean(<>),
     <"number"> => Literal::Number(<>, NumberType::Float),
     <"string"> => Literal::String(<>)
-}
+};

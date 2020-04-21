@@ -34,7 +34,7 @@ pub enum Pattern<'a> {
     Tuple(Vec<Pattern<'a>>),
     Literal(Literal<'a>),
     Record(Vec<(&'a str, Pattern<'a>)>),
-    Union { constr: &'a str, params: Vec<Pattern<'a>> },
+    UnionUnwrap(&'a str, Box<Pattern<'a>>),
 }
 
 #[derive(Debug, PartialEq, Clone)]
