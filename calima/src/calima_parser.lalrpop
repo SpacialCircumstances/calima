@@ -92,10 +92,13 @@ Expression1: Expr<'input, Location> = {
     TupleConstruct,
     "[" <exprs: Sep1<Expression0, ",">> "]" <pos:@L> => Expr::List(exprs, pos),
     "{" <rows: Sep1<RecordExprRow, ",">> "}" <pos:@L> => Expr::Record(rows, pos),
+    Lambda,
     Expression2
 };
 
 RecordExprRow: (&'input str, Expr<'input, Location>) = <n:"name"> "=" <expr:Expression0> => (n, expr);
+
+Lambda: Expr<'input, Location> = "fun" <params:Pattern0+>  "->" <block:Block> <pos:@L> => Expr::Lambda(params, block, pos);
 
 TupleConstruct: Expr<'input, Location> = "(" <exprs:Sep2<Expression2, ",">> ")" <pos:@L> => Expr::Tuple(exprs, pos);
 
@@ -134,7 +137,7 @@ Pattern1: Pattern<'input> = {
 
 Identifier: Identifier<'input> = {
     <"name"> => Identifier::Simple(<>),
-    <n:"name"> ":" <ta:TypeAnnotation0> => Identifier::Annotated(n, ta)
+    <n:"name"> ":" <ta:TypeAnnotation1> => Identifier::Annotated(n, ta)
 };
 
 TypeDefinition: TypeDefinition<'input> = {
@@ -149,15 +152,15 @@ RecordTypeRow: (&'input str, TypeAnnotation<'input>) = <n:"name"> ":" <ta:TypeAn
 
 TypeAnnotation0: TypeAnnotation<'input> = {
     <inp:TypeAnnotation1> "->" <out:TypeAnnotation0> => TypeAnnotation::Function(Box::new(inp), Box::new(out)),
-    <n:"typename"> "[" <params:TypeAnnotation1+> "]" => TypeAnnotation::Parameterized(n, params),
-    TypeAnnotation1,
+    TypeAnnotation1
 };
 
 TypeAnnotation1: TypeAnnotation<'input> = {
     <"typename"> => TypeAnnotation::Name(<>),
     <"name"> => TypeAnnotation::Generic(<>),
     "(" <Sep2<TypeAnnotation0, ",">> ")" => TypeAnnotation::Tuple(<>),
-    "(" <ta:TypeAnnotation0> ")" => ta
+    "(" <ta:TypeAnnotation0> ")" => ta,
+    <n:"typename"> "[" <params:TypeAnnotation1+> "]" => TypeAnnotation::Parameterized(n, params)
 };
 
 Literal: Literal<'input> = {
