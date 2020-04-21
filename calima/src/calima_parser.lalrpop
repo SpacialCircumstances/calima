@@ -25,6 +25,7 @@ extern {
         "number" => NumberLiteral(<&'input str>),
         "bool" => BooleanLiteral(<bool>),
         "do" => Do,
+        "in" => In,
         "let" => Let,
         "fun" => Fun,
         "if" => If,
@@ -51,7 +52,7 @@ Sep1<T, S>: Vec<T> = { // (1)
     }
 };
 
-pub Block: Block<'input, Location> = <sts:Statement*> <e:Expression> => Block {
+pub Block: Block<'input, Location> = <sts:Statement*> <e:Expression1> => Block {
     statements: sts,
     result: Box::new(e)
 };
@@ -64,14 +65,21 @@ Statement: Statement<'input, Location> = {
 
 Region: Statement<'input, Location> = "region" <n:"name"> <pos:@L> => Statement::Region(n, pos);
 
-Do: Statement<'input, Location> = "do" <e:Expression> <pos:@L> => Statement::Do(e, pos);
+Do: Statement<'input, Location> = "do" <e:Expression1> "in" <pos:@L> => Statement::Do(e, pos);
 
 Import: Statement<'input, Location> = "import" <n:"name"> <pos:@L> => Statement::Import(n, pos);
 
-Expression: Expr<'input, Location> = {
+Expression1: Expr<'input, Location> = {
+    FunctionCall,
+    Expression2
+}
+
+Expression2: Expr<'input, Location> = {
     Variable,
     LiteralExpr
 };
+
+FunctionCall: Expr<'input, Location> = <func:Expression2> <args:Expression2+> <pos:@L> => Expr::FunctionCall(Box::new(func), args, pos);
 
 Variable: Expr<'input, Location> = <elements:Sep1<"name", ".">> <pos:@L> => Expr::Variable(elements, pos);
 
