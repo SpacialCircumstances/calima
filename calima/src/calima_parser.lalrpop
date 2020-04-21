@@ -112,7 +112,7 @@ Pattern0: Pattern<'input> = {
     Pattern1,
     <variant:"typename"> <patt:Pattern1> => Pattern::UnionUnwrap(variant, Box::new(patt)),
     "{" <Sep1<RecordRow, ",">> "}" => Pattern::Record(<>),
-    "(" "|" <Sep1<Pattern1, ",">> "|" ")" => Pattern::Tuple(<>)
+    "(" <Sep2<Pattern1, ",">> ")" => Pattern::Tuple(<>)
 };
 
 RecordRow: (&'input str, Pattern<'input>) = <name:"name"> "=" <patt:Pattern0> => (name, patt);
@@ -146,7 +146,7 @@ TypeAnnotation0: TypeAnnotation<'input> = {
 TypeAnnotation1: TypeAnnotation<'input> = {
     <"typename"> => TypeAnnotation::Name(<>),
     <"name"> => TypeAnnotation::Generic(<>),
-    "(" "|" <Sep2<TypeAnnotation0, ",">> "|" ")" => TypeAnnotation::Tuple(<>),
+    "(" <Sep2<TypeAnnotation0, ",">> ")" => TypeAnnotation::Tuple(<>),
     "(" <ta:TypeAnnotation0> ")" => ta
 };
 
