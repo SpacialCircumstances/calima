@@ -109,7 +109,12 @@ Expression2: Expr<'input, Location> = {
     "(" <Expression0> ")" => <>,
 };
 
-Variable: Expr<'input, Location> = <elements:Sep1<"name", ".">> <pos:@L> => Expr::Variable(elements, pos);
+Variable: Expr<'input, Location> = <elements:Sep1<AnyName, ".">> <pos:@L> => Expr::Variable(elements, pos);
+
+AnyName: &'input str = {
+    <"name"> => <>,
+    <"typename"> => <>
+};
 
 LiteralExpr: Expr<'input, Location> = <lit:Literal> <pos:@L> => Expr::Literal(lit, pos);
 
