@@ -88,8 +88,11 @@ Expression0: Expr<'input, Location> = {
 Expression1: Expr<'input, Location> = {
     FunctionCall,
     OperatorCall,
+    TupleConstruct,
     Expression2
 };
+
+TupleConstruct: Expr<'input, Location> = "(" <exprs:Sep2<Expression2, ",">> ")" <pos:@L> => Expr::Tuple(exprs, pos);
 
 FunctionCall: Expr<'input, Location> = <func:Expression2> <args:Expression2+> <pos:@L> => Expr::FunctionCall(Box::new(func), args, pos);
 
