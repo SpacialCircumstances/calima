@@ -1,4 +1,4 @@
-use crate::ast::{Block, Statement, Expr, Literal, NumberType, Pattern, Identifier};
+use crate::ast::{Block, Statement, Expr, Literal, NumberType, Pattern, Identifier, TypeDefinition, TypeAnnotation};
 use crate::token::{Location, Token};
 use crate::token::Token::*;
 use crate::lexer::Error;
@@ -52,6 +52,14 @@ Sep1<T, S>: Vec<T> = { // (1)
     }
 };
 
+Sep2<T, S>: Vec<T> = { // (1)
+    <v:(<T> S)+> <e:T> => {
+        let mut v = v;
+        v.push(e);
+        v
+    }
+};
+
 pub Block: Block<'input, Location> = <sts:Statement*> <e:Expression0> => Block {
     statements: sts,
     result: Box::new(e)
@@ -61,7 +69,8 @@ Statement: Statement<'input, Location> = {
     Let,
     Do,
     Import,
-    Region
+    Region,
+    "type" <n:"typename"> "=" <td:TypeDefinition> "in" <pos:@L> => Statement::Type(n, td, pos)
 };
 
 Region: Statement<'input, Location> = "region" <n:"name"> <pos:@L> => Statement::Region(n, pos);
@@ -92,7 +101,7 @@ Pattern0: Pattern<'input> = {
     Pattern1,
     <variant:"typename"> <patt:Pattern1> => Pattern::UnionUnwrap(variant, Box::new(patt)),
     "{" <Sep1<RecordRow, ",">> "}" => Pattern::Record(<>),
-    "(" <Sep1<Pattern1, ",">> ")" => Pattern::Tuple(<>)
+    "(" "|" <Sep1<Pattern1, ",">> "|" ")" => Pattern::Tuple(<>)
 };
 
 RecordRow: (&'input str, Pattern<'input>) = <name:"name"> "=" <patt:Pattern0> => (name, patt);
@@ -104,12 +113,35 @@ Pattern1: Pattern<'input> = {
 
 Identifier: Identifier<'input> = {
     <"name"> => Identifier::Simple(<>),
-    //TODO: Type annotations
+    <n:"name"> ":" <ta:TypeAnnotation0> => Identifier::Annotated(n, ta)
+};
+
+TypeDefinition: TypeDefinition<'input> = {
+    <TypeAnnotation0> => TypeDefinition::Alias(<>),
+    <Sep1<UnionRow, "|">> => TypeDefinition::Union(<>),
+    <Sep1<RecordTypeRow, ",">> => TypeDefinition::Record(<>)
+};
+
+UnionRow: (&'input str, TypeAnnotation<'input>) = <n:"typename"> <ta:TypeAnnotation0> => (n, ta);
+
+RecordTypeRow: (&'input str, TypeAnnotation<'input>) = <n:"name"> ":" <ta:TypeAnnotation0> => (n, ta);
+
+TypeAnnotation0: TypeAnnotation<'input> = {
+    <inp:TypeAnnotation1> "->" <out:TypeAnnotation0> => TypeAnnotation::Function(Box::new(inp), Box::new(out)),
+    <n:"typename"> "[" <params:TypeAnnotation1+> "]" => TypeAnnotation::Parameterized(n, params),
+    TypeAnnotation1,
+};
+
+TypeAnnotation1: TypeAnnotation<'input> = {
+    <"typename"> => TypeAnnotation::Name(<>),
+    <"name"> => TypeAnnotation::Generic(<>),
+    "(" "|" <Sep2<TypeAnnotation0, ",">> "|" ")" => TypeAnnotation::Tuple(<>),
+    "(" <ta:TypeAnnotation0> ")" => ta
 };
 
 Literal: Literal<'input> = {
     "(" ")" => Literal::Unit,
     <"bool"> => Literal::Boolean(<>),
-    <"number"> => Literal::Number(<>, NumberType::Float),
+    <"number"> => Literal::Number(<>, NumberType::Float), //TODO
     <"string"> => Literal::String(<>)
 };

@@ -14,12 +14,11 @@ pub enum Literal<'a> {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum TypeAnnotation<'a> {
-    Name(&'a str),
-    //First letter uppercase
-    Generic(&'a str),
-    //First letter lowercase
+    Name(&'a str), //First letter uppercase
+    Generic(&'a str), //First letter lowercase
     Function(Box<TypeAnnotation<'a>>, Box<TypeAnnotation<'a>>),
-    Parameterized(Box<TypeAnnotation<'a>>, Vec<TypeAnnotation<'a>>),
+    Parameterized(&'a str, Vec<TypeAnnotation<'a>>),
+    Tuple(Vec<TypeAnnotation<'a>>)
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -39,7 +38,7 @@ pub enum Pattern<'a> {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum TypeDefinition<'a> {
-    Alias(&'a str),
+    Alias(TypeAnnotation<'a>),
     Record(Vec<(&'a str, TypeAnnotation<'a>)>),
     Union(Vec<(&'a str, TypeAnnotation<'a>)>)
 }
