@@ -18,6 +18,7 @@ pub enum Token<'input> {
     BooleanLiteral(bool),
     Do,
     Let,
+    In,
     Fun,
     If,
     Then,

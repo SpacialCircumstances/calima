@@ -62,6 +62,7 @@ fn handle_identifier(ident: &str) -> Token {
     match ident {
         "do" => Do,
         "let" => Let,
+        "in" => In,
         "fun" => Fun,
         "if" => If,
         "then" => Then,
