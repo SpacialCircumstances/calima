@@ -77,6 +77,7 @@ Region: Statement<'input, Location> = "region" <n:"name"> <pos:@L> => Statement:
 
 Do: Statement<'input, Location> = "do" <e:Expression0> "in" <pos:@L> => Statement::Do(e, pos);
 
+//TODO: Consider supporting multiple comma-separated bindings
 Let: Statement<'input, Location> = "let" <pat:Pattern0> "=" <expr:Expression0> "in" <pos:@L> => Statement::Let(pat, expr, pos);
 
 Import: Statement<'input, Location> = "import" <n:"name"> <pos:@L> => Statement::Import(n, pos);
