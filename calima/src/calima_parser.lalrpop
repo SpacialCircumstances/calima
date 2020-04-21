@@ -90,8 +90,12 @@ Expression1: Expr<'input, Location> = {
     FunctionCall,
     OperatorCall,
     TupleConstruct,
+    "[" <exprs: Sep1<Expression0, ",">> "]" <pos:@L> => Expr::List(exprs, pos),
+    "{" <rows: Sep1<RecordExprRow, ",">> "}" <pos:@L> => Expr::Record(rows, pos),
     Expression2
 };
+
+RecordExprRow: (&'input str, Expr<'input, Location>) = <n:"name"> "=" <expr:Expression0> => (n, expr);
 
 TupleConstruct: Expr<'input, Location> = "(" <exprs:Sep2<Expression2, ",">> ")" <pos:@L> => Expr::Tuple(exprs, pos);
 
@@ -103,7 +107,6 @@ Expression2: Expr<'input, Location> = {
     Variable,
     LiteralExpr,
     "(" <Expression0> ")" => <>,
-    "[" <exprs: Sep1<Expression0, ",">> "]" <pos:@L> => Expr::List(exprs, pos)
 };
 
 Variable: Expr<'input, Location> = <elements:Sep1<"name", ".">> <pos:@L> => Expr::Variable(elements, pos);
@@ -113,11 +116,11 @@ LiteralExpr: Expr<'input, Location> = <lit:Literal> <pos:@L> => Expr::Literal(li
 Pattern0: Pattern<'input> = {
     Pattern1,
     <variant:"typename"> <patt:Pattern1> => Pattern::UnionUnwrap(variant, Box::new(patt)),
-    "{" <Sep1<RecordRow, ",">> "}" => Pattern::Record(<>),
+    "{" <Sep1<RecordPatternRow, ",">> "}" => Pattern::Record(<>),
     "(" <Sep2<Pattern1, ",">> ")" => Pattern::Tuple(<>)
 };
 
-RecordRow: (&'input str, Pattern<'input>) = <name:"name"> "=" <patt:Pattern0> => (name, patt);
+RecordPatternRow: (&'input str, Pattern<'input>) = <name:"name"> "=" <patt:Pattern0> => (name, patt);
 
 Pattern1: Pattern<'input> = {
     Identifier => Pattern::Name(<>),
