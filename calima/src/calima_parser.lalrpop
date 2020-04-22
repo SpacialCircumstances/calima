@@ -154,7 +154,7 @@ TypeDefinition: TypeDefinition<'input> = {
     <Sep1<RecordTypeRow, ",">> => TypeDefinition::Record(<>)
 };
 
-UnionRow: (&'input str, TypeAnnotation<'input>) = <n:"typename"> <ta:TypeAnnotation0> => (n, ta);
+UnionRow: (&'input str, TypeAnnotation<'input>) = <n:"typename"> "of" <ta:TypeAnnotation0> => (n, ta);
 
 RecordTypeRow: (&'input str, TypeAnnotation<'input>) = <n:"name"> ":" <ta:TypeAnnotation0> => (n, ta);
 
