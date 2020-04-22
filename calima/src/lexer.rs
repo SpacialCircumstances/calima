@@ -2,6 +2,7 @@ use std::str::Chars;
 use crate::token::{Token, Location};
 use crate::token::Token::*;
 use std::iter::Peekable;
+use std::fmt::{Display, Formatter};
 
 pub struct Lexer<'input> {
     chars: Peekable<Chars<'input>>,
@@ -19,6 +20,12 @@ pub enum ErrorKind {
 pub struct Error {
     location: Location,
     kind: ErrorKind
+}
+
+impl Display for Error {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Lexer error {:#?} in position: {}", self.kind, self.location)
+    }
 }
 
 type LexerResult<'input> = Result<(Location, Token<'input>, Location), Error>;
