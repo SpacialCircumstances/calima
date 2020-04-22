@@ -1,6 +1,5 @@
 use std::str::Chars;
 use crate::token::{Token, Location};
-use crate::lexer::ErrorKind::TabIndent;
 use crate::token::Token::*;
 use std::iter::Peekable;
 
@@ -14,7 +13,6 @@ pub struct Lexer<'input> {
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum ErrorKind {
-    TabIndent
 }
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
@@ -210,7 +208,7 @@ impl<'input> Iterator for Lexer<'input> {
                 Some(' ') => (),
                 Some('\n') => (),
                 Some('\r') => (),
-                Some('\t') => break Some(Err(Error { location: self.current_pos(), kind: TabIndent })),
+                Some('\t') => (),
                 Some('#') => self.comment(),
                 Some('"') => break self.string_literal(),
                 Some(x) => {
