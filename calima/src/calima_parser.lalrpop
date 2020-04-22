@@ -83,7 +83,15 @@ Let: Statement<'input, Location> = "let" <pat:Pattern0> "=" <expr:Expression0> "
 Import: Statement<'input, Location> = "import" <n:"name"> <pos:@L> => Statement::Import(n, pos);
 
 Expression0: Expr<'input, Location> = {
+    If,
     Expression1
+};
+
+If: Expr<'input, Location> = "if" <cond_expr:Expression1> "then" <if_block:Block> "else" <else_block:Block> "end" <pos:@L> => Expr::If {
+    data: pos,
+    cond: Box::new(cond_expr),
+    if_true: if_block,
+    if_false: else_block
 };
 
 Expression1: Expr<'input, Location> = {
