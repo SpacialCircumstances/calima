@@ -68,6 +68,6 @@ pub enum Expr<'a, Data> {
     Literal(Literal<'a>, Data),
     Lambda(Vec<Pattern<'a>>, Block<'a, Data>, Data),
     If { data: Data, cond: Box<Expr<'a, Data>>, if_true: Block<'a, Data>, if_false: Block<'a, Data> },
-    Case { value: Box<Expr<'a, Data>>, matches: Vec<(Pattern<'a>, Block<'a, Data>)> },
+    Case { data: Data, value: Box<Expr<'a, Data>>, matches: Vec<(Pattern<'a>, Block<'a, Data>)> },
     List(Vec<Expr<'a, Data>>, Data)
 }
