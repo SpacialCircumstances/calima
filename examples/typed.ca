@@ -1,0 +1,10 @@
+type Person = {
+    name: String,
+    age: Int
+} in
+
+let p: Person = {
+    name = "Test",
+    age = 42
+} in
+println p.name
