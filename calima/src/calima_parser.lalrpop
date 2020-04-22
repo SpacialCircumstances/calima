@@ -160,7 +160,7 @@ Identifier: Identifier<'input> = {
 TypeDefinition: TypeDefinition<'input> = {
     <TypeAnnotation0> => TypeDefinition::Alias(<>),
     <Sep1<UnionRow, "|">> => TypeDefinition::Union(<>),
-    <Sep1<RecordTypeRow, ",">> => TypeDefinition::Record(<>)
+    "{" <Sep1<RecordTypeRow, ",">> "}" => TypeDefinition::Record(<>)
 };
 
 UnionRow: (&'input str, TypeAnnotation<'input>) = <n:"typename"> "of" <ta:TypeAnnotation0> => (n, ta);
