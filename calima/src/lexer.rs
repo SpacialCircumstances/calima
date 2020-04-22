@@ -245,14 +245,14 @@ mod tests {
     #[test]
     fn lex1() {
         let code = "ab cd, .: ->";
-        let tokens = vec![ Identifier("ab"), Identifier("cd"), Comma, Period, Colon, Arrow ];
+        let tokens = vec![ NameIdentifier("ab"), NameIdentifier("cd"), Comma, Period, Colon, Arrow ];
         lex_equal(code, tokens)
     }
 
     #[test]
     fn lex2() {
         let code = "\"test\" test";
-        let tokens = vec! [StringLiteral("test"), Identifier("test") ];
+        let tokens = vec! [StringLiteral("test"), NameIdentifier("test") ];
         lex_equal(code, tokens)
     }
 
@@ -266,21 +266,21 @@ mod tests {
     #[test]
     fn lex4() {
         let code = "case x of | a:Int -> 2";
-        let tokens = vec![ Case, Identifier("x"), Of, Pipe, Identifier("a"), Colon, Identifier("Int"), Arrow, NumberLiteral("2") ];
+        let tokens = vec![ Case, NameIdentifier("x"), Of, Pipe, NameIdentifier("a"), Colon, TypeIdentifier("Int"), Arrow, NumberLiteral("2") ];
         lex_equal(code, tokens);
     }
 
     #[test]
     fn lex5() {
         let code = "{ a = \"test\", b = 12.4, c = d (a b) }";
-        let tokens = vec![ CurlyBraceOpen, Identifier("a"), Equal, StringLiteral("test"), Comma, Identifier("b"), Equal, NumberLiteral("12.4"), Identifier("c"), Equal, Identifier("d"), ParenOpen, Identifier("a"), Identifier("b"), ParenClose, CurlyBraceClose ];
+        let tokens = vec![ CurlyBraceOpen, NameIdentifier("a"), Equal, StringLiteral("test"), Comma, NameIdentifier("b"), Equal, NumberLiteral("12.4"), NameIdentifier("c"), Equal, NameIdentifier("d"), ParenOpen, NameIdentifier("a"), NameIdentifier("b"), ParenClose, CurlyBraceClose ];
         lex_equal(code, tokens)
     }
 
     #[test]
     fn lex6() {
         let code = "if (x == asdf) then fun a -> a else 12";
-        let tokens = vec![ If, ParenOpen, Identifier("x"), Identifier("=="), Identifier("asdf"), ParenClose, Then, Fun, Identifier("a"), Arrow, Identifier("a"), Else, NumberLiteral("12") ];
+        let tokens = vec![ If, ParenOpen, NameIdentifier("x"), OperatorIdentifier("=="), NameIdentifier("asdf"), ParenClose, Then, Fun, NameIdentifier("a"), Arrow, NameIdentifier("a"), Else, NumberLiteral("12") ];
         lex_equal(code, tokens);
     }
 
@@ -291,7 +291,7 @@ test #asdf d.
       , (
       #)
 #";
-        let tokens = vec![ Identifier("test"), Comma, ParenOpen ];
+        let tokens = vec![ NameIdentifier("test"), Comma, ParenOpen ];
         lex_equal(code, tokens);
     }
 }
