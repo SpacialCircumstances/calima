@@ -13,4 +13,13 @@ pub fn parse<'a>(code: &'a str) -> Result<Block<'a, Location>, String> {
 
 #[cfg(test)]
 mod tests {
+    use crate::parser::parse;
+
+    #[test]
+    fn test_hello_world() {
+        let code = include_str!("test_snippets/hello_world.ca");
+        let parsed = parse(code);
+        assert!(parsed.is_ok());
+        println!("{:#?}", parsed.unwrap());
+    }
 }
