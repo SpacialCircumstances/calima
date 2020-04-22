@@ -84,6 +84,7 @@ Import: Statement<'input, Location> = "import" <n:"name"> <pos:@L> => Statement:
 
 Expression0: Expr<'input, Location> = {
     If,
+    Case,
     Expression1
 };
 
