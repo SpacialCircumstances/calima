@@ -29,6 +29,7 @@ pub enum Identifier<'a> {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Pattern<'a> {
+    Any,
     Name(Identifier<'a>),
     Tuple(Vec<Pattern<'a>>),
     Literal(Literal<'a>),

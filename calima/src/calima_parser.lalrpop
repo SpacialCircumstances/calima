@@ -161,6 +161,7 @@ Pattern0: Pattern<'input> = {
 RecordPatternRow: (&'input str, Pattern<'input>) = <name:"name"> "=" <patt:Pattern0> => (name, patt);
 
 Pattern1: Pattern<'input> = {
+    "_" => Pattern::Any,
     Identifier => Pattern::Name(<>),
     <Literal> => Pattern::Literal(<>),
 };
