@@ -159,7 +159,7 @@ Pattern1: Pattern<'input> = {
 
 Identifier: Identifier<'input> = {
     <"name"> => Identifier::Simple(<>),
-    <n:"name"> ":" <ta:TypeAnnotation1> => Identifier::Annotated(n, ta)
+    "(" <n:"name"> ":" <ta:TypeAnnotation0> ")" => Identifier::Annotated(n, ta)
 };
 
 TypeDefinition: TypeDefinition<'input> = {
@@ -174,6 +174,7 @@ RecordTypeRow: (&'input str, TypeAnnotation<'input>) = <n:"name"> ":" <ta:TypeAn
 
 TypeAnnotation0: TypeAnnotation<'input> = {
     <inp:TypeAnnotation1> "->" <out:TypeAnnotation0> => TypeAnnotation::Function(Box::new(inp), Box::new(out)),
+    <n:"typename"> <params:TypeAnnotation1+> => TypeAnnotation::Parameterized(n, params),
     TypeAnnotation1
 };
 
@@ -182,7 +183,6 @@ TypeAnnotation1: TypeAnnotation<'input> = {
     <"name"> => TypeAnnotation::Generic(<>),
     "(" <Sep2<TypeAnnotation0, ",">> ")" => TypeAnnotation::Tuple(<>),
     "(" <ta:TypeAnnotation0> ")" => ta,
-    <n:"typename"> "[" <params:TypeAnnotation1+> "]" => TypeAnnotation::Parameterized(n, params)
 };
 
 Literal: Literal<'input> = {
