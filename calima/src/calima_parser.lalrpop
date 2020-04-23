@@ -78,14 +78,14 @@ Statement: Statement<'input, Data> = {
     Do,
     Import,
     Region,
-    "type" <n:"typename"> "=" <td:TypeDefinition> <pos:@L> => Statement::Type(n, td, to_data(pos))
+    <pos:@L> "type" <n:"typename"> "=" <td:TypeDefinition> => Statement::Type(n, td, to_data(pos))
 };
 
-Region: Statement<'input, Data> = "region" <n:"name"> <pos:@L> => Statement::Region(n, to_data(pos));
+Region: Statement<'input, Data> = <pos:@L> "region" <n:"name"> => Statement::Region(n, to_data(pos));
 
-Do: Statement<'input, Data> = "do" <e:Expression0> <pos:@L> => Statement::Do(e, to_data(pos));
+Do: Statement<'input, Data> = <pos:@L> "do" <e:Expression0> => Statement::Do(e, to_data(pos));
 
-Let: Statement<'input, Data> = "let" <mods:Modifiers> <pat:Pattern0> "=" <expr:Expression0> <pos:@L> => Statement::Let(mods, pat, expr, to_data(pos));
+Let: Statement<'input, Data> = <pos:@L> "let" <mods:Modifiers> <pat:Pattern0> "=" <expr:Expression0> => Statement::Let(mods, pat, expr, to_data(pos));
 
 Modifiers: Vec<Modifier> = Modifier*;
 
@@ -93,7 +93,7 @@ Modifier: Modifier = {
     "rec" => Modifier::Rec
 };
 
-Import: Statement<'input, Data> = "import" <n:"name"> <pos:@L> => Statement::Import(n, to_data(pos));
+Import: Statement<'input, Data> = <pos:@L> "import" <n:"name"> => Statement::Import(n, to_data(pos));
 
 Expression0: Expr<'input, Data> = {
     If,
@@ -101,7 +101,7 @@ Expression0: Expr<'input, Data> = {
     Expression1
 };
 
-Case: Expr<'input, Data> = "case" <value_expr:Expression1> "of" <rows:CaseRow+> "end" <pos:@L> => Expr::Case {
+Case: Expr<'input, Data> = <pos:@L> "case" <value_expr:Expression1> "of" <rows:CaseRow+> "end" => Expr::Case {
     data: to_data(pos),
     value: Box::new(value_expr),
     matches: rows
@@ -109,7 +109,7 @@ Case: Expr<'input, Data> = "case" <value_expr:Expression1> "of" <rows:CaseRow+> 
 
 CaseRow: (Pattern<'input>, Block<'input, Data>) = "|" <pat:Pattern0> "->" <block:Block> => (pat, block);
 
-If: Expr<'input, Data> = "if" <cond_expr:Expression1> "then" <if_block:Block> "else" <else_block:Block> "end" <pos:@L> => Expr::If {
+If: Expr<'input, Data> = <pos:@L> "if" <cond_expr:Expression1> "then" <if_block:Block> "else" <else_block:Block> "end" => Expr::If {
     data: to_data(pos),
     cond: Box::new(cond_expr),
     if_true: if_block,
@@ -120,21 +120,21 @@ Expression1: Expr<'input, Data> = {
     FunctionCall,
     OperatorCall,
     TupleConstruct,
-    "[" <exprs: Sep1<Expression0, ",">> "]" <pos:@L> => Expr::List(exprs, to_data(pos)),
-    "{" <rows: Sep1<RecordExprRow, ",">> "}" <pos:@L> => Expr::Record(rows, to_data(pos)),
+    <pos:@L> "[" <exprs: Sep1<Expression0, ",">> "]" => Expr::List(exprs, to_data(pos)),
+    <pos:@L> "{" <rows: Sep1<RecordExprRow, ",">> "}" => Expr::Record(rows, to_data(pos)),
     Lambda,
     Expression2
 };
 
 RecordExprRow: (&'input str, Expr<'input, Data>) = <n:"name"> "=" <expr:Expression0> => (n, expr);
 
-Lambda: Expr<'input, Data> = "fun" <params:Pattern0+>  "->" <block:Block> <pos:@L> => Expr::Lambda(params, block, to_data(pos));
+Lambda: Expr<'input, Data> = <pos:@L> "fun" <params:Pattern0+>  "->" <block:Block> => Expr::Lambda(params, block, to_data(pos));
 
-TupleConstruct: Expr<'input, Data> = "(" <exprs:Sep2<Expression2, ",">> ")" <pos:@L> => Expr::Tuple(exprs, to_data(pos));
+TupleConstruct: Expr<'input, Data> = <pos:@L> "(" <exprs:Sep2<Expression2, ",">> ")" => Expr::Tuple(exprs, to_data(pos));
 
-FunctionCall: Expr<'input, Data> = <func:Expression2> <args:Expression2+> <pos:@L> => Expr::FunctionCall(Box::new(func), args, to_data(pos));
+FunctionCall: Expr<'input, Data> = <pos:@L> <func:Expression2> <args:Expression2+> => Expr::FunctionCall(Box::new(func), args, to_data(pos));
 
-OperatorCall: Expr<'input, Data> = <f1:Expression2> <op:"operator"> <f2:Expression2> <pos:@L> => Expr::OperatorCall(Box::new(f1), op, Box::new(f2), to_data(pos));
+OperatorCall: Expr<'input, Data> = <pos:@L> <f1:Expression2> <op:"operator"> <f2:Expression2> => Expr::OperatorCall(Box::new(f1), op, Box::new(f2), to_data(pos));
 
 Expression2: Expr<'input, Data> = {
     Variable,
@@ -142,14 +142,14 @@ Expression2: Expr<'input, Data> = {
     "(" <Expression0> ")" => <>,
 };
 
-Variable: Expr<'input, Data> = <elements:Sep1<AnyName, ".">> <pos:@L> => Expr::Variable(elements, to_data(pos));
+Variable: Expr<'input, Data> = <pos:@L> <elements:Sep1<AnyName, ".">> => Expr::Variable(elements, to_data(pos));
 
 AnyName: &'input str = {
     <"name"> => <>,
     <"typename"> => <>
 };
 
-LiteralExpr: Expr<'input, Data> = <lit:Literal> <pos:@L> => Expr::Literal(lit, to_data(pos));
+LiteralExpr: Expr<'input, Data> = <pos:@L> <lit:Literal> => Expr::Literal(lit, to_data(pos));
 
 Pattern0: Pattern<'input> = {
     Pattern1,
