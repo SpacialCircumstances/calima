@@ -294,4 +294,18 @@ test #asdf d.
         let tokens = vec![ NameIdentifier("test"), Comma, ParenOpen ];
         lex_equal(code, tokens);
     }
+
+    #[test]
+    fn lex8() {
+        let code = "map (fun i -> i + 2) x";
+        let tokens = vec![ NameIdentifier("map"), ParenOpen, Fun, NameIdentifier("i"), Arrow, NameIdentifier("i"), OperatorIdentifier("+"), NumberLiteral("2"), ParenClose, NameIdentifier("x") ];
+        lex_equal(code, tokens);
+    }
+
+    #[test]
+    fn lex9() {
+        let code = "println (\"Hello\" ++ \"World!\")";
+        let tokens = vec! [ NameIdentifier("println"), ParenOpen, StringLiteral("Hello"), OperatorIdentifier("++"), StringLiteral("World!"), ParenClose ];
+        lex_equal(code, tokens);
+    }
 }
