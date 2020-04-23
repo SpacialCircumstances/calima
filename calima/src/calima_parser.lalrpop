@@ -63,11 +63,11 @@ Sep2<T, S>: Vec<T> = { // (1)
 };
 
 pub Block: Block<'input, Data> = {
-    <sts:Statement*> "in" <e:Expression1> => Block {
+    <sts:Statement*> "in" <e:Expression0> => Block {
         statements: sts,
         result: Box::new(e)
     },
-    <e: Expression1> => Block {
+    <e: Expression0> => Block {
         statements: Vec::new(),
         result: Box::new(e)
     }
