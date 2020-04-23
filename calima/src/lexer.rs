@@ -175,12 +175,13 @@ impl<'input> Lexer<'input> {
         let start = self.current_pos();
         let start_idx = self.pos -  1;
         let end_idx = loop {
-            match self.advance() {
+            match self.chars.peek() {
                 None => break(self.pos),
                 Some('.') => (),
                 Some(x) if x.is_numeric() => (),
-                _ => break(self.pos - 1)
+                _ => break(self.pos)
             }
+            self.advance();
         };
         let lit = &self.input[start_idx..end_idx];
         let end = self.current_pos();
@@ -258,8 +259,8 @@ mod tests {
 
     #[test]
     fn lex3() {
-        let code = "12.3 344.45 9900";
-        let tokens = vec![ NumberLiteral("12.3"), NumberLiteral("344.45"), NumberLiteral("9900") ];
+        let code = "12.3 344.45, 9900";
+        let tokens = vec![ NumberLiteral("12.3"), NumberLiteral("344.45"), Comma, NumberLiteral("9900") ];
         lex_equal(code, tokens)
     }
 
@@ -273,7 +274,7 @@ mod tests {
     #[test]
     fn lex5() {
         let code = "{ a = \"test\", b = 12.4, c = d (a b) }";
-        let tokens = vec![ CurlyBraceOpen, NameIdentifier("a"), Equal, StringLiteral("test"), Comma, NameIdentifier("b"), Equal, NumberLiteral("12.4"), NameIdentifier("c"), Equal, NameIdentifier("d"), ParenOpen, NameIdentifier("a"), NameIdentifier("b"), ParenClose, CurlyBraceClose ];
+        let tokens = vec![ CurlyBraceOpen, NameIdentifier("a"), Equal, StringLiteral("test"), Comma, NameIdentifier("b"), Equal, NumberLiteral("12.4"), Comma, NameIdentifier("c"), Equal, NameIdentifier("d"), ParenOpen, NameIdentifier("a"), NameIdentifier("b"), ParenClose, CurlyBraceClose ];
         lex_equal(code, tokens)
     }
 
