@@ -67,6 +67,7 @@ fn handle_identifier(ident: &str) -> Token {
     match ident {
         "do" => Do,
         "let" => Let,
+        "rec" => Rec,
         "in" => In,
         "fun" => Fun,
         "if" => If,
@@ -81,6 +82,7 @@ fn handle_identifier(ident: &str) -> Token {
         "->" => Arrow,
         "=" => Equal,
         "|" => Pipe,
+        "_" => Underscore,
         "true" => BooleanLiteral(true),
         "false" => BooleanLiteral(false),
         x => {

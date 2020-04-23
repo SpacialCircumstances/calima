@@ -27,6 +27,8 @@ extern {
         "do" => Do,
         "in" => In,
         "let" => Let,
+        "rec" => Rec,
+        "_" => Underscore,
         "fun" => Fun,
         "if" => If,
         "then" => Then,
