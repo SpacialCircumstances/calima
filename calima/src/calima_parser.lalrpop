@@ -1,4 +1,4 @@
-use crate::ast::{Block, Statement, Expr, Literal, NumberType, Pattern, Identifier, TypeDefinition, TypeAnnotation};
+use crate::ast::{Block, Statement, Expr, Literal, NumberType, Pattern, Identifier, TypeDefinition, TypeAnnotation, Modifier};
 use crate::token::{Location, Token};
 use crate::token::Token::*;
 use crate::lexer::Error;
@@ -85,7 +85,13 @@ Region: Statement<'input, Data> = "region" <n:"name"> <pos:@L> => Statement::Reg
 
 Do: Statement<'input, Data> = "do" <e:Expression0> <pos:@L> => Statement::Do(e, to_data(pos));
 
-Let: Statement<'input, Data> = "let" <pat:Pattern0> "=" <expr:Expression0> <pos:@L> => Statement::Let(pat, expr, to_data(pos));
+Let: Statement<'input, Data> = "let" <mods:Modifiers> <pat:Pattern0> "=" <expr:Expression0> <pos:@L> => Statement::Let(mods, pat, expr, to_data(pos));
+
+Modifiers: Vec<Modifier> = Modifier*;
+
+Modifier: Modifier = {
+    "rec" => Modifier::Rec
+};
 
 Import: Statement<'input, Data> = "import" <n:"name"> <pos:@L> => Statement::Import(n, to_data(pos));
 

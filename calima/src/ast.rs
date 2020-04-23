@@ -44,8 +44,13 @@ pub enum TypeDefinition<'a> {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub enum Modifier {
+    Rec
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum Statement<'a, Data> {
-    Let(Pattern<'a>, Expr<'a, Data>, Data),
+    Let(Vec<Modifier>, Pattern<'a>, Expr<'a, Data>, Data),
     Do(Expr<'a, Data>, Data),
     Import(&'a str, Data), //TODO: Support complex imports
     Region(&'a str, Data),
