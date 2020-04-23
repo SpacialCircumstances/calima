@@ -60,9 +60,15 @@ Sep2<T, S>: Vec<T> = { // (1)
     }
 };
 
-pub Block: Block<'input, Data> = <sts:Statement*> <e:Expression1> => Block {
-    statements: sts,
-    result: Box::new(e)
+pub Block: Block<'input, Data> = {
+    <sts:Statement*> "in" <e:Expression1> => Block {
+        statements: sts,
+        result: Box::new(e)
+    },
+    <e: Expression1> => Block {
+        statements: Vec::new(),
+        result: Box::new(e)
+    }
 };
 
 Statement: Statement<'input, Data> = {
@@ -70,15 +76,14 @@ Statement: Statement<'input, Data> = {
     Do,
     Import,
     Region,
-    "type" <n:"typename"> "=" <td:TypeDefinition> "in" <pos:@L> => Statement::Type(n, td, to_data(pos))
+    "type" <n:"typename"> "=" <td:TypeDefinition> <pos:@L> => Statement::Type(n, td, to_data(pos))
 };
 
 Region: Statement<'input, Data> = "region" <n:"name"> <pos:@L> => Statement::Region(n, to_data(pos));
 
-Do: Statement<'input, Data> = "do" <e:Expression0> "in" <pos:@L> => Statement::Do(e, to_data(pos));
+Do: Statement<'input, Data> = "do" <e:Expression0> <pos:@L> => Statement::Do(e, to_data(pos));
 
-//TODO: Consider supporting multiple comma-separated bindings
-Let: Statement<'input, Data> = "let" <pat:Pattern0> "=" <expr:Expression0> "in" <pos:@L> => Statement::Let(pat, expr, to_data(pos));
+Let: Statement<'input, Data> = "let" <pat:Pattern0> "=" <expr:Expression0> <pos:@L> => Statement::Let(pat, expr, to_data(pos));
 
 Import: Statement<'input, Data> = "import" <n:"name"> <pos:@L> => Statement::Import(n, to_data(pos));
 
