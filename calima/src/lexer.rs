@@ -7,9 +7,8 @@ use std::fmt::{Display, Formatter};
 pub struct Lexer<'input> {
     chars: Peekable<Chars<'input>>,
     input: &'input str,
-    line: usize,
-    pos: usize,
-    col: usize,
+    last_pos: Location,
+    current_pos: Location
 }
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
@@ -103,32 +102,34 @@ fn handle_identifier(ident: &str) -> Token {
 
 impl<'input> Lexer<'input> {
     pub fn new(input: &'input str) -> Self {
+        let starting_pos = Location {
+            pos: 0,
+            line: 1,
+            col: 1
+        };
         Lexer {
             input,
             chars: input.chars().peekable(),
-            line: 1,
-            pos: 0,
-            col: 1
+            last_pos: starting_pos,
+            current_pos: starting_pos
         }
     }
 
-    fn current_pos(&self) -> Location {
-        Location {
-            line: self.line,
-            col: self.col,
-            pos: self.pos
-        }
+    fn token_start_pos(&self) -> Location {
+        self.last_pos
     }
 
     fn incr_pos(&mut self) {
-        self.col += 1;
-        self.pos += 1;
+        self.last_pos = self.current_pos;
+        self.current_pos.col += 1;
+        self.current_pos.pos += 1;
     }
 
     fn incr_line(&mut self) {
-        self.col = 1;
-        self.line += 1;
-        self.pos += 1;
+        self.last_pos = self.current_pos;
+        self.current_pos.col = 1;
+        self.current_pos.line += 1;
+        self.current_pos.pos += 1;
     }
 
     fn advance(&mut self) -> Option<char> {
@@ -159,51 +160,51 @@ impl<'input> Lexer<'input> {
     }
 
     fn string_literal(&mut self) -> Option<LexerResult<'input>> {
-        let start = self.current_pos();
-        let start_idx = self.pos;
+        let start = self.token_start_pos();
+        let start_idx = self.current_pos.pos;
         let end_idx = loop {
             match self.advance() {
-                None => break(self.pos),
-                Some('"') => break(self.pos - 1),
+                None => break(self.current_pos.pos),
+                Some('"') => break(self.current_pos.pos - 1),
                 Some(_) => ()
             }
         };
         let lit = &self.input[start_idx..end_idx];
-        let end = self.current_pos();
+        let end = self.token_start_pos();
         Some(Ok((start, StringLiteral(lit), end)))
     }
 
     fn number_literal(&mut self) -> Option<LexerResult<'input>> {
         //TODO: Improve literals
-        let start = self.current_pos();
-        let start_idx = self.pos -  1;
+        let start = self.token_start_pos();
+        let start_idx = self.current_pos.pos -  1;
         let end_idx = loop {
             match self.chars.peek() {
-                None => break(self.pos),
+                None => break(self.current_pos.pos),
                 Some('.') => (),
                 Some(x) if x.is_numeric() => (),
-                _ => break(self.pos)
+                _ => break(self.current_pos.pos)
             }
             self.advance();
         };
         let lit = &self.input[start_idx..end_idx];
-        let end = self.current_pos();
+        let end = self.token_start_pos();
         Some(Ok((start, NumberLiteral(lit), end)))
     }
 
     fn identifier(&mut self) -> Option<LexerResult<'input>> {
-        let start = self.current_pos();
-        let start_idx = self.pos - 1;
+        let start = self.token_start_pos();
+        let start_idx = self.current_pos.pos - 1;
         let end_idx = loop {
             match self.chars.peek() {
-                None => break(self.pos),
-                Some(&c) if is_separator(c) => break(self.pos),
+                None => break(self.current_pos.pos),
+                Some(&c) if is_separator(c) => break(self.current_pos.pos),
                 Some(_) => ()
             }
             self.advance();
         };
         let lit = &self.input[start_idx..end_idx];
-        let end = self.current_pos();
+        let end = self.token_start_pos();
         Some(Ok((start, handle_identifier(lit), end)))
     }
 }
@@ -213,7 +214,7 @@ impl<'input> Iterator for Lexer<'input> {
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            let last_pos = self.current_pos();
+            let last_pos = self.token_start_pos();
             match self.advance() {
                 None => break None,
                 Some(' ') => (),
@@ -225,7 +226,7 @@ impl<'input> Iterator for Lexer<'input> {
                 Some(x) => {
                     if x.is_numeric() { break self.number_literal() }
                     if let Some(t) = single_char_token(x) {
-                        break Some(Ok((last_pos, t, self.current_pos())))
+                        break Some(Ok((last_pos, t, self.token_start_pos())))
                     }
                     break self.identifier()
                 }
