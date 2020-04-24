@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum NumberType {
     Integer,
@@ -76,4 +78,16 @@ pub enum Expr<'a, Data> {
     If { data: Data, cond: Box<Expr<'a, Data>>, if_true: Block<'a, Data>, if_false: Block<'a, Data> },
     Case { data: Data, value: Box<Expr<'a, Data>>, matches: Vec<(Pattern<'a>, Block<'a, Data>)> },
     List(Vec<Expr<'a, Data>>, Data)
+}
+
+pub trait AstFormatter {
+    fn format<Data>(program: Block<Data>) -> String where Data: Display;
+}
+
+pub struct DebugFormatter;
+
+impl AstFormatter for DebugFormatter {
+    fn format<Data>(program: Block<Data>) -> String where Data: Display {
+        format!("{:#?}", program)
+    }
 }
