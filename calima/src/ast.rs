@@ -94,11 +94,28 @@ impl AstFormatter for DebugFormatter {
 
 pub struct SourceCodeFormatter;
 
-struct SourceCodeFormatterAstWrapper<'a, Data>(&'a Block<'a, Data>);
+struct SourceCodeFormatterAstWrapper<'a, Data>(&'a Block<'a, Data>) where Data: Display, Data: Debug;
 
-impl<'a, Data> Display for SourceCodeFormatterAstWrapper<'a, Data> {
+impl<'a, Data> SourceCodeFormatterAstWrapper<'a, Data> where Data: Display, Data: Debug {
+    fn format_statement(statement: &Statement<Data>, formatter: &mut Formatter) -> std::fmt::Result {
+        write!(formatter, "")
+    }
+
+    fn format_expression(expr: &Expr<Data>, formatter: &mut Formatter) -> std::fmt::Result {
+        write!(formatter, "")
+    }
+
+    fn format_block(block: &'a Block<'a, Data>, formatter: &mut Formatter) -> std::fmt::Result {
+        for statement in &block.statements {
+            Self::format_statement(statement, formatter)?;
+        }
+        Self::format_expression(&block.result, formatter)
+    }
+}
+
+impl<'a, Data> Display for SourceCodeFormatterAstWrapper<'a, Data> where Data: Display, Data: Debug {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        unimplemented!()
+        Self::format_block(self.0, f)
     }
 }
 
