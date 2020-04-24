@@ -34,7 +34,8 @@ pub enum Token<'input> {
     Pipe,
     Import,
     Colon,
-    Arrow
+    Arrow,
+    At
 }
 
 impl<'input> Display for Token<'input> {

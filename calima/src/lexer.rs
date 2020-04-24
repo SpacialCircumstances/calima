@@ -83,6 +83,7 @@ fn handle_identifier(ident: &str) -> Token {
         "=" => Equal,
         "|" => Pipe,
         "_" => Underscore,
+        "@" => At,
         "true" => BooleanLiteral(true),
         "false" => BooleanLiteral(false),
         x => {
