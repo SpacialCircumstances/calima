@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::fmt::{Display, Formatter, Debug};
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum NumberType {
@@ -81,13 +81,30 @@ pub enum Expr<'a, Data> {
 }
 
 pub trait AstFormatter {
-    fn format<Data>(program: Block<Data>) -> String where Data: Display;
+    fn format<Data>(program: &Block<Data>) -> String where Data: Display, Data: Debug;
 }
 
 pub struct DebugFormatter;
 
 impl AstFormatter for DebugFormatter {
-    fn format<Data>(program: Block<Data>) -> String where Data: Display {
+    fn format<Data>(program: &Block<Data>) -> String where Data: Display, Data: Debug {
         format!("{:#?}", program)
+    }
+}
+
+pub struct SourceCodeFormatter;
+
+struct SourceCodeFormatterAstWrapper<'a, Data>(&'a Block<'a, Data>);
+
+impl<'a, Data> Display for SourceCodeFormatterAstWrapper<'a, Data> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        unimplemented!()
+    }
+}
+
+impl AstFormatter for SourceCodeFormatter {
+    fn format<Data>(program: &Block<Data>) -> String where Data: Display, Data: Debug {
+        let wrapper = SourceCodeFormatterAstWrapper(program);
+        format!("{}", wrapper)
     }
 }
