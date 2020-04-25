@@ -25,6 +25,27 @@ impl<'a> Display for Literal<'a> {
     }
 }
 
+fn format_record<T>(elements: &Vec<(&str, T)>, f: &mut Formatter, sep: &str) -> std::fmt::Result where T: Display {
+    write!(f, "{{ ")?;
+    for i in 0..elements.len()-1 {
+        let (n, e) = &elements[i];
+        write!(f, "{}{} {},", n, sep, e)?;
+    }
+    let (ln, le) = elements.last().unwrap();
+    write!(f, "{}{} {}", ln, sep, le);
+    write!(f, "}}")
+}
+
+fn format_tuple<T>(elements: &Vec<T>, f: &mut Formatter) -> std::fmt::Result where T: Display {
+    write!(f, "(")?;
+    for i in 0..elements.len()-1 {
+        write!(f, "{}, ", elements[i])?;
+    }
+    // A tuple always has one element
+    write!(f, "{}", elements.last().unwrap())?;
+    write!(f, ")")
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum TypeAnnotation<'a> {
     Name(&'a str), //First letter uppercase
@@ -47,15 +68,7 @@ impl<'a> Display for TypeAnnotation<'a> {
                 }
                 write!(f, ")")
             },
-            TypeAnnotation::Tuple(elements) => {
-                write!(f, "(")?;
-                for i in 0..elements.len()-1 {
-                    write!(f, "{}, ", elements[i])?;
-                }
-                // A tuple always has one element
-                write!(f, "{}", elements.last().unwrap())?;
-                write!(f, ")")
-            }
+            TypeAnnotation::Tuple(elements) => format_tuple(elements, f)
         }
     }
 }
@@ -83,6 +96,19 @@ pub enum Pattern<'a> {
     Literal(Literal<'a>),
     Record(Vec<(&'a str, Pattern<'a>)>),
     UnionUnwrap(&'a str, Box<Pattern<'a>>),
+}
+
+impl<'a> Display for Pattern<'a> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Pattern::Any => write!(f, "_"),
+            Pattern::Name(id) => write!(f, "{}", id),
+            Pattern::Literal(lit) => write!(f, "{}", lit),
+            Pattern::Tuple(elements) => format_tuple(elements, f),
+            Pattern::Record(rows) => format_record(rows, f, ":"),
+            Pattern::UnionUnwrap(constr, pat) => write!(f, "({} {})", constr, *pat)
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
