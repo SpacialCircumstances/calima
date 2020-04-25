@@ -14,6 +14,17 @@ pub enum Literal<'a> {
     Boolean(bool)
 }
 
+impl<'a> Display for Literal<'a> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Literal::String(string) => write!(f, "\"{}\"", string),
+            Literal::Boolean(b) => write!(f, "{}", b),
+            Literal::Unit => write!(f, "()"),
+            Literal::Number(num, _) => write!(f, "{}", num)
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum TypeAnnotation<'a> {
     Name(&'a str), //First letter uppercase
@@ -23,10 +34,45 @@ pub enum TypeAnnotation<'a> {
     Tuple(Vec<TypeAnnotation<'a>>)
 }
 
+impl<'a> Display for TypeAnnotation<'a> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TypeAnnotation::Name(name) => write!(f, "{}", name),
+            TypeAnnotation::Generic(name) => write!(f, "{}", name),
+            TypeAnnotation::Function(i, o) => write!(f, "({} => {})", *i, *o),
+            TypeAnnotation::Parameterized(name, params) => {
+                write!(f, "({} ", name)?;
+                for p in params {
+                    write!(f, "{} ", p)?;
+                }
+                write!(f, ")")
+            },
+            TypeAnnotation::Tuple(elements) => {
+                write!(f, "(")?;
+                for i in 0..elements.len()-1 {
+                    write!(f, "{}, ", elements[i])?;
+                }
+                // A tuple always has one element
+                write!(f, "{}", elements.last().unwrap())?;
+                write!(f, ")")
+            }
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum Identifier<'a> {
     Simple(&'a str),
     Annotated(&'a str, TypeAnnotation<'a>),
+}
+
+impl<'a> Display for Identifier<'a> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Identifier::Simple(name) => write!(f, "{}", name),
+            Identifier::Annotated(name, ta) => write!(f, "({}: {})", name, ta)
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
