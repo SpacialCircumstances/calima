@@ -25,14 +25,14 @@ impl<'a> Display for Literal<'a> {
     }
 }
 
-fn format_record<T>(elements: &Vec<(&str, T)>, f: &mut Formatter, sep: &str) -> std::fmt::Result where T: Display {
+fn format_record<T>(elements: &Vec<(&str, T)>, f: &mut Formatter, sep: &str, element_sep: &str) -> std::fmt::Result where T: Display {
     write!(f, "{{ ")?;
     for i in 0..elements.len()-1 {
         let (n, e) = &elements[i];
-        write!(f, "{}{} {},", n, sep, e)?;
+        write!(f, "{}{} {}{}", n, sep, e, element_sep)?;
     }
     let (ln, le) = elements.last().unwrap();
-    write!(f, "{}{} {}", ln, sep, le);
+    write!(f, "{}{} {}", ln, sep, le)?;
     write!(f, "}}")
 }
 
@@ -105,7 +105,7 @@ impl<'a> Display for Pattern<'a> {
             Pattern::Name(id) => write!(f, "{}", id),
             Pattern::Literal(lit) => write!(f, "{}", lit),
             Pattern::Tuple(elements) => format_tuple(elements, f),
-            Pattern::Record(rows) => format_record(rows, f, ":"),
+            Pattern::Record(rows) => format_record(rows, f, ":", ", "),
             Pattern::UnionUnwrap(constr, pat) => write!(f, "({} {})", constr, *pat)
         }
     }
@@ -118,9 +118,27 @@ pub enum TypeDefinition<'a> {
     Union(Vec<(&'a str, TypeAnnotation<'a>)>)
 }
 
+impl<'a> Display for TypeDefinition<'a> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TypeDefinition::Alias(ta) => write!(f, "{}", ta),
+            TypeDefinition::Record(rows) => format_record(rows, f, ":", ", "),
+            TypeDefinition::Union(rows) => format_record(rows, f, " of", " | ")
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum Modifier {
     Rec
+}
+
+impl Display for Modifier {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Modifier::Rec => write!(f, "rec")
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
