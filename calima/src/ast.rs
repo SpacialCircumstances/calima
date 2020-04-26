@@ -76,13 +76,15 @@ impl<'a> Display for TypeAnnotation<'a> {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Identifier<'a> {
     Simple(&'a str),
-    Annotated(&'a str, TypeAnnotation<'a>),
+    Operator(&'a str),
+    Annotated(Box<Identifier<'a>>, TypeAnnotation<'a>),
 }
 
 impl<'a> Display for Identifier<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Identifier::Simple(name) => write!(f, "{}", name),
+            Identifier::Operator(op) => write!(f, "({})", op),
             Identifier::Annotated(name, ta) => write!(f, "({}: {})", name, ta)
         }
     }

@@ -169,7 +169,8 @@ Pattern1: Pattern<'input> = {
 
 Identifier: Identifier<'input> = {
     <"name"> => Identifier::Simple(<>),
-    "(" <n:"name"> ":" <ta:TypeAnnotation0> ")" => Identifier::Annotated(n, ta)
+    "(" <"operator"> ")" => Identifier::Operator(<>),
+    "(" <ident:Identifier> ":" <ta:TypeAnnotation0> ")" => Identifier::Annotated(Box::new(ident), ta)
 };
 
 TypeDefinition: TypeDefinition<'input> = {
