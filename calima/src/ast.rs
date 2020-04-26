@@ -152,10 +152,34 @@ pub enum Statement<'a, Data> {
     Type(&'a str, TypeDefinition<'a>, Data)
 }
 
+impl<'a, Data: Display> Display for Statement<'a, Data> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Statement::Import(i, _) => write!(f, "import {}", i),
+            Statement::Region(reg, _) => write!(f, "region {}", reg),
+            Statement::Type(tn, td, _) => write!(f, "type {} = {}", tn, td),
+            Statement::Do(expr, _) => write!(f, "do {}", expr),
+            Statement::Let(mods, pat, expr, _) => {
+                let mods = mods.iter().map(|m| m.to_string()).collect::<Vec<String>>().join(" ");
+                write!(f, "let {} {} = {}", mods, pat, expr)
+            }
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct Block<'a, Data> {
     pub statements: Vec<Statement<'a, Data>>,
     pub result: Box<Expr<'a, Data>>
+}
+
+impl<'a, Data: Display> Display for Block<'a, Data> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        for st in &self.statements {
+            writeln!(f, "{}", st)?;
+        }
+        writeln!(f, "{}", *self.result)
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -170,4 +194,10 @@ pub enum Expr<'a, Data> {
     If { data: Data, cond: Box<Expr<'a, Data>>, if_true: Block<'a, Data>, if_false: Block<'a, Data> },
     Case { data: Data, value: Box<Expr<'a, Data>>, matches: Vec<(Pattern<'a>, Block<'a, Data>)> },
     List(Vec<Expr<'a, Data>>, Data)
+}
+
+impl<'a, Data: Display> Display for Expr<'a, Data> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        unimplemented!()
+    }
 }
