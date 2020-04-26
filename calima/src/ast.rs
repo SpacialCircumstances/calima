@@ -198,6 +198,12 @@ pub enum Expr<'a, Data> {
 
 impl<'a, Data: Display> Display for Expr<'a, Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        unimplemented!()
+        match self {
+            Expr::Literal(lit, _) => write!(f, "{}", lit),
+            Expr::Variable(ident, _) => write!(f, "{}", ident.join(".")),
+            Expr::List(exprs, _) => write!(f, "[{}]", exprs.iter().map(|e| e.to_string()).collect::<Vec<String>>().join(",")),
+            Expr::Tuple(exprs, _) => write!(f, "({})", exprs.iter().map(|e| e.to_string()).collect::<Vec<String>>().join(",")),
+            _ => unimplemented!()
+        }
     }
 }
