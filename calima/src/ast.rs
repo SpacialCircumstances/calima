@@ -175,10 +175,14 @@ pub struct Block<'a, Data> {
 
 impl<'a, Data: Display> Display for Block<'a, Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        for st in &self.statements {
-            writeln!(f, "{}", st)?;
+        if self.statements.is_empty() {
+            write!(f, "{}", self.result)
+        } else {
+            for st in &self.statements {
+                writeln!(f, "{}", st)?;
+            }
+            writeln!(f, "in {}", *self.result)
         }
-        writeln!(f, "{}", *self.result)
     }
 }
 
