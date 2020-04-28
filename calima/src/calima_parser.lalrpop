@@ -154,7 +154,7 @@ LiteralExpr: Expr<'input, Data> = <pos:@L> <lit:Literal> => Expr::Literal(lit, t
 
 Pattern0: Pattern<'input> = {
     Pattern1,
-    <variant:"typename"> <patt:Pattern0> => Pattern::UnionUnwrap(variant, Box::new(patt)),
+    <variant:"typename"> <patt:Pattern0> => Pattern::UnionUnwrap(variant, Some(Box::new(patt))),
     "{" <Sep1<RecordPatternRow, ",">> "}" => Pattern::Record(<>),
     "(" <Sep2<Pattern1, ",">> ")" => Pattern::Tuple(<>)
 };
@@ -181,7 +181,7 @@ TypeDefinition: TypeDefinition<'input> = {
 
 Union: TypeDefinition<'input> = "|"? <Sep1<UnionRow, "|">> => TypeDefinition::Union(<>);
 
-UnionRow: (&'input str, TypeAnnotation<'input>) = <n:"typename"> "of" <ta:TypeAnnotation1> => (n, ta);
+UnionRow: (&'input str, Option<TypeAnnotation<'input>>) = <n:"typename"> "of" <ta:TypeAnnotation1> => (n, Some(ta));
 
 RecordTypeRow: (&'input str, TypeAnnotation<'input>) = <n:"name"> ":" <ta:TypeAnnotation0> => (n, ta);
 
