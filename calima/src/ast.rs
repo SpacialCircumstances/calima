@@ -200,13 +200,21 @@ pub enum Expr<'a, Data> {
     List(Vec<Expr<'a, Data>>, Data)
 }
 
+fn format_iter<T: Display, I: Iterator<Item=T>>(iter: I, sep: &str) -> String {
+    iter.map(|e| e.to_string()).collect::<Vec<String>>().join(sep)
+}
+
 impl<'a, Data: Display> Display for Expr<'a, Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Expr::Literal(lit, _) => write!(f, "{}", lit),
             Expr::Variable(ident, _) => write!(f, "{}", ident.join(".")),
-            Expr::List(exprs, _) => write!(f, "[{}]", exprs.iter().map(|e| e.to_string()).collect::<Vec<String>>().join(",")),
-            Expr::Tuple(exprs, _) => write!(f, "({})", exprs.iter().map(|e| e.to_string()).collect::<Vec<String>>().join(",")),
+            Expr::List(exprs, _) => write!(f, "[{}]", format_iter(exprs.iter(), ", ")),
+            Expr::Tuple(exprs, _) => write!(f, "({})", format_iter(exprs.iter(), ", ")),
+            Expr::Record(rows, _) => format_record(rows, f, "=", ", "),
+            Expr::Lambda(params, block, _) => write!(f, "fun {} -> {}", format_iter(params.iter(), " "), block),
+            Expr::FunctionCall(func, args, _) => write!(f, "{} {}", *func, format_iter(args.iter(), " ")),
+            Expr::OperatorCall(l, op, r, _) => write!(f, "{} {} {}", *l, op, *r),
             _ => unimplemented!()
         }
     }
