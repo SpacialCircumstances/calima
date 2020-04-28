@@ -13,6 +13,6 @@ pub fn compile(file_name: &str) -> Result<(), String> {
     let mut file_content = String::new();
     file.read_to_string(&mut file_content).expect("Error reading from input file");
     let ast = parser::parse(&file_content)?;
-    println!("{:#?}", ast);
+    println!("{}", ast);
     Ok(())
 }
