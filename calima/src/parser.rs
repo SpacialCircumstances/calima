@@ -13,14 +13,17 @@ pub fn parse<'a>(code: &'a str) -> Result<Block<'a, Location>, String> {
 
 #[cfg(test)]
 mod tests {
+    use std::fs::read_dir;
+    use std::io::Write;
     use crate::parser::parse;
     use crate::ast::{Block, Literal};
     use crate::ast::Expr::*;
     use crate::token::Location;
+    use goldenfile::Mint;
 
     #[test]
     fn test_hello_world() {
-        let code = include_str!("test_snippets/hello_world.ca");
+        let code = "println \"Hello World!\"";
         let parsed = parse(code);
         assert!(parsed.is_ok());
         let ast = parsed.unwrap();
@@ -31,5 +34,25 @@ mod tests {
             ], Location { pos: 0, col: 1, line: 1 }))
         };
         assert_eq!(ast, expected);
+    }
+
+    #[test]
+    fn test_by_comparing_to_parsed() {
+        let mut mint = Mint::new("tests/parsed/");
+
+        for entry in read_dir("tests/source_code/").unwrap() {
+            match entry {
+                Ok(entry) => {
+                    let entry_path = entry.path();
+                    if entry_path.is_file() {
+                        let mut parsed_file = mint.new_goldenfile(entry_path.file_name().unwrap()).unwrap();
+                        let file_content = std::fs::read_to_string(entry_path).unwrap();
+                        let parsed = parse(&file_content).unwrap();
+                        write!(parsed_file, "{}", parsed).unwrap();
+                    }
+                },
+                Err(_) => ()
+            }
+        }
     }
 }
