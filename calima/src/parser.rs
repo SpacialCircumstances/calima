@@ -40,7 +40,7 @@ mod tests {
     fn test_by_comparing_to_parsed() {
         let mut mint = Mint::new("tests/parsed/");
 
-        for entry in read_dir("tests/source_code/").unwrap() {
+        for entry in read_dir("../examples/basic/").unwrap() {
             match entry {
                 Ok(entry) => {
                     let entry_path = entry.path();
