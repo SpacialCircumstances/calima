@@ -1,0 +1,10 @@
+type List a =
+    | Node of (List a, a)
+    | Empty of Unit
+
+let head = fun list -> case list of
+    | Empty _ -> None
+    | Node (_, e) -> Some e
+end
+let (t1: List Int) = Node (Empty (), 2)
+in head t1
