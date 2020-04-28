@@ -46,6 +46,10 @@ fn format_tuple<T>(elements: &Vec<T>, f: &mut Formatter) -> std::fmt::Result whe
     write!(f, ")")
 }
 
+fn format_iter<T: Display, I: Iterator<Item=T>>(iter: I, sep: &str) -> String {
+    iter.map(|e| e.to_string()).collect::<Vec<String>>().join(sep)
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum TypeAnnotation<'a> {
     Name(&'a str), //First letter uppercase
@@ -149,7 +153,7 @@ pub enum Statement<'a, Data> {
     Do(Expr<'a, Data>, Data),
     Import(&'a str, Data), //TODO: Support complex imports
     Region(&'a str, Data),
-    Type(&'a str, TypeDefinition<'a>, Data)
+    Type(&'a str, Vec<&'a str>, TypeDefinition<'a>, Data)
 }
 
 impl<'a, Data: Display> Display for Statement<'a, Data> {
@@ -157,7 +161,7 @@ impl<'a, Data: Display> Display for Statement<'a, Data> {
         match self {
             Statement::Import(i, _) => write!(f, "import {}", i),
             Statement::Region(reg, _) => write!(f, "region {}", reg),
-            Statement::Type(tn, td, _) => write!(f, "type {} = {}", tn, td),
+            Statement::Type(tn, params, td, _) => write!(f, "type {} {} = {}", tn, format_iter(params.iter(), " "), td),
             Statement::Do(expr, _) => write!(f, "do {}", expr),
             Statement::Let(mods, pat, expr, _) => {
                 let mods = mods.iter().map(|m| m.to_string()).collect::<Vec<String>>().join(" ");
@@ -198,10 +202,6 @@ pub enum Expr<'a, Data> {
     If { data: Data, cond: Box<Expr<'a, Data>>, if_true: Block<'a, Data>, if_false: Block<'a, Data> },
     Case { data: Data, value: Box<Expr<'a, Data>>, matches: Vec<(Pattern<'a>, Block<'a, Data>)> },
     List(Vec<Expr<'a, Data>>, Data)
-}
-
-fn format_iter<T: Display, I: Iterator<Item=T>>(iter: I, sep: &str) -> String {
-    iter.map(|e| e.to_string()).collect::<Vec<String>>().join(sep)
 }
 
 impl<'a, Data: Display> Display for Expr<'a, Data> {
