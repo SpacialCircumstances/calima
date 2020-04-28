@@ -220,7 +220,7 @@ impl<'a, Data: Display> Display for Expr<'a, Data> {
                 writeln!(f, "{}", *if_true)?;
                 writeln!(f, "else")?;
                 writeln!(f, "{}", *if_false)?;
-                writeln!(f, "end")
+                write!(f, "end")
             },
             Expr::Case { data: _, value, matches } => {
                 writeln!(f, "case {} of", *value)?;
@@ -230,7 +230,7 @@ impl<'a, Data: Display> Display for Expr<'a, Data> {
                     writeln!(f, "{}", block)?;
                 }
 
-                writeln!(f, "end")
+                write!(f, "end")
             }
         }
     }
