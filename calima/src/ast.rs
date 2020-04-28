@@ -215,7 +215,23 @@ impl<'a, Data: Display> Display for Expr<'a, Data> {
             Expr::Lambda(params, block, _) => write!(f, "fun {} -> {}", format_iter(params.iter(), " "), block),
             Expr::FunctionCall(func, args, _) => write!(f, "{} {}", *func, format_iter(args.iter(), " ")),
             Expr::OperatorCall(l, op, r, _) => write!(f, "{} {} {}", *l, op, *r),
-            _ => unimplemented!()
+            Expr::If { data: _, cond, if_true, if_false } => {
+                writeln!(f, "if {} then", *cond)?;
+                writeln!(f, "{}", *if_true)?;
+                writeln!(f, "else")?;
+                writeln!(f, "{}", *if_false)?;
+                writeln!(f, "end")
+            },
+            Expr::Case { data: _, value, matches } => {
+                writeln!(f, "case {} of", *value)?;
+
+                for (pat, block) in matches {
+                    writeln!(f, "| {} ->", pat)?;
+                    writeln!(f, "{}", block)?;
+                }
+
+                writeln!(f, "end")
+            }
         }
     }
 }
