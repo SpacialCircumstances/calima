@@ -120,9 +120,6 @@ If: Expr<'input, Data> = <pos:@L> "if" <cond_expr:Expression1> "then" <if_block:
 Expression1: Expr<'input, Data> = {
     FunctionCall,
     OperatorCall,
-    TupleConstruct,
-    <pos:@L> "[" <exprs: Sep1<Expression0, ",">> "]" => Expr::List(exprs, to_data(pos)),
-    <pos:@L> "{" <rows: Sep1<RecordExprRow, ",">> "}" => Expr::Record(rows, to_data(pos)),
     Lambda,
     Expression2
 };
@@ -131,8 +128,6 @@ RecordExprRow: (&'input str, Expr<'input, Data>) = <n:"name"> "=" <expr:Expressi
 
 Lambda: Expr<'input, Data> = <pos:@L> "fun" <params:Pattern0+>  "->" <block:Block> => Expr::Lambda(params, block, to_data(pos));
 
-TupleConstruct: Expr<'input, Data> = <pos:@L> "(" <exprs:Sep2<Expression2, ",">> ")" => Expr::Tuple(exprs, to_data(pos));
-
 FunctionCall: Expr<'input, Data> = <pos:@L> <func:Expression2> <args:Expression2+> => Expr::FunctionCall(Box::new(func), args, to_data(pos));
 
 OperatorCall: Expr<'input, Data> = <pos:@L> <f1:Expression2> <op:"operator"> <f2:Expression2> => Expr::OperatorCall(Box::new(f1), op, Box::new(f2), to_data(pos));
@@ -140,8 +135,13 @@ OperatorCall: Expr<'input, Data> = <pos:@L> <f1:Expression2> <op:"operator"> <f2
 Expression2: Expr<'input, Data> = {
     Variable,
     LiteralExpr,
+    TupleConstruct,
     "(" <Expression0> ")" => <>,
+    <pos:@L> "[" <exprs: Sep1<Expression0, ",">> "]" => Expr::List(exprs, to_data(pos)),
+    <pos:@L> "{" <rows: Sep1<RecordExprRow, ",">> "}" => Expr::Record(rows, to_data(pos)),
 };
+
+TupleConstruct: Expr<'input, Data> = <pos:@L> "(" <exprs:Sep2<Expression1, ",">> ")" => Expr::Tuple(exprs, to_data(pos));
 
 Variable: Expr<'input, Data> = <pos:@L> <elements:Sep1<AnyName, ".">> => Expr::Variable(elements, to_data(pos));
 
@@ -154,7 +154,7 @@ LiteralExpr: Expr<'input, Data> = <pos:@L> <lit:Literal> => Expr::Literal(lit, t
 
 Pattern0: Pattern<'input> = {
     Pattern1,
-    <variant:"typename"> <patt:Pattern1> => Pattern::UnionUnwrap(variant, Box::new(patt)),
+    <variant:"typename"> <patt:Pattern0> => Pattern::UnionUnwrap(variant, Box::new(patt)),
     "{" <Sep1<RecordPatternRow, ",">> "}" => Pattern::Record(<>),
     "(" <Sep2<Pattern1, ",">> ")" => Pattern::Tuple(<>)
 };
