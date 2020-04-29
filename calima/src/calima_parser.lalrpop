@@ -86,7 +86,7 @@ Region: Statement<'input, Data> = <pos:@L> "region" <n:"name"> => Statement::Reg
 
 Do: Statement<'input, Data> = <pos:@L> "do" <e:Expression0> => Statement::Do(e, to_data(pos));
 
-Let: Statement<'input, Data> = <pos:@L> "let" <mods:Modifiers> <pat:Pattern0> "=" <expr:Expression0> => Statement::Let(mods, pat, expr, to_data(pos));
+Let: Statement<'input, Data> = <pos:@L> "let" <mods:Modifiers> <pat:Pattern1> "=" <expr:Expression0> => Statement::Let(mods, pat, expr, to_data(pos));
 
 Modifiers: Vec<Modifier> = Modifier*;
 
@@ -108,7 +108,7 @@ Case: Expr<'input, Data> = <pos:@L> "case" <value_expr:Expression1> "of" <rows:C
     matches: rows
 };
 
-CaseRow: (Pattern<'input>, Block<'input, Data>) = "|" <pat:Pattern0> "->" <block:Block> => (pat, block);
+CaseRow: (Pattern<'input>, Block<'input, Data>) = "|" <pat:Pattern1> "->" <block:Block> => (pat, block);
 
 If: Expr<'input, Data> = <pos:@L> "if" <cond_expr:Expression1> "then" <if_block:Block> "else" <else_block:Block> "end" => Expr::If {
     data: to_data(pos),
@@ -126,7 +126,7 @@ Expression1: Expr<'input, Data> = {
 
 RecordExprRow: (&'input str, Expr<'input, Data>) = <n:"name"> "=" <expr:Expression0> => (n, expr);
 
-Lambda: Expr<'input, Data> = <pos:@L> "fun" <params:Pattern0+>  "->" <block:Block> => Expr::Lambda(params, block, to_data(pos));
+Lambda: Expr<'input, Data> = <pos:@L> "fun" <params:Pattern1+>  "->" <block:Block> => Expr::Lambda(params, block, to_data(pos));
 
 FunctionCall: Expr<'input, Data> = <pos:@L> <func:Expression2> <args:Expression2+> => Expr::FunctionCall(Box::new(func), args, to_data(pos));
 
@@ -154,17 +154,18 @@ LiteralExpr: Expr<'input, Data> = <pos:@L> <lit:Literal> => Expr::Literal(lit, t
 
 Pattern0: Pattern<'input> = {
     Pattern1,
-    <variant:"typename"> <patt:Pattern0> => Pattern::UnionUnwrap(variant, Some(Box::new(patt))),
-    "{" <Sep1<RecordPatternRow, ",">> "}" => Pattern::Record(<>),
-    "(" <Sep2<Pattern1, ",">> ")" => Pattern::Tuple(<>)
+    <variant:"typename"> <patt:Pattern1?> => Pattern::UnionUnwrap(variant, patt.map(|p| Box::new(p))),
 };
 
-RecordPatternRow: (&'input str, Pattern<'input>) = <name:"name"> "=" <patt:Pattern0> => (name, patt);
+RecordPatternRow: (&'input str, Pattern<'input>) = <name:"name"> "=" <patt:Pattern1> => (name, patt);
 
 Pattern1: Pattern<'input> = {
     "_" => Pattern::Any,
     Identifier => Pattern::Name(<>),
     <Literal> => Pattern::Literal(<>),
+    "(" <Pattern0> ")" => <>,
+    "{" <Sep1<RecordPatternRow, ",">> "}" => Pattern::Record(<>),
+    "(" <Sep2<Pattern1, ",">> ")" => Pattern::Tuple(<>)
 };
 
 Identifier: Identifier<'input> = {
