@@ -101,7 +101,7 @@ pub enum Pattern<'a> {
     Tuple(Vec<Pattern<'a>>),
     Literal(Literal<'a>),
     Record(Vec<(&'a str, Pattern<'a>)>),
-    UnionUnwrap(&'a str, Option<Box<Pattern<'a>>>),
+    SumUnwrap(&'a str, Option<Box<Pattern<'a>>>),
 }
 
 impl<'a> Display for Pattern<'a> {
@@ -112,8 +112,8 @@ impl<'a> Display for Pattern<'a> {
             Pattern::Literal(lit) => write!(f, "{}", lit),
             Pattern::Tuple(elements) => format_tuple(elements, f),
             Pattern::Record(rows) => format_record(rows, f, ":", ", "),
-            Pattern::UnionUnwrap(constr, None) => write!(f, "{}", constr),
-            Pattern::UnionUnwrap(constr, Some(pat)) => write!(f, "{} {}", constr, *pat)
+            Pattern::SumUnwrap(constr, None) => write!(f, "{}", constr),
+            Pattern::SumUnwrap(constr, Some(pat)) => write!(f, "{} {}", constr, *pat)
         }
     }
 }
@@ -122,7 +122,7 @@ impl<'a> Display for Pattern<'a> {
 pub enum TypeDefinition<'a> {
     Alias(TypeAnnotation<'a>),
     Record(Vec<(&'a str, TypeAnnotation<'a>)>),
-    Union(Vec<(&'a str, Option<TypeAnnotation<'a>>)>)
+    Sum(Vec<(&'a str, Option<TypeAnnotation<'a>>)>)
 }
 
 impl<'a> Display for TypeDefinition<'a> {
@@ -130,7 +130,7 @@ impl<'a> Display for TypeDefinition<'a> {
         match self {
             TypeDefinition::Alias(ta) => write!(f, "{}", ta),
             TypeDefinition::Record(rows) => format_record(rows, f, ":", ", "),
-            TypeDefinition::Union(rows) => {
+            TypeDefinition::Sum(rows) => {
                 let str = rows.iter().map(|(constr, ta)| match ta {
                     None => format!("{}", constr),
                     Some(ta) => format!("{} of {}", constr, ta)

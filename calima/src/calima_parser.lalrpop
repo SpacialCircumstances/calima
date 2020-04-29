@@ -154,7 +154,7 @@ LiteralExpr: Expr<'input, Data> = <pos:@L> <lit:Literal> => Expr::Literal(lit, t
 
 Pattern0: Pattern<'input> = {
     Pattern1,
-    <variant:"typename"> <patt:Pattern1?> => Pattern::UnionUnwrap(variant, patt.map(|p| Box::new(p))),
+    <variant:"typename"> <patt:Pattern1?> => Pattern::SumUnwrap(variant, patt.map(|p| Box::new(p))),
 };
 
 RecordPatternRow: (&'input str, Pattern<'input>) = <name:"name"> "=" <patt:Pattern1> => (name, patt);
@@ -176,13 +176,13 @@ Identifier: Identifier<'input> = {
 
 TypeDefinition: TypeDefinition<'input> = {
     <TypeAnnotation0> => TypeDefinition::Alias(<>),
-    Union,
+    Sum,
     "{" <Sep1<RecordTypeRow, ",">> "}" => TypeDefinition::Record(<>)
 };
 
-Union: TypeDefinition<'input> = "|" <Sep1<UnionRow, "|">> => TypeDefinition::Union(<>);
+Sum: TypeDefinition<'input> = "|" <Sep1<SumRow, "|">> => TypeDefinition::Sum(<>);
 
-UnionRow: (&'input str, Option<TypeAnnotation<'input>>) = {
+SumRow: (&'input str, Option<TypeAnnotation<'input>>) = {
     <n:"typename"> <ta:TypeAnnotation1?> => (n, ta)
 };
 
