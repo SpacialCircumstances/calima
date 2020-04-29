@@ -179,9 +179,11 @@ TypeDefinition: TypeDefinition<'input> = {
     "{" <Sep1<RecordTypeRow, ",">> "}" => TypeDefinition::Record(<>)
 };
 
-Union: TypeDefinition<'input> = "|"? <Sep1<UnionRow, "|">> => TypeDefinition::Union(<>);
+Union: TypeDefinition<'input> = "|" <Sep1<UnionRow, "|">> => TypeDefinition::Union(<>);
 
-UnionRow: (&'input str, Option<TypeAnnotation<'input>>) = <n:"typename"> "of" <ta:TypeAnnotation1> => (n, Some(ta));
+UnionRow: (&'input str, Option<TypeAnnotation<'input>>) = {
+    <n:"typename"> <ta:TypeAnnotation1?> => (n, ta)
+};
 
 RecordTypeRow: (&'input str, TypeAnnotation<'input>) = <n:"name"> ":" <ta:TypeAnnotation0> => (n, ta);
 
