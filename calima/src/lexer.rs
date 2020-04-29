@@ -82,12 +82,13 @@ fn handle_identifier(ident: &str) -> Token {
         "=" => Equal,
         "|" => Pipe,
         "_" => Underscore,
-        "@" => At,
         "true" => BooleanLiteral(true),
         "false" => BooleanLiteral(false),
         x => {
             let first = x.chars().next().expect(format!("Fatal Error: Unrecognized identifier '{}'", ident).as_ref());
-            if first.is_alphabetic() {
+            if first == '@' {
+                RegionIdentifier(ident)
+            } else if first.is_alphabetic() {
                 if first.is_uppercase() {
                     TypeIdentifier(ident)
                 } else {

@@ -1,6 +1,15 @@
 use std::fmt::{Display, Formatter, Debug};
 
 #[derive(Debug, PartialEq, Copy, Clone)]
+pub struct RegionAnnotation<'a>(pub &'a str);
+
+impl<'a> Display for RegionAnnotation<'a> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "@{}", self.0)
+    }
+}
+
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum NumberType {
     Integer,
     Float,
@@ -156,8 +165,8 @@ impl Display for Modifier {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement<'a, Data> {
-    Let(Vec<Modifier>, Pattern<'a>, Expr<'a, Data>, Data),
-    Do(Expr<'a, Data>, Data),
+    Let(Vec<Modifier>, Option<RegionAnnotation<'a>>, Pattern<'a>, Expr<'a, Data>, Data),
+    Do(Option<RegionAnnotation<'a>>, Expr<'a, Data>, Data),
     Import(&'a str, Data), //TODO: Support complex imports
     Region(&'a str, Data),
     Type(&'a str, Vec<&'a str>, TypeDefinition<'a>, Data)
@@ -169,10 +178,13 @@ impl<'a, Data: Display> Display for Statement<'a, Data> {
             Statement::Import(i, _) => write!(f, "import {}", i),
             Statement::Region(reg, _) => write!(f, "region {}", reg),
             Statement::Type(tn, params, td, _) => write!(f, "type {} {} = {}", tn, format_iter(params.iter(), " "), td),
-            Statement::Do(expr, _) => write!(f, "do {}", expr),
-            Statement::Let(mods, pat, expr, _) => {
+            Statement::Do(reg, expr, _) => write!(f, "do {}", expr),
+            Statement::Let(mods, reg, pat, expr, _) => {
                 let mods = mods.iter().map(|m| m.to_string()).collect::<Vec<String>>().join(" ");
-                write!(f, "let {} {} = {}", mods, pat, expr)
+                match reg {
+                    None => write!(f, "let {} {} = {}", mods, pat, expr),
+                    Some(region) => write!(f, "let {} {} {} = {}", mods, region, pat, expr)
+                }
             }
         }
     }

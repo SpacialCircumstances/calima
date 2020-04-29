@@ -1,4 +1,4 @@
-use crate::ast::{Block, Statement, Expr, Literal, NumberType, Pattern, Identifier, TypeDefinition, TypeAnnotation, Modifier};
+use crate::ast::{Block, Statement, Expr, Literal, NumberType, Pattern, Identifier, TypeDefinition, TypeAnnotation, Modifier, RegionAnnotation};
 use crate::token::{Location, Token};
 use crate::token::Token::*;
 use crate::lexer::Error;
@@ -20,6 +20,7 @@ extern {
         "," => Comma,
         "name" => NameIdentifier(<&'input str>),
         "typename" => TypeIdentifier(<&'input str>),
+        "regionname" => RegionIdentifier(<&'input str>),
         "operator" => OperatorIdentifier(<&'input str>),
         "string" => StringLiteral(<&'input str>),
         "number" => NumberLiteral(<&'input str>),
@@ -84,9 +85,9 @@ Statement: Statement<'input, Data> = {
 
 Region: Statement<'input, Data> = <pos:@L> "region" <n:"name"> => Statement::Region(n, to_data(pos));
 
-Do: Statement<'input, Data> = <pos:@L> "do" <e:Expression0> => Statement::Do(e, to_data(pos));
+Do: Statement<'input, Data> = <pos:@L> "do" <reg:RegionAnnotation?> <e:Expression0> => Statement::Do(reg, e, to_data(pos));
 
-Let: Statement<'input, Data> = <pos:@L> "let" <mods:Modifiers> <pat:Pattern1> "=" <expr:Expression0> => Statement::Let(mods, pat, expr, to_data(pos));
+Let: Statement<'input, Data> = <pos:@L> "let" <mods:Modifiers> <reg:RegionAnnotation?> <pat:Pattern1> "=" <expr:Expression0> => Statement::Let(mods, reg, pat, expr, to_data(pos));
 
 Modifiers: Vec<Modifier> = Modifier*;
 
@@ -200,6 +201,8 @@ TypeAnnotation1: TypeAnnotation<'input> = {
     "(" <Sep2<TypeAnnotation0, ",">> ")" => TypeAnnotation::Tuple(<>),
     "(" <ta:TypeAnnotation0> ")" => ta,
 };
+
+RegionAnnotation: RegionAnnotation<'input> = <"regionname"> => RegionAnnotation(<>);
 
 Literal: Literal<'input> = {
     "(" ")" => Literal::Unit,

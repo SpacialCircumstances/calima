@@ -12,6 +12,7 @@ pub enum Token<'input> {
     Comma,
     NameIdentifier(&'input str),
     TypeIdentifier(&'input str),
+    RegionIdentifier(&'input str),
     OperatorIdentifier(&'input str),
     StringLiteral(&'input str),
     NumberLiteral(&'input str),
@@ -34,8 +35,7 @@ pub enum Token<'input> {
     Pipe,
     Import,
     Colon,
-    Arrow,
-    At
+    Arrow
 }
 
 impl<'input> Display for Token<'input> {
