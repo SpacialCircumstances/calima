@@ -108,7 +108,7 @@ Case: Expr<'input, Data> = <pos:@L> "case" <value_expr:Expression1> "of" <rows:C
     matches: rows
 };
 
-CaseRow: (Pattern<'input>, Block<'input, Data>) = "|" <pat:Pattern1> "->" <block:Block> => (pat, block);
+CaseRow: (Pattern<'input>, Block<'input, Data>) = "|" <pat:Pattern0> "->" <block:Block> => (pat, block);
 
 If: Expr<'input, Data> = <pos:@L> "if" <cond_expr:Expression1> "then" <if_block:Block> "else" <else_block:Block> "end" => Expr::If {
     data: to_data(pos),
