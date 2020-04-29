@@ -45,9 +45,10 @@ mod tests {
                 Ok(entry) => {
                     let entry_path = entry.path();
                     if entry_path.is_file() {
-                        let mut parsed_file = mint.new_goldenfile(entry_path.file_name().unwrap()).unwrap();
-                        let file_content = std::fs::read_to_string(entry_path).unwrap();
-                        let parsed = parse(&file_content).unwrap();
+                        let filename = entry_path.file_name().unwrap();
+                        let mut parsed_file = mint.new_goldenfile(filename).unwrap();
+                        let file_content = std::fs::read_to_string(&entry_path).unwrap();
+                        let parsed = parse(&file_content).expect(format!("Error parsing {}", filename.to_string_lossy()).as_ref());
                         write!(parsed_file, "{}", parsed).unwrap();
                     }
                 },
