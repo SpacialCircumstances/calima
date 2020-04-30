@@ -186,12 +186,12 @@ impl<'a, Data: Display> Display for Statement<'a, Data> {
             Statement::Import(i, _) => write!(f, "import {}", i),
             Statement::Region(reg, _) => write!(f, "region {}", reg),
             Statement::Type(tn, params, td, _) => write!(f, "type {} {} = {}", tn, format_iter(params.iter(), " "), td),
-            Statement::Do(reg, expr, _) => write!(f, "do {}", expr),
+            Statement::Do(Some(reg), expr, _) => write!(f, "do {} {}", reg, expr),
+            Statement::Do(None, expr, _) => write!(f, "do {}", expr),
             Statement::Let(mods, reg, pat, expr, _) => {
-                let mods = mods.iter().map(|m| m.to_string()).collect::<Vec<String>>().join(" ");
                 match reg {
-                    None => write!(f, "let {} {} = {}", mods, pat, expr),
-                    Some(region) => write!(f, "let {} {} {} = {}", mods, region, pat, expr)
+                    None => write!(f, "let {}{} = {}", format_iter_end(mods.iter(), " "), pat, expr),
+                    Some(region) => write!(f, "let {}{} {} = {}", format_iter_end(mods.iter(), " "), region, pat, expr)
                 }
             }
         }
@@ -239,7 +239,7 @@ impl<'a, Data: Display> Display for Expr<'a, Data> {
             Expr::List(exprs, _) => write!(f, "[{}]", format_iter(exprs.iter(), ", ")),
             Expr::Tuple(exprs, _) => write!(f, "({})", format_iter(exprs.iter(), ", ")),
             Expr::Record(rows, _) => format_record(rows, f, "=", ", "),
-            Expr::Lambda(regions, params, block, _) => write!(f, "fun {}{} -> {}", format_iter_end(regions.iter(), ""), format_iter(params.iter(), " "), block),
+            Expr::Lambda(regions, params, block, _) => write!(f, "fun {}{} -> {}", format_iter_end(regions.iter(), " "), format_iter(params.iter(), " "), block),
             Expr::FunctionCall(func, regions, args, _) => write!(f, "{} {}{}", *func, format_iter_end(regions.iter(), " "), format_iter(args.iter(), " ")),
             Expr::OperatorCall(l, op, r, _) => write!(f, "{} {} {}", *l, op, *r),
             Expr::If { data: _, cond, if_true, if_false } => {
