@@ -43,8 +43,7 @@ extern {
         "|" => Pipe,
         "import" => Import,
         ":" => Colon,
-        "->" => Arrow,
-        "@" => At
+        "->" => Arrow
     }
 }
 
