@@ -87,7 +87,7 @@ fn handle_identifier(ident: &str) -> Token {
         x => {
             let first = x.chars().next().expect(format!("Fatal Error: Unrecognized identifier '{}'", ident).as_ref());
             if first == '@' {
-                RegionIdentifier(ident)
+                RegionIdentifier(&ident[1..])
             } else if first.is_alphabetic() {
                 if first.is_uppercase() {
                     TypeIdentifier(ident)
