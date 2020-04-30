@@ -25,8 +25,7 @@ mod tests {
     fn test_hello_world() {
         let code = "println \"Hello World!\"";
         let parsed = parse(code);
-        assert!(parsed.is_ok());
-        let ast = parsed.unwrap();
+        let ast = parsed.expect("Parser error");
         let expected = Block {
             statements: Vec::new(),
             result: Box::new(FunctionCall(Box::new(Variable(vec![ "println" ], Location { pos: 0, col: 1, line: 1 })), vec![

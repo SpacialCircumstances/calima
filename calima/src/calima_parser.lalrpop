@@ -127,7 +127,7 @@ Expression1: Expr<'input, Data> = {
 
 RecordExprRow: (&'input str, Expr<'input, Data>) = <n:"name"> "=" <expr:Expression0> => (n, expr);
 
-Lambda: Expr<'input, Data> = <pos:@L> "fun" <params:Pattern1+>  "->" <block:Block> => Expr::Lambda(params, block, to_data(pos));
+Lambda: Expr<'input, Data> = <pos:@L> "fun" <params:Pattern1+>  "->" <block:Block> => Expr::Lambda(Vec::new(), params, block, to_data(pos));
 
 FunctionCall: Expr<'input, Data> = <pos:@L> <func:Expression2> <args:Expression2+> => Expr::FunctionCall(Box::new(func), args, to_data(pos));
 

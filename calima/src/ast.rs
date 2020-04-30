@@ -59,6 +59,12 @@ fn format_iter<T: Display, I: Iterator<Item=T>>(iter: I, sep: &str) -> String {
     iter.map(|e| e.to_string()).collect::<Vec<String>>().join(sep)
 }
 
+fn format_iter_end<T: Display, I: Iterator<Item=T>>(iter: I, sep: &str) -> String {
+    let mut str = format_iter(iter, sep);
+    str.push_str(sep);
+    str
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum TypeAnnotation<'a> {
     Name(&'a str), //First letter uppercase
@@ -217,7 +223,7 @@ pub enum Expr<'a, Data> {
     Record(Vec<(&'a str, Expr<'a, Data>)>, Data),
     Tuple(Vec<Expr<'a, Data>>, Data),
     Literal(Literal<'a>, Data),
-    Lambda(Vec<Pattern<'a>>, Block<'a, Data>, Data),
+    Lambda(Vec<RegionAnnotation<'a>>, Vec<Pattern<'a>>, Block<'a, Data>, Data),
     If { data: Data, cond: Box<Expr<'a, Data>>, if_true: Block<'a, Data>, if_false: Block<'a, Data> },
     Case { data: Data, value: Box<Expr<'a, Data>>, matches: Vec<(Pattern<'a>, Block<'a, Data>)> },
     List(Vec<Expr<'a, Data>>, Data)
@@ -231,7 +237,7 @@ impl<'a, Data: Display> Display for Expr<'a, Data> {
             Expr::List(exprs, _) => write!(f, "[{}]", format_iter(exprs.iter(), ", ")),
             Expr::Tuple(exprs, _) => write!(f, "({})", format_iter(exprs.iter(), ", ")),
             Expr::Record(rows, _) => format_record(rows, f, "=", ", "),
-            Expr::Lambda(params, block, _) => write!(f, "fun {} -> {}", format_iter(params.iter(), " "), block),
+            Expr::Lambda(regions, params, block, _) => write!(f, "fun {}{} -> {}", format_iter_end(regions.iter(), ""), format_iter(params.iter(), " "), block),
             Expr::FunctionCall(func, args, _) => write!(f, "{} {}", *func, format_iter(args.iter(), " ")),
             Expr::OperatorCall(l, op, r, _) => write!(f, "{} {} {}", *l, op, *r),
             Expr::If { data: _, cond, if_true, if_false } => {
