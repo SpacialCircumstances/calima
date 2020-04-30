@@ -28,7 +28,7 @@ mod tests {
         let ast = parsed.expect("Parser error");
         let expected = Block {
             statements: Vec::new(),
-            result: Box::new(FunctionCall(Box::new(Variable(vec![ "println" ], Location { pos: 0, col: 1, line: 1 })), Vec::new(), vec![
+            result: Box::new(FunctionCall(Box::new(Variable(vec![ "println" ], Location { pos: 0, col: 1, line: 1 })), vec![
                 Literal(Literal::String("Hello World!"), Location { pos: 8, col: 9, line: 1 })
             ], Location { pos: 0, col: 1, line: 1 }))
         };

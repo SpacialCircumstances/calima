@@ -220,7 +220,7 @@ impl<'a, Data: Display> Display for Block<'a, Data> {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expr<'a, Data> {
     Variable(Vec<&'a str>, Data),
-    FunctionCall(Box<Expr<'a, Data>>, Vec<RegionAnnotation<'a>>, Vec<Expr<'a, Data>>, Data),
+    FunctionCall(Box<Expr<'a, Data>>, Vec<Expr<'a, Data>>, Data),
     OperatorCall(Box<Expr<'a, Data>>, &'a str, Box<Expr<'a, Data>>, Data),
     Record(Vec<(&'a str, Expr<'a, Data>)>, Data),
     Tuple(Vec<Expr<'a, Data>>, Data),
@@ -240,7 +240,7 @@ impl<'a, Data: Display> Display for Expr<'a, Data> {
             Expr::Tuple(exprs, _) => write!(f, "({})", format_iter(exprs.iter(), ", ")),
             Expr::Record(rows, _) => format_record(rows, f, "=", ", "),
             Expr::Lambda(regions, params, block, _) => write!(f, "fun {}{} -> {}", format_iter_end(regions.iter(), " "), format_iter(params.iter(), " "), block),
-            Expr::FunctionCall(func, regions, args, _) => write!(f, "{} {}{}", *func, format_iter_end(regions.iter(), " "), format_iter(args.iter(), " ")),
+            Expr::FunctionCall(func, args, _) => write!(f, "{} {}", *func, format_iter(args.iter(), " ")),
             Expr::OperatorCall(l, op, r, _) => write!(f, "{} {} {}", *l, op, *r),
             Expr::If { data: _, cond, if_true, if_false } => {
                 writeln!(f, "if {} then", *cond)?;
