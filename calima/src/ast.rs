@@ -1,5 +1,22 @@
 use std::fmt::{Display, Formatter, Debug};
 
+pub mod types {
+    enum Region<'a> {
+        Named(&'a str),
+        Generic(&'a str)
+    }
+
+    struct Type<'a>(Option<Region<'a>>, TypeKind<'a>);
+
+    enum TypeKind<'a> {
+        Name(&'a str),
+        Generic(&'a str),
+        Function(Box<Type<'a>>, Box<Type<'a>>),
+        Tuple(Vec<Type<'a>>),
+        Parameterized(&'a str, Vec<Type<'a>>)
+    }
+}
+
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct RegionAnnotation<'a>(pub &'a str);
 
