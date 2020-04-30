@@ -314,4 +314,11 @@ test #asdf d.
         let tokens = vec! [ NameIdentifier("println"), ParenOpen, StringLiteral("Hello"), OperatorIdentifier("++"), StringLiteral("World!"), ParenClose ];
         lex_equal(code, tokens);
     }
+
+    #[test]
+    fn lex10() {
+        let code = "a.T.b @reg ++ test";
+        let tokens = vec! [ NameIdentifier("a"), Period, TypeIdentifier("T"), Period, NameIdentifier("b"), RegionIdentifier("reg"), OperatorIdentifier("++"), NameIdentifier("test") ];
+        lex_equal(code, tokens);
+    }
 }
