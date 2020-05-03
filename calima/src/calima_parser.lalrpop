@@ -189,9 +189,15 @@ SumRow: (&'input str, Option<TypeAnnotation<'input>>) = {
 
 RecordTypeRow: (&'input str, TypeAnnotation<'input>) = <n:"name"> ":" <ta:TypeAnnotation0> => (n, ta);
 
-TypeAnnotation0: TypeAnnotation<'input> = <reg:RegionAnnotation?> <tk:TypeKind1> => TypeAnnotation(reg, tk);
+TypeAnnotation0: TypeAnnotation<'input> = {
+    <reg:RegionAnnotation> <tk:TypeKind1> => TypeAnnotation(Some(reg), tk),
+    <TypeKind0> => TypeAnnotation(None, <>)
+};
 
-TypeAnnotation1: TypeAnnotation<'input> = TypeAnnotation0;
+TypeAnnotation1: TypeAnnotation<'input> = {
+    <reg:RegionAnnotation> <tk:TypeKind1> => TypeAnnotation(Some(reg), tk),
+    <TypeKind1> => TypeAnnotation(None, <>)
+};
 
 TypeKind0: TypeKind<'input> = {
     <inp:TypeAnnotation1> "->" <out:TypeAnnotation0> => TypeKind::Function(Box::new(inp), Box::new(out)),
