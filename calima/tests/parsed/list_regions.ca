@@ -5,8 +5,8 @@ None
 | Node (_, e) ->
 Some e
 end
-region test
-let alloc = fun @a () -> let @a a = Empty
+region @test
+let alloc = fun 'a () -> let 'a a = Empty
 in a
 
 let @test (t1: (List Int )) = Node (Empty, 2)

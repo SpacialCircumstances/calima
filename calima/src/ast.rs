@@ -59,16 +59,34 @@ fn format_iter_end<T: Display, I: Iterator<Item=T>>(iter: I, sep: &str) -> Strin
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
+pub struct GenericRegion<'a>(pub &'a str);
+
+impl<'a> Display for GenericRegion<'a> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "'{}", self.0)
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub struct NamedRegion<'a>(pub &'a str);
+
+impl<'a> Display for NamedRegion<'a> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "@{}", self.0)
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum RegionAnnotation<'a> {
-    Named(&'a str),
-    Generic(&'a str)
+    Named(NamedRegion<'a>),
+    Generic(GenericRegion<'a>)
 }
 
 impl<'a> Display for RegionAnnotation<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            RegionAnnotation::Named(r) => write!(f, "@{}", r),
-            RegionAnnotation::Generic(r) => write!(f, "'{}", r)
+            RegionAnnotation::Named(r) => write!(f, "{}", r),
+            RegionAnnotation::Generic(r) => write!(f, "{}", r)
         }
     }
 }
@@ -194,8 +212,8 @@ pub enum Statement<'a, Data> {
     Let(Vec<Modifier>, Option<RegionAnnotation<'a>>, Pattern<'a>, Expr<'a, Data>, Data),
     Do(Option<RegionAnnotation<'a>>, Expr<'a, Data>, Data),
     Import(&'a str, Data), //TODO: Support complex imports
-    Region(&'a str, Data),
-    Type(&'a str, Vec<&'a str>, TypeDefinition<'a>, Data)
+    Region(NamedRegion<'a>, Data),
+    Type { name: &'a str, regions: Vec<GenericRegion<'a>>, params: Vec<&'a str>, typedef: TypeDefinition<'a>, data: Data }
 }
 
 impl<'a, Data: Display> Display for Statement<'a, Data> {
@@ -203,7 +221,7 @@ impl<'a, Data: Display> Display for Statement<'a, Data> {
         match self {
             Statement::Import(i, _) => write!(f, "import {}", i),
             Statement::Region(reg, _) => write!(f, "region {}", reg),
-            Statement::Type(tn, params, td, _) => write!(f, "type {} {} = {}", tn, format_iter(params.iter(), " "), td),
+            Statement::Type { name, regions, params, typedef, data: _ } => write!(f, "type {} {}{} = {}", name, format_iter_end(regions.iter(), " "), format_iter(params.iter(), " "), typedef),
             Statement::Do(Some(reg), expr, _) => write!(f, "do {} {}", reg, expr),
             Statement::Do(None, expr, _) => write!(f, "do {}", expr),
             Statement::Let(mods, reg, pat, expr, _) => {
@@ -243,7 +261,7 @@ pub enum Expr<'a, Data> {
     Record(Vec<(&'a str, Expr<'a, Data>)>, Data),
     Tuple(Vec<Expr<'a, Data>>, Data),
     Literal(Literal<'a>, Data),
-    Lambda(Vec<RegionAnnotation<'a>>, Vec<Pattern<'a>>, Block<'a, Data>, Data),
+    Lambda { regions: Vec<GenericRegion<'a>>, params: Vec<Pattern<'a>>, body: Block<'a, Data>, data: Data },
     If { data: Data, cond: Box<Expr<'a, Data>>, if_true: Block<'a, Data>, if_false: Block<'a, Data> },
     Case { data: Data, value: Box<Expr<'a, Data>>, matches: Vec<(Pattern<'a>, Block<'a, Data>)> },
     List(Vec<Expr<'a, Data>>, Data)
@@ -257,7 +275,7 @@ impl<'a, Data: Display> Display for Expr<'a, Data> {
             Expr::List(exprs, _) => write!(f, "[{}]", format_iter(exprs.iter(), ", ")),
             Expr::Tuple(exprs, _) => write!(f, "({})", format_iter(exprs.iter(), ", ")),
             Expr::Record(rows, _) => format_record(rows, f, "=", ", "),
-            Expr::Lambda(regions, params, block, _) => write!(f, "fun {}{} -> {}", format_iter_end(regions.iter(), " "), format_iter(params.iter(), " "), block),
+            Expr::Lambda { regions, params, body, data: _ } => write!(f, "fun {}{} -> {}", format_iter_end(regions.iter(), " "), format_iter(params.iter(), " "), body),
             Expr::FunctionCall(func, args, _) => write!(f, "{} {}", *func, format_iter(args.iter(), " ")),
             Expr::OperatorCall(l, op, r, _) => write!(f, "{} {} {}", *l, op, *r),
             Expr::If { data: _, cond, if_true, if_false } => {
