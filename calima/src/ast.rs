@@ -74,13 +74,13 @@ impl<'a> Display for RegionAnnotation<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct TypeAnnotation<'a>(Option<RegionAnnotation<'a>>, TypeKind<'a>);
+pub struct TypeAnnotation<'a>(pub Option<RegionAnnotation<'a>>, pub TypeKind<'a>);
 
 impl<'a> Display for TypeAnnotation<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self.0 {
             None => write!(f, "{}", self.1),
-            Some(r) => write!(f, "{} {}", self.0, self.1)
+            Some(r) => write!(f, "{} {}", r, self.1)
         }
     }
 }

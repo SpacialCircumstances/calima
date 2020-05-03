@@ -1,4 +1,4 @@
-use crate::ast::{Block, Statement, Expr, Literal, NumberType, Pattern, Identifier, TypeDefinition, TypeAnnotation, Modifier, RegionAnnotation};
+use crate::ast::{Block, Statement, Expr, Literal, NumberType, Pattern, Identifier, TypeDefinition, TypeAnnotation, Modifier, RegionAnnotation, TypeKind};
 use crate::token::{Location, Token};
 use crate::token::Token::*;
 use crate::lexer::Error;
@@ -189,20 +189,27 @@ SumRow: (&'input str, Option<TypeAnnotation<'input>>) = {
 
 RecordTypeRow: (&'input str, TypeAnnotation<'input>) = <n:"name"> ":" <ta:TypeAnnotation0> => (n, ta);
 
-TypeAnnotation0: TypeAnnotation<'input> = {
-    <inp:TypeAnnotation1> "->" <out:TypeAnnotation0> => TypeAnnotation::Function(Box::new(inp), Box::new(out)),
-    <n:"typename"> <params:TypeAnnotation1+> => TypeAnnotation::Parameterized(n, params),
-    TypeAnnotation1
+TypeAnnotation0: TypeAnnotation<'input> = <reg:RegionAnnotation?> <tk:TypeKind1> => TypeAnnotation(reg, tk);
+
+TypeAnnotation1: TypeAnnotation<'input> = TypeAnnotation0;
+
+TypeKind0: TypeKind<'input> = {
+    <inp:TypeAnnotation1> "->" <out:TypeAnnotation0> => TypeKind::Function(Box::new(inp), Box::new(out)),
+    <n:"typename"> <params:TypeAnnotation1+> => TypeKind::Parameterized(n, params),
+    TypeKind1
 };
 
-TypeAnnotation1: TypeAnnotation<'input> = {
-    <"typename"> => TypeAnnotation::Name(<>),
-    <"name"> => TypeAnnotation::Generic(<>),
-    "(" <Sep2<TypeAnnotation0, ",">> ")" => TypeAnnotation::Tuple(<>),
-    "(" <ta:TypeAnnotation0> ")" => ta,
+TypeKind1: TypeKind<'input> = {
+    <"typename"> => TypeKind::Name(<>),
+    <"name"> => TypeKind::Generic(<>),
+    "(" <Sep2<TypeAnnotation0, ",">> ")" => TypeKind::Tuple(<>),
+    "(" <tk:TypeKind0> ")" => tk,
 };
 
-RegionAnnotation: RegionAnnotation<'input> = <"regionname"> => RegionAnnotation(<>);
+RegionAnnotation: RegionAnnotation<'input> = {
+    <"regionname"> => RegionAnnotation::Named(<>),
+    <"genericregion"> => RegionAnnotation::Generic(<>)
+};
 
 Literal: Literal<'input> = {
     "(" ")" => Literal::Unit,
