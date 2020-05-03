@@ -1,31 +1,5 @@
 use std::fmt::{Display, Formatter, Debug};
 
-pub mod types {
-    enum Region<'a> {
-        Named(&'a str),
-        Generic(&'a str)
-    }
-
-    struct Type<'a>(Option<Region<'a>>, TypeKind<'a>);
-
-    enum TypeKind<'a> {
-        Name(&'a str),
-        Generic(&'a str),
-        Function(Box<Type<'a>>, Box<Type<'a>>),
-        Tuple(Vec<Type<'a>>),
-        Parameterized(&'a str, Vec<Type<'a>>)
-    }
-}
-
-#[derive(Debug, PartialEq, Copy, Clone)]
-pub struct RegionAnnotation<'a>(pub &'a str);
-
-impl<'a> Display for RegionAnnotation<'a> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "@{}", self.0)
-    }
-}
-
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum NumberType {
     Integer,
@@ -84,29 +58,56 @@ fn format_iter_end<T: Display, I: Iterator<Item=T>>(iter: I, sep: &str) -> Strin
     str
 }
 
-#[derive(Debug, PartialEq, Clone)]
-pub enum TypeAnnotation<'a> {
-    Name(&'a str), //First letter uppercase
-    Generic(&'a str), //First letter lowercase
-    Function(Box<TypeAnnotation<'a>>, Box<TypeAnnotation<'a>>),
-    Parameterized(&'a str, Vec<TypeAnnotation<'a>>),
-    Tuple(Vec<TypeAnnotation<'a>>)
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum RegionAnnotation<'a> {
+    Named(&'a str),
+    Generic(&'a str)
 }
+
+impl<'a> Display for RegionAnnotation<'a> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RegionAnnotation::Named(r) => write!(f, "@{}", r),
+            RegionAnnotation::Generic(r) => write!(f, "'{}", r)
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct TypeAnnotation<'a>(Option<RegionAnnotation<'a>>, TypeKind<'a>);
 
 impl<'a> Display for TypeAnnotation<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self.0 {
+            None => write!(f, "{}", self.1),
+            Some(r) => write!(f, "{} {}", self.0, self.1)
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum TypeKind<'a> {
+    Name(&'a str),
+    Generic(&'a str),
+    Function(Box<TypeAnnotation<'a>>, Box<TypeAnnotation<'a>>),
+    Tuple(Vec<TypeAnnotation<'a>>),
+    Parameterized(&'a str, Vec<TypeAnnotation<'a>>)
+}
+
+impl<'a> Display for TypeKind<'a> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            TypeAnnotation::Name(name) => write!(f, "{}", name),
-            TypeAnnotation::Generic(name) => write!(f, "{}", name),
-            TypeAnnotation::Function(i, o) => write!(f, "({} => {})", *i, *o),
-            TypeAnnotation::Parameterized(name, params) => {
+            TypeKind::Name(name) => write!(f, "{}", name),
+            TypeKind::Generic(name) => write!(f, "{}", name),
+            TypeKind::Function(i, o) => write!(f, "({} => {})", *i, *o),
+            TypeKind::Parameterized(name, params) => {
                 write!(f, "({} ", name)?;
                 for p in params {
                     write!(f, "{} ", p)?;
                 }
                 write!(f, ")")
             },
-            TypeAnnotation::Tuple(elements) => format_tuple(elements, f)
+            TypeKind::Tuple(elements) => format_tuple(elements, f)
         }
     }
 }
