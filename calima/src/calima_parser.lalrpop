@@ -83,10 +83,13 @@ Statement: Statement<'input, Data> = {
     Import,
     Region,
     <pos:@L> "type" <regions:GenericRegion*> <n:"typename"> <params: "name"*> "=" <td:TypeDefinition> => Statement::Type { name: n, regions, params, type_def: td, data: to_data(pos) },
-    <pos:@L> "class" <regions:GenericRegion*> <n:"typename"> <params:"name"*> "=" <class_rows:Sep1<ClassRow, ",">> => Statement::Class { name: n, regions, params, class_def: ClassDefinition(class_rows), data: to_data(pos) }
+    <pos:@L> "class" <regions:GenericRegion*> <n:"typename"> <params:"name"*> "=" <class_rows:Sep1<ClassRow, ",">> => Statement::Class { name: n, regions, params, class_def: ClassDefinition(class_rows), data: to_data(pos) },
+    <pos:@L> "instance" <regions:RegionAnnotation*> <n:"typename"> <args:TypeAnnotation1*> "=" <instance_rows:Sep1<InstanceRow, ",">> => Statement::Instance { name: n, regions, args, instance_def: InstanceDefinition(instance_rows), data: to_data(pos) }
 };
 
 ClassRow: (&'input str, TypeAnnotation<'input>) = <n:"name"> ":" <ta:TypeAnnotation0> => (n, ta);
+
+InstanceRow: (&'input str, Expr<'input, Data>) = <n:"name"> "=" <expr:Expression1> => (n, expr);
 
 Region: Statement<'input, Data> = <pos:@L> "region" <n:NamedRegion> => Statement::Region(n, to_data(pos));
 
