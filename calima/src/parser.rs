@@ -16,7 +16,7 @@ mod tests {
     use std::fs::read_dir;
     use std::io::Write;
     use crate::parser::parse;
-    use crate::ast::{Block, Literal};
+    use crate::ast::{Block, Literal, TopLevelBlock};
     use crate::ast::Expr::*;
     use crate::token::Location;
     use goldenfile::Mint;
@@ -26,11 +26,14 @@ mod tests {
         let code = "println \"Hello World!\"";
         let parsed = parse(code);
         let ast = parsed.expect("Parser error");
-        let expected = Block {
-            statements: Vec::new(),
-            result: Box::new(FunctionCall(Box::new(Variable(vec![ "println" ], Location { pos: 0, col: 1, line: 1 })), vec![
-                Literal(Literal::String("Hello World!"), Location { pos: 8, col: 9, line: 1 })
-            ], Location { pos: 0, col: 1, line: 1 }))
+        let expected = TopLevelBlock {
+            top_levels: Vec::new(),
+            block: Block {
+                statements: Vec::new(),
+                result: Box::new(FunctionCall(Box::new(Variable(vec!["println"], Location { pos: 0, col: 1, line: 1 })), vec![
+                    Literal(Literal::String("Hello World!"), Location { pos: 8, col: 9, line: 1 })
+                ], Location { pos: 0, col: 1, line: 1 }))
+            }
         };
         assert_eq!(ast, expected);
     }
