@@ -80,7 +80,7 @@ Statement: Statement<'input, Data> = {
     Do,
     Import,
     Region,
-    <pos:@L> "type" <regions:GenericRegion*> <n:"typename"> <params: "name"*> "=" <td:TypeDefinition> => Statement::Type { name: n, regions, params, typedef: td, data: to_data(pos) }
+    <pos:@L> "type" <regions:GenericRegion*> <n:"typename"> <params: "name"*> "=" <td:TypeDefinition> => Statement::Type { name: n, regions, params, type_def: td, data: to_data(pos) }
 };
 
 Region: Statement<'input, Data> = <pos:@L> "region" <n:NamedRegion> => Statement::Region(n, to_data(pos));
