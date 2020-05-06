@@ -1,4 +1,4 @@
-use crate::ast::{Block, Statement, Expr, Literal, NumberType, Pattern, Identifier, TypeDefinition, TypeAnnotation, Modifier, RegionAnnotation, TypeKind, NamedRegion, GenericRegion};
+use crate::ast::{Block, Statement, Expr, Literal, NumberType, Pattern, Identifier, TypeDefinition, TypeAnnotation, Modifier, RegionAnnotation, TypeKind, NamedRegion, GenericRegion, ClassDefinition, InstanceDefinition};
 use crate::token::{Location, Token};
 use crate::token::Token::*;
 use crate::lexer::Error;
@@ -44,7 +44,9 @@ extern {
         "|" => Pipe,
         "import" => Import,
         ":" => Colon,
-        "->" => Arrow
+        "->" => Arrow,
+        "class" => Class,
+        "instance" => Instance
     }
 }
 
@@ -80,8 +82,11 @@ Statement: Statement<'input, Data> = {
     Do,
     Import,
     Region,
-    <pos:@L> "type" <regions:GenericRegion*> <n:"typename"> <params: "name"*> "=" <td:TypeDefinition> => Statement::Type { name: n, regions, params, type_def: td, data: to_data(pos) }
+    <pos:@L> "type" <regions:GenericRegion*> <n:"typename"> <params: "name"*> "=" <td:TypeDefinition> => Statement::Type { name: n, regions, params, type_def: td, data: to_data(pos) },
+    <pos:@L> "class" <regions:GenericRegion*> <n:"typename"> <params:"name"*> "=" <class_rows:Sep1<ClassRow, ",">> => Statement::Class { name: n, regions, params, class_def: ClassDefinition(class_rows), data: to_data(pos) }
 };
+
+ClassRow: (&'input str, TypeAnnotation<'input>) = <n:"name"> ":" <ta:TypeAnnotation0> => (n, ta);
 
 Region: Statement<'input, Data> = <pos:@L> "region" <n:NamedRegion> => Statement::Region(n, to_data(pos));
 

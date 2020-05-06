@@ -208,7 +208,7 @@ impl Display for Modifier {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct ClassDefinition<'a>(Vec<(&'a str, TypeAnnotation<'a>)>);
+pub struct ClassDefinition<'a>(pub Vec<(&'a str, TypeAnnotation<'a>)>);
 
 impl<'a> Display for ClassDefinition<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -220,7 +220,7 @@ impl<'a> Display for ClassDefinition<'a> {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct InstanceDefinition<'a, Data>(Vec<(&'a str, Expr<'a, Data>)>);
+pub struct InstanceDefinition<'a, Data>(pub Vec<(&'a str, Expr<'a, Data>)>);
 
 impl<'a, Data> Display for InstanceDefinition<'a, Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
