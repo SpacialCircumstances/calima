@@ -246,11 +246,13 @@ impl<'a, Data> Display for TopLevelStatement<'a, Data> {
             TopLevelStatement::Type { name, regions, params, type_def: typedef, data: _ } => write!(f, "type {} {}{} = {}", name, format_iter_end(regions.iter(), " "), format_iter(params.iter(), " "), typedef),
             TopLevelStatement::Class { name, regions, params, class_def: classdef, data: _ } => {
                 writeln!(f, "class {} {}{}=", name, format_iter_end(regions.iter(), " "), format_iter_end(params.iter(), " "))?;
-                write!(f, "{}", classdef)
+                writeln!(f, "{}", classdef)?;
+                write!(f, "end")
             },
             TopLevelStatement::Instance { name, regions, args, instance_def: instancedef, data: _ } => {
                 writeln!(f, "instance {} {}{}=", name, format_iter_end(regions.iter(), " "), format_iter_end(args.iter(), " "))?;
-                write!(f, "{}", instancedef)
+                writeln!(f, "{}", instancedef)?;
+                write!(f, "end")
             }
         }
     }
@@ -287,10 +289,15 @@ pub struct TopLevelBlock<'a, Data> {
 
 impl<'a, Data> Display for TopLevelBlock<'a, Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        for tls in &self.top_levels {
-            writeln!(f, "{}", tls)?;
+        if self.top_levels.is_empty() {
+            write!(f, "{}", self.block)
+        } else {
+            for tls in &self.top_levels {
+                writeln!(f, "{}", tls)?;
+            }
+            writeln!(f, "in")?;
+            write!(f, "{}", self.block)
         }
-        write!(f, "{}", self.block)
     }
 }
 
