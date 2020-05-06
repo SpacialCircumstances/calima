@@ -1,4 +1,5 @@
 type List a = Node of ((List a ), a)| Empty
+in
 let head = fun list -> case list of
 | Empty ->
 None

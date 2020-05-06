@@ -1,7 +1,7 @@
 type List a =
     | Node (List a, a)
     | Empty
-
+in
 let head = fun list -> case list of
     | Empty -> None
     | Node (_, e) -> Some e
