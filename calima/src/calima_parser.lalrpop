@@ -66,7 +66,10 @@ Sep2<T, S>: Vec<T> = { // (1)
     }
 };
 
-pub TopLevelBlock: TopLevelBlock<'input, Data> = <top_levels:TopLevelStatement*> "in" <block:Block> => TopLevelBlock { top_levels, block };
+pub TopLevelBlock: TopLevelBlock<'input, Data> = {
+    <top_levels:TopLevelStatement+> "in" <block:Block> => TopLevelBlock { top_levels, block },
+    <Block> => TopLevelBlock { top_levels: Vec::new(), block: <> }
+};
 
 Block: Block<'input, Data> = {
     <sts:Statement+> "in" <e:Expression0> => Block {
