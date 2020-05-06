@@ -1,4 +1,4 @@
-use crate::ast::{Block, Statement, Expr, Literal, NumberType, Pattern, Identifier, TypeDefinition, TypeAnnotation, Modifier, RegionAnnotation, TypeKind, NamedRegion, GenericRegion, ClassDefinition, InstanceDefinition};
+use crate::ast::{Block, Statement, Expr, Literal, NumberType, Pattern, Identifier, TypeDefinition, TypeAnnotation, Modifier, RegionAnnotation, TypeKind, NamedRegion, GenericRegion, ClassDefinition, InstanceDefinition, TopLevelBlock, TopLevelStatement};
 use crate::token::{Location, Token};
 use crate::token::Token::*;
 use crate::lexer::Error;
@@ -66,7 +66,9 @@ Sep2<T, S>: Vec<T> = { // (1)
     }
 };
 
-pub Block: Block<'input, Data> = {
+pub TopLevelBlock: TopLevelBlock<'input, Data> = <top_levels:TopLevelStatement*> <block:Block> => TopLevelBlock { top_levels, block };
+
+Block: Block<'input, Data> = {
     <sts:Statement+> "in" <e:Expression0> => Block {
         statements: sts,
         result: Box::new(e)
@@ -77,19 +79,21 @@ pub Block: Block<'input, Data> = {
     }
 };
 
-Statement: Statement<'input, Data> = {
-    Let,
-    Do,
+TopLevelStatement: TopLevelStatement<'input, Data> = {
     Import,
-    Region,
-    <pos:@L> "type" <regions:GenericRegion*> <n:"typename"> <params: "name"*> "=" <td:TypeDefinition> => Statement::Type { name: n, regions, params, type_def: td, data: to_data(pos) },
-    <pos:@L> "class" <regions:GenericRegion*> <n:"typename"> <params:"name"*> "=" <class_rows:Sep1<ClassRow, ",">> => Statement::Class { name: n, regions, params, class_def: ClassDefinition(class_rows), data: to_data(pos) },
-    <pos:@L> "instance" <regions:RegionAnnotation*> <n:"typename"> <args:TypeAnnotation1*> "=" <instance_rows:Sep1<InstanceRow, ",">> => Statement::Instance { name: n, regions, args, instance_def: InstanceDefinition(instance_rows), data: to_data(pos) }
 };
 
 ClassRow: (&'input str, TypeAnnotation<'input>) = <n:"name"> ":" <ta:TypeAnnotation0> => (n, ta);
 
 InstanceRow: (&'input str, Expr<'input, Data>) = <n:"name"> "=" <expr:Expression1> => (n, expr);
+
+Import: TopLevelStatement<'input, Data> = <pos:@L> "import" <n:"name"> => TopLevelStatement::Import(n, to_data(pos));
+
+Statement: Statement<'input, Data> = {
+    Let,
+    Do,
+    Region
+};
 
 Region: Statement<'input, Data> = <pos:@L> "region" <n:NamedRegion> => Statement::Region(n, to_data(pos));
 
@@ -102,8 +106,6 @@ Modifiers: Vec<Modifier> = Modifier*;
 Modifier: Modifier = {
     "rec" => Modifier::Rec
 };
-
-Import: Statement<'input, Data> = <pos:@L> "import" <n:"name"> => Statement::Import(n, to_data(pos));
 
 Expression0: Expr<'input, Data> = {
     If,

@@ -4,10 +4,10 @@ use crate::token::Location;
 
 lalrpop_mod!(pub calima_parser);
 
-pub fn parse<'a>(code: &'a str) -> Result<Block<'a, Location>, String> {
+pub fn parse<'a>(code: &'a str) -> Result<TopLevelBlock<'a, Location>, String> {
     let lexer = Lexer::new(code);
-    let parser = calima_parser::BlockParser::new();
-    let block = parser.parse(code, &|loc| loc, lexer).map_err(|e| format!("{}", e))?;
+    let parser = calima_parser::TopLevelBlockParser::new();
+    let block: TopLevelBlock<'a, Location> = parser.parse(code, &|loc| loc, lexer).map_err(|e| format!("{}", e))?;
     Ok(block)
 }
 

@@ -232,22 +232,41 @@ impl<'a, Data> Display for InstanceDefinition<'a, Data> {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum Statement<'a, Data> {
-    Let(Vec<Modifier>, Option<RegionAnnotation<'a>>, Pattern<'a>, Expr<'a, Data>, Data),
-    Do(Option<RegionAnnotation<'a>>, Expr<'a, Data>, Data),
+pub enum TopLevelStatement<'a, Data> {
     Import(&'a str, Data), //TODO: Support complex imports
-    Region(NamedRegion<'a>, Data),
     Type { name: &'a str, regions: Vec<GenericRegion<'a>>, params: Vec<&'a str>, type_def: TypeDefinition<'a>, data: Data },
     Class { name: &'a str, regions: Vec<GenericRegion<'a>>, params: Vec<&'a str>, class_def: ClassDefinition<'a>, data: Data },
     Instance { name: &'a str, regions: Vec<RegionAnnotation<'a>>, args: Vec<TypeAnnotation<'a>>, instance_def: InstanceDefinition<'a, Data>, data: Data }
 }
 
+impl<'a, Data> Display for TopLevelStatement<'a, Data> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TopLevelStatement::Import(i, _) => write!(f, "import {}", i),
+            TopLevelStatement::Type { name, regions, params, type_def: typedef, data: _ } => write!(f, "type {} {}{} = {}", name, format_iter_end(regions.iter(), " "), format_iter(params.iter(), " "), typedef),
+            TopLevelStatement::Class { name, regions, params, class_def: classdef, data: _ } => {
+                writeln!(f, "class {} {}{}=", name, format_iter_end(regions.iter(), " "), format_iter_end(params.iter(), " "))?;
+                write!(f, "{}", classdef)
+            },
+            TopLevelStatement::Instance { name, regions, args, instance_def: instancedef, data: _ } => {
+                writeln!(f, "instance {} {}{}=", name, format_iter_end(regions.iter(), " "), format_iter_end(args.iter(), " "))?;
+                write!(f, "{}", instancedef)
+            }
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Statement<'a, Data> {
+    Let(Vec<Modifier>, Option<RegionAnnotation<'a>>, Pattern<'a>, Expr<'a, Data>, Data),
+    Do(Option<RegionAnnotation<'a>>, Expr<'a, Data>, Data),
+    Region(NamedRegion<'a>, Data)
+}
+
 impl<'a, Data> Display for Statement<'a, Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Statement::Import(i, _) => write!(f, "import {}", i),
             Statement::Region(reg, _) => write!(f, "region {}", reg),
-            Statement::Type { name, regions, params, type_def: typedef, data: _ } => write!(f, "type {} {}{} = {}", name, format_iter_end(regions.iter(), " "), format_iter(params.iter(), " "), typedef),
             Statement::Do(Some(reg), expr, _) => write!(f, "do {} {}", reg, expr),
             Statement::Do(None, expr, _) => write!(f, "do {}", expr),
             Statement::Let(mods, reg, pat, expr, _) => {
@@ -255,17 +274,23 @@ impl<'a, Data> Display for Statement<'a, Data> {
                     None => write!(f, "let {}{} = {}", format_iter_end(mods.iter(), " "), pat, expr),
                     Some(region) => write!(f, "let {}{} {} = {}", format_iter_end(mods.iter(), " "), region, pat, expr)
                 }
-            },
-            Statement::Class { name, regions, params, class_def: classdef, data: _ } => {
-                writeln!(f, "class {} {}{}=", name, format_iter_end(regions.iter(), " "), format_iter_end(params.iter(), " "))?;
-                write!(f, "{}", classdef)
-            }
-
-            Statement::Instance { name, regions, args, instance_def: instancedef, data: _ } => {
-                writeln!(f, "instance {} {}{}=", name, format_iter_end(regions.iter(), " "), format_iter_end(args.iter(), " "))?;
-                write!(f, "{}", instancedef)
             }
         }
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct TopLevelBlock<'a, Data> {
+    pub top_levels: Vec<TopLevelStatement<'a, Data>>,
+    pub block: Block<'a, Data>
+}
+
+impl<'a, Data> Display for TopLevelBlock<'a, Data> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        for tls in &self.top_levels {
+            writeln!(f, "{}", tls)?;
+        }
+        write!(f, "{}", self.block)
     }
 }
 
