@@ -32,7 +32,7 @@ mod tests {
         };
         let loc2 = Span {
             left: Location { pos: 8, col: 9, line: 1 },
-            right: Location { pos: 22, col: 23, line: 1 }
+            right: Location { pos: 21, col: 22, line: 1 }
         };
         let loc3 = Span {
             left: loc1.left,
