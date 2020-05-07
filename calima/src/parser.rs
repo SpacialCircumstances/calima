@@ -28,11 +28,11 @@ mod tests {
         let ast = parsed.expect("Parser error");
         let loc1 = Span {
             left: Location { pos: 0, col: 1, line: 1 },
-            right: Location { pos: 7, col: 8, line: 1 }
+            right: Location { pos: 6, col: 7, line: 1 }
         };
         let loc2 = Span {
-            left: Location { pos: 8, col: 9, line: 1 },
-            right: Location { pos: 24, col: 23, line: 1 }
+            left: Location { pos: 7, col: 8, line: 1 },
+            right: Location { pos: 23, col: 22, line: 1 }
         };
         let loc3 = Span {
             left: loc1.left,
