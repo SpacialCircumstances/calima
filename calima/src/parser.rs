@@ -1,13 +1,13 @@
 use crate::ast::*;
 use crate::lexer::*;
-use crate::token::Location;
+use crate::token::Span;
 
 lalrpop_mod!(pub calima_parser);
 
-pub fn parse<'a>(code: &'a str) -> Result<TopLevelBlock<'a, Location>, String> {
+pub fn parse<'a>(code: &'a str) -> Result<TopLevelBlock<'a, Span>, String> {
     let lexer = Lexer::new(code);
     let parser = calima_parser::TopLevelBlockParser::new();
-    let block: TopLevelBlock<'a, Location> = parser.parse(code, &|loc| loc, lexer).map_err(|e| format!("{}", e))?;
+    let block: TopLevelBlock<'a, Span> = parser.parse(code, &|left_loc, right_loc| Span { left: left_loc, right: right_loc }, lexer).map_err(|e| format!("{}", e))?;
     Ok(block)
 }
 
@@ -18,7 +18,7 @@ mod tests {
     use crate::parser::parse;
     use crate::ast::{Block, Literal, TopLevelBlock};
     use crate::ast::Expr::*;
-    use crate::token::Location;
+    use crate::token::{Location, Span};
     use goldenfile::Mint;
 
     #[test]
@@ -26,13 +26,25 @@ mod tests {
         let code = "println \"Hello World!\"";
         let parsed = parse(code);
         let ast = parsed.expect("Parser error");
+        let loc1 = Span {
+            left: Location { pos: 0, col: 1, line: 1 },
+            right: Location { pos: 7, col: 8, line: 1 }
+        };
+        let loc2 = Span {
+            left: Location { pos: 8, col: 9, line: 1 },
+            right: Location { pos: 24, col: 23, line: 1 }
+        };
+        let loc3 = Span {
+            left: loc1.left,
+            right: loc2.right
+        };
         let expected = TopLevelBlock {
             top_levels: Vec::new(),
             block: Block {
                 statements: Vec::new(),
-                result: Box::new(FunctionCall(Box::new(Variable(vec!["println"], Location { pos: 0, col: 1, line: 1 })), vec![
-                    Literal(Literal::String("Hello World!"), Location { pos: 8, col: 9, line: 1 })
-                ], Location { pos: 0, col: 1, line: 1 }))
+                result: Box::new(FunctionCall(Box::new(Variable(vec!["println"], loc1)), vec![
+                    Literal(Literal::String("Hello World!"), loc2)
+                ], loc3))
             }
         };
         assert_eq!(ast, expected);

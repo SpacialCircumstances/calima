@@ -59,3 +59,15 @@ impl Display for Location {
         write!(f, "Line: {}, Col: {}", self.line, self.col)
     }
 }
+
+#[derive(Debug, Eq, PartialEq, Clone, Copy, Default)]
+pub struct Span {
+    pub left: Location,
+    pub right: Location
+}
+
+impl Display for Span {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        write!(f, "{} - {}", self.left, self.right)
+    }
+}
