@@ -1,0 +1,9 @@
+class Addable a =
+(+): (a -> (a -> a))
+end
+instance Addable Int =
+(+) = fun a b -> addInt a b
+end
+in
+let x = 2 + 2
+in println x

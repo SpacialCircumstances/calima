@@ -214,7 +214,7 @@ pub struct ClassDefinition<'a>(pub Vec<(Identifier<'a>, TypeAnnotation<'a>)>);
 impl<'a> Display for ClassDefinition<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let members = self.0.iter().map(|(n, ta)| format!("{}: {}", n, ta));
-        let members = format_iter_end(members, ",\n");
+        let members = format_iter(members, ",\n");
         write!(f, "{}", members)
     }
 }
