@@ -214,9 +214,8 @@ pub struct ClassDefinition<'a>(pub Vec<(Identifier<'a>, TypeAnnotation<'a>)>);
 impl<'a> Display for ClassDefinition<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let members = self.0.iter().map(|(n, ta)| format!("{}: {}", n, ta));
-        let mut members = format_iter(members, ",\n");
-        members.push('\n');
-        writeln!(f, "end")
+        let members = format_iter_end(members, ",\n");
+        write!(f, "{}", members)
     }
 }
 
@@ -226,9 +225,8 @@ pub struct InstanceDefinition<'a, Data>(pub Vec<(Identifier<'a>, Expr<'a, Data>)
 impl<'a, Data> Display for InstanceDefinition<'a, Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let members = self.0.iter().map(|(n, expr)| format!("{} = {}", n, expr));
-        let mut members = format_iter(members, ",\n");
-        members.push('\n');
-        writeln!(f, "end")
+        let members = format_iter(members, ",\n");
+        write!(f, "{}", members)
     }
 }
 
