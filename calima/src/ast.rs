@@ -117,7 +117,7 @@ impl<'a> Display for TypeKind<'a> {
         match self {
             TypeKind::Name(name) => write!(f, "{}", name),
             TypeKind::Generic(name) => write!(f, "{}", name),
-            TypeKind::Function(i, o) => write!(f, "({} => {})", *i, *o),
+            TypeKind::Function(i, o) => write!(f, "({} -> {})", *i, *o),
             TypeKind::Parameterized(name, params) => {
                 write!(f, "({} ", name)?;
                 for p in params {
