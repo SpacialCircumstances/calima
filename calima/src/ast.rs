@@ -133,16 +133,14 @@ impl<'a> Display for TypeKind<'a> {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Identifier<'a> {
     Simple(&'a str),
-    Operator(&'a str),
-    Annotated(Box<Identifier<'a>>, TypeAnnotation<'a>),
+    Operator(&'a str)
 }
 
 impl<'a> Display for Identifier<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Identifier::Simple(name) => write!(f, "{}", name),
-            Identifier::Operator(op) => write!(f, "({})", op),
-            Identifier::Annotated(name, ta) => write!(f, "({}: {})", name, ta)
+            Identifier::Operator(op) => write!(f, "({})", op)
         }
     }
 }
@@ -150,7 +148,7 @@ impl<'a> Display for Identifier<'a> {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Pattern<'a> {
     Any,
-    Name(Identifier<'a>),
+    Name(Identifier<'a>, Option<TypeAnnotation<'a>>),
     Tuple(Vec<Pattern<'a>>),
     Literal(Literal<'a>),
     Record(Vec<(&'a str, Pattern<'a>)>),
@@ -161,7 +159,10 @@ impl<'a> Display for Pattern<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Pattern::Any => write!(f, "_"),
-            Pattern::Name(id) => write!(f, "{}", id),
+            Pattern::Name(id, ta) => match ta {
+                None => write!(f, "{}", id),
+                Some(ta) => write!(f, "({}: {})", id, ta)
+            },
             Pattern::Literal(lit) => write!(f, "{}", lit),
             Pattern::Tuple(elements) => format_tuple(elements, f),
             Pattern::Record(rows) => format_record(rows, f, ":", ", "),
@@ -208,7 +209,7 @@ impl Display for Modifier {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct ClassDefinition<'a>(pub Vec<(&'a str, TypeAnnotation<'a>)>);
+pub struct ClassDefinition<'a>(pub Vec<(Identifier<'a>, TypeAnnotation<'a>)>);
 
 impl<'a> Display for ClassDefinition<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -220,7 +221,7 @@ impl<'a> Display for ClassDefinition<'a> {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct InstanceDefinition<'a, Data>(pub Vec<(&'a str, Expr<'a, Data>)>);
+pub struct InstanceDefinition<'a, Data>(pub Vec<(Identifier<'a>, Expr<'a, Data>)>);
 
 impl<'a, Data> Display for InstanceDefinition<'a, Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {

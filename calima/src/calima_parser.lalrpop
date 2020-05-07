@@ -89,9 +89,9 @@ TopLevelStatement: TopLevelStatement<'input, Data> = {
     <pos:@L> "instance" <regions:RegionAnnotation*> <n:"typename"> <args:TypeAnnotation1*> "=" <instance_rows:Sep1<InstanceRow, ",">> "end" => TopLevelStatement::Instance { name: n, regions, args, instance_def: InstanceDefinition(instance_rows), data: to_data(pos) }
 };
 
-ClassRow: (&'input str, TypeAnnotation<'input>) = <n:"name"> ":" <ta:TypeAnnotation0> => (n, ta);
+ClassRow: (Identifier<'input>, TypeAnnotation<'input>) = <n:Identifier> ":" <ta:TypeAnnotation0> => (n, ta);
 
-InstanceRow: (&'input str, Expr<'input, Data>) = <n:"name"> "=" <expr:Expression1> => (n, expr);
+InstanceRow: (Identifier<'input>, Expr<'input, Data>) = <n:Identifier> "=" <expr:Expression1> => (n, expr);
 
 Import: TopLevelStatement<'input, Data> = <pos:@L> "import" <n:"name"> => TopLevelStatement::Import(n, to_data(pos));
 
@@ -178,17 +178,21 @@ RecordPatternRow: (&'input str, Pattern<'input>) = <name:"name"> "=" <patt:Patte
 
 Pattern1: Pattern<'input> = {
     "_" => Pattern::Any,
-    Identifier => Pattern::Name(<>),
+    <id:AnnotatedIdentifier> => Pattern::Name(id.0, id.1),
     <Literal> => Pattern::Literal(<>),
     "(" <Pattern0> ")" => <>,
     "{" <Sep1<RecordPatternRow, ",">> "}" => Pattern::Record(<>),
     "(" <Sep2<Pattern1, ",">> ")" => Pattern::Tuple(<>)
 };
 
+AnnotatedIdentifier: (Identifier<'input>, Option<TypeAnnotation<'input>>) = {
+    <Identifier> => (<>, None),
+    "(" <ident:Identifier> ":" <ta:TypeAnnotation0> ")" => (ident, Some(ta))
+};
+
 Identifier: Identifier<'input> = {
     <"name"> => Identifier::Simple(<>),
     "(" <"operator"> ")" => Identifier::Operator(<>),
-    "(" <ident:Identifier> ":" <ta:TypeAnnotation0> ")" => Identifier::Annotated(Box::new(ident), ta)
 };
 
 TypeDefinition: TypeDefinition<'input> = {
