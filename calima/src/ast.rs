@@ -228,7 +228,7 @@ impl<'a, Data> Display for InstanceDefinition<'a, Data> {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum TopLevelStatement<'a, Data> {
-    Import(&'a str, Data), //TODO: Support complex imports
+    Import(Vec<&'a str>, Vec<Identifier<'a>>, Data),
     Type { name: &'a str, regions: Vec<GenericRegion<'a>>, params: Vec<&'a str>, type_def: TypeDefinition<'a>, data: Data },
     Class { name: &'a str, regions: Vec<GenericRegion<'a>>, params: Vec<&'a str>, class_def: ClassDefinition<'a>, data: Data },
     Instance { name: &'a str, regions: Vec<RegionAnnotation<'a>>, args: Vec<TypeAnnotation<'a>>, instance_def: InstanceDefinition<'a, Data>, data: Data }
@@ -237,7 +237,12 @@ pub enum TopLevelStatement<'a, Data> {
 impl<'a, Data> Display for TopLevelStatement<'a, Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            TopLevelStatement::Import(i, _) => write!(f, "import {}", i),
+            TopLevelStatement::Import(module, fields, _) => {
+                match fields.is_empty() {
+                    true => write!(f, "import {}", format_iter(module.iter(), ".")),
+                    false => write!(f, "import {}{{{}}}", format_iter(module.iter(), "."), format_iter(fields.iter(), ", "))
+                }
+            },
             TopLevelStatement::Type { name, regions, params, type_def: typedef, data: _ } => write!(f, "type {} {}{} = {}", name, format_iter_end(regions.iter(), " "), format_iter(params.iter(), " "), typedef),
             TopLevelStatement::Class { name, regions, params, class_def: classdef, data: _ } => {
                 writeln!(f, "class {} {}{}=", name, format_iter_end(regions.iter(), " "), format_iter_end(params.iter(), " "))?;

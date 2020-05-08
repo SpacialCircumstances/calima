@@ -94,7 +94,10 @@ ClassRow: (Identifier<'input>, TypeAnnotation<'input>) = <n:Identifier> ":" <ta:
 
 InstanceRow: (Identifier<'input>, Expr<'input, Data>) = <n:Identifier> "=" <expr:Expression1> => (n, expr);
 
-Import: TopLevelStatement<'input, Data> = <posl:@L> "import" <n:"name"> <posr:@R> => TopLevelStatement::Import(n, to_data(posl, posr));
+Import: TopLevelStatement<'input, Data> = {
+    <posl:@L> "import" <m:Sep1<AnyName, ".">> <posr:@R> => TopLevelStatement::Import(m, Vec::new(), to_data(posl, posr)),
+    <posl:@L> "import" <m:Sep1<AnyName, ".">> "{" <f:Sep1<Identifier, ",">> "}" <posr:@R> => TopLevelStatement::Import(m, f, to_data(posl, posr))
+};
 
 Statement: Statement<'input, Data> = {
     Let,
