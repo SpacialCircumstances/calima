@@ -142,28 +142,28 @@ impl<'a> Display for Identifier<'a> {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum Pattern<'a> {
-    Any,
-    Name(Identifier<'a>, Option<TypeAnnotation<'a>>),
-    Tuple(Vec<Pattern<'a>>),
-    Literal(Literal<'a>),
-    Record(Vec<(&'a str, Pattern<'a>)>),
-    SumUnwrap(&'a str, Option<Box<Pattern<'a>>>),
+pub enum Pattern<'a, Data> {
+    Any(Data),
+    Name(Identifier<'a>, Option<TypeAnnotation<'a>>, Data),
+    Tuple(Vec<Pattern<'a, Data>>, Data),
+    Literal(Literal<'a>, Data),
+    Record(Vec<(&'a str, Pattern<'a, Data>)>, Data),
+    SumUnwrap(&'a str, Option<Box<Pattern<'a, Data>>>, Data),
 }
 
-impl<'a> Display for Pattern<'a> {
+impl<'a, Data> Display for Pattern<'a, Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Pattern::Any => write!(f, "_"),
-            Pattern::Name(id, ta) => match ta {
+            Pattern::Any(_) => write!(f, "_"),
+            Pattern::Name(id, ta, _) => match ta {
                 None => write!(f, "{}", id),
                 Some(ta) => write!(f, "({}: {})", id, ta)
             },
-            Pattern::Literal(lit) => write!(f, "{}", lit),
-            Pattern::Tuple(elements) => format_tuple(elements, f),
-            Pattern::Record(rows) => format_record(rows, f, ":", ", "),
-            Pattern::SumUnwrap(constr, None) => write!(f, "{}", constr),
-            Pattern::SumUnwrap(constr, Some(pat)) => write!(f, "{} {}", constr, *pat)
+            Pattern::Literal(lit, _) => write!(f, "{}", lit),
+            Pattern::Tuple(elements, _) => format_tuple(elements, f),
+            Pattern::Record(rows, _) => format_record(rows, f, ":", ", "),
+            Pattern::SumUnwrap(constr, None, _) => write!(f, "{}", constr),
+            Pattern::SumUnwrap(constr, Some(pat), _) => write!(f, "{} {}", constr, *pat)
         }
     }
 }
@@ -260,7 +260,7 @@ impl<'a, Data> Display for TopLevelStatement<'a, Data> {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement<'a, Data> {
-    Let(Vec<Modifier>, Option<RegionAnnotation<'a>>, Pattern<'a>, Expr<'a, Data>, Data),
+    Let(Vec<Modifier>, Option<RegionAnnotation<'a>>, Pattern<'a, Data>, Expr<'a, Data>, Data),
     Do(Option<RegionAnnotation<'a>>, Expr<'a, Data>, Data),
     Region(NamedRegion<'a>, Data)
 }
@@ -328,9 +328,9 @@ pub enum Expr<'a, Data> {
     Record(Vec<(&'a str, Expr<'a, Data>)>, Data),
     Tuple(Vec<Expr<'a, Data>>, Data),
     Literal(Literal<'a>, Data),
-    Lambda { regions: Vec<GenericRegion<'a>>, params: Vec<Pattern<'a>>, body: Block<'a, Data>, data: Data },
+    Lambda { regions: Vec<GenericRegion<'a>>, params: Vec<Pattern<'a, Data>>, body: Block<'a, Data>, data: Data },
     If { data: Data, cond: Box<Expr<'a, Data>>, if_true: Block<'a, Data>, if_false: Block<'a, Data> },
-    Case { data: Data, value: Box<Expr<'a, Data>>, matches: Vec<(Pattern<'a>, Block<'a, Data>)> },
+    Case { data: Data, value: Box<Expr<'a, Data>>, matches: Vec<(Pattern<'a, Data>, Block<'a, Data>)> },
     List(Vec<Expr<'a, Data>>, Data)
 }
 

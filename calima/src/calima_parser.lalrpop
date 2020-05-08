@@ -129,7 +129,7 @@ Case: Expr<'input, Data> = <posl:@L> "case" <value_expr:Expression1> "of" <rows:
     matches: rows
 };
 
-CaseRow: (Pattern<'input>, Block<'input, Data>) = "|" <pat:Pattern0> "->" <block:Block> => (pat, block);
+CaseRow: (Pattern<'input, Data>, Block<'input, Data>) = "|" <pat:Pattern0> "->" <block:Block> => (pat, block);
 
 If: Expr<'input, Data> = <posl:@L> "if" <cond_expr:Expression1> "then" <if_block:Block> "else" <else_block:Block> "end" <posr:@R> => Expr::If {
     data: to_data(posl, posr),
@@ -173,20 +173,20 @@ AnyName: &'input str = {
 
 LiteralExpr: Expr<'input, Data> = <posl:@L> <lit:Literal> <posr:@R> => Expr::Literal(lit, to_data(posl, posr));
 
-Pattern0: Pattern<'input> = {
+Pattern0: Pattern<'input, Data> = {
     Pattern1,
-    <variant:"typename"> <patt:Pattern1?> => Pattern::SumUnwrap(variant, patt.map(|p| Box::new(p))),
+    <posl:@L> <variant:"typename"> <patt:Pattern1?> <posr:@R> => Pattern::SumUnwrap(variant, patt.map(|p| Box::new(p)), to_data(posl, posr)),
 };
 
-RecordPatternRow: (&'input str, Pattern<'input>) = <name:"name"> "=" <patt:Pattern1> => (name, patt);
+RecordPatternRow: (&'input str, Pattern<'input, Data>) = <name:"name"> "=" <patt:Pattern1> => (name, patt);
 
-Pattern1: Pattern<'input> = {
-    "_" => Pattern::Any,
-    <id:AnnotatedIdentifier> => Pattern::Name(id.0, id.1),
-    <Literal> => Pattern::Literal(<>),
+Pattern1: Pattern<'input, Data> = {
+    <posl:@L> "_" <posr:@R> => Pattern::Any(to_data(posl, posr)),
+    <posl:@L> <id:AnnotatedIdentifier> <posr:@R> => Pattern::Name(id.0, id.1, to_data(posl, posr)),
+    <posl:@L> <lit:Literal> <posr:@R> => Pattern::Literal(lit, to_data(posl, posr)),
     "(" <Pattern0> ")" => <>,
-    "{" <Sep1<RecordPatternRow, ",">> "}" => Pattern::Record(<>),
-    "(" <Sep2<Pattern1, ",">> ")" => Pattern::Tuple(<>)
+    <posl:@L> "{" <rows:Sep1<RecordPatternRow, ",">> "}" <posr:@R> => Pattern::Record(rows, to_data(posl, posr)),
+    <posl:@L> "(" <elements:Sep2<Pattern1, ",">> ")" <posr:@R> => Pattern::Tuple(elements, to_data(posl, posr))
 };
 
 AnnotatedIdentifier: (Identifier<'input>, Option<TypeAnnotation<'input>>) = {
