@@ -38,7 +38,8 @@ pub enum Token<'input> {
     Colon,
     Arrow,
     Class,
-    Instance
+    Instance,
+    And
 }
 
 impl<'input> Display for Token<'input> {

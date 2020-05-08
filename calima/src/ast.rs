@@ -105,21 +105,21 @@ impl<'a> Display for TypeAnnotation<'a> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypeKind<'a> {
-    Name(&'a str),
+    Name(Vec<&'a str>),
     Generic(&'a str),
     Function(Box<TypeAnnotation<'a>>, Box<TypeAnnotation<'a>>),
     Tuple(Vec<TypeAnnotation<'a>>),
-    Parameterized(&'a str, Vec<TypeAnnotation<'a>>)
+    Parameterized(Vec<&'a str>, Vec<TypeAnnotation<'a>>)
 }
 
 impl<'a> Display for TypeKind<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            TypeKind::Name(name) => write!(f, "{}", name),
+            TypeKind::Name(name) => write!(f, "{}", format_iter(name.iter(), " and ")),
             TypeKind::Generic(name) => write!(f, "{}", name),
             TypeKind::Function(i, o) => write!(f, "({} -> {})", *i, *o),
             TypeKind::Parameterized(name, params) => {
-                write!(f, "({} ", name)?;
+                write!(f, "({} ", format_iter(name.iter(), " and "))?;
                 for p in params {
                     write!(f, "{} ", p)?;
                 }
