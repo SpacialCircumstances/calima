@@ -4,7 +4,7 @@ end
 instance Addable Int =
 (+) = fun a b -> addInt a b
 end
-instance Addable (Option (Addable and Display a ) ) =
+instance Addable (Option (Addable and Display a)) =
 (+) = fun a b -> case a of
 | Some x ->
 case b of

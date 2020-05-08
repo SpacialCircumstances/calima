@@ -1,4 +1,4 @@
-type List a = Node of ((List a ), a)| Empty
+type List a = Node ((List a), a)| Empty
 in
 let head = fun list -> case list of
 | Empty ->
@@ -10,5 +10,5 @@ region @test
 let alloc = fun 'a () -> let 'a a = Empty
 in a
 
-let @test (t1: (List Int )) = Node (Empty, 2)
+let @test (t1: (List Int)) = Node (Empty, 2)
 in head t1

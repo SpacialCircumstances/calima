@@ -119,11 +119,7 @@ impl<'a> Display for TypeKind<'a> {
             TypeKind::Generic(name) => write!(f, "{}", name),
             TypeKind::Function(i, o) => write!(f, "({} -> {})", *i, *o),
             TypeKind::Parameterized(name, params) => {
-                write!(f, "({} ", format_iter(name.iter(), " and "))?;
-                for p in params {
-                    write!(f, "{} ", p)?;
-                }
-                write!(f, ")")
+                write!(f, "({} {})", format_iter(name.iter(), " and "), format_iter(params.iter(), " "))
             },
             TypeKind::Tuple(elements) => format_tuple(elements, f)
         }
@@ -187,7 +183,7 @@ impl<'a> Display for TypeDefinition<'a> {
             TypeDefinition::Sum(rows) => {
                 let str = rows.iter().map(|(constr, ta)| match ta {
                     None => format!("{}", constr),
-                    Some(ta) => format!("{} of {}", constr, ta)
+                    Some(ta) => format!("{} {}", constr, ta)
                 }).collect::<Vec<String>>().join("| ");
                 write!(f, "{}", str)
             }
