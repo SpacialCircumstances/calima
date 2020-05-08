@@ -90,7 +90,7 @@ TopLevelStatement: TopLevelStatement<'input, Data> = {
     <posl:@L> "instance" <regions:RegionAnnotation*> <n:"typename"> <args:TypeAnnotation1*> "=" <instance_rows:Sep1<InstanceRow, ",">> "end" <posr:@R> => TopLevelStatement::Instance { name: n, regions, args, instance_def: InstanceDefinition(instance_rows), data: to_data(posl, posr) }
 };
 
-ClassRow: (Identifier<'input>, TypeAnnotation<'input>) = <n:Identifier> ":" <ta:TypeAnnotation0> => (n, ta);
+ClassRow: (Identifier<'input>, TypeAnnotation<'input, Data>) = <n:Identifier> ":" <ta:TypeAnnotation0> => (n, ta);
 
 InstanceRow: (Identifier<'input>, Expr<'input, Data>) = <n:Identifier> "=" <expr:Expression1> => (n, expr);
 
@@ -189,7 +189,7 @@ Pattern1: Pattern<'input, Data> = {
     <posl:@L> "(" <elements:Sep2<Pattern1, ",">> ")" <posr:@R> => Pattern::Tuple(elements, to_data(posl, posr))
 };
 
-AnnotatedIdentifier: (Identifier<'input>, Option<TypeAnnotation<'input>>) = {
+AnnotatedIdentifier: (Identifier<'input>, Option<TypeAnnotation<'input, Data>>) = {
     <Identifier> => (<>, None),
     "(" <ident:Identifier> ":" <ta:TypeAnnotation0> ")" => (ident, Some(ta))
 };
@@ -199,39 +199,39 @@ Identifier: Identifier<'input> = {
     "(" <"operator"> ")" => Identifier::Operator(<>),
 };
 
-TypeDefinition: TypeDefinition<'input> = {
+TypeDefinition: TypeDefinition<'input, Data> = {
     <TypeAnnotation0> => TypeDefinition::Alias(<>),
     Sum,
     "{" <Sep1<RecordTypeRow, ",">> "}" => TypeDefinition::Record(<>)
 };
 
-Sum: TypeDefinition<'input> = "|" <Sep1<SumRow, "|">> => TypeDefinition::Sum(<>);
+Sum: TypeDefinition<'input, Data> = "|" <Sep1<SumRow, "|">> => TypeDefinition::Sum(<>);
 
-SumRow: (&'input str, Option<TypeAnnotation<'input>>) = {
+SumRow: (&'input str, Option<TypeAnnotation<'input, Data>>) = {
     <n:"typename"> <ta:TypeAnnotation1?> => (n, ta)
 };
 
-RecordTypeRow: (&'input str, TypeAnnotation<'input>) = <n:"name"> ":" <ta:TypeAnnotation0> => (n, ta);
+RecordTypeRow: (&'input str, TypeAnnotation<'input, Data>) = <n:"name"> ":" <ta:TypeAnnotation0> => (n, ta);
 
-TypeAnnotation0: TypeAnnotation<'input> = {
-    <reg:RegionAnnotation> <tk:TypeKind1> => TypeAnnotation(Some(reg), tk),
-    <TypeKind0> => TypeAnnotation(None, <>)
+TypeAnnotation0: TypeAnnotation<'input, Data> = {
+    <posl:@L> <reg:RegionAnnotation> <tk:TypeKind1> <posr:@R> => TypeAnnotation(Some(reg), tk, to_data(posl, posr)),
+    <posl:@L> <tk:TypeKind0> <posr:@R> => TypeAnnotation(None, tk, to_data(posl, posr))
 };
 
-TypeAnnotation1: TypeAnnotation<'input> = {
-    <reg:RegionAnnotation> <tk:TypeKind1> => TypeAnnotation(Some(reg), tk),
-    <TypeKind1> => TypeAnnotation(None, <>)
+TypeAnnotation1: TypeAnnotation<'input, Data> = {
+    <posl:@L> <reg:RegionAnnotation> <tk:TypeKind1> <posr:@R> => TypeAnnotation(Some(reg), tk, to_data(posl, posr)),
+    <posl:@L> <tk:TypeKind1> <posr:@R> => TypeAnnotation(None, tk, to_data(posl, posr))
 };
 
-TypeKind0: TypeKind<'input> = {
+TypeKind0: TypeKind<'input, Data> = {
     <inp:TypeAnnotation1> "->" <out:TypeAnnotation0> => TypeKind::Function(Box::new(inp), Box::new(out)),
     <n:Sep1<"typename", "and">> <params:TypeAnnotation1+> => TypeKind::Parameterized(n, params),
     TypeKind1
 };
 
-TypeKind1: TypeKind<'input> = {
-    <Sep1<"typename", "and">> => TypeKind::Name(<>),
-    <"name"> => TypeKind::Generic(<>),
+TypeKind1: TypeKind<'input, Data> = {
+    <posl:@L> <n:Sep1<"typename", "and">> <posr:@R> => TypeKind::Name(n, to_data(posl, posr)),
+    <posl:@L> <n:"name"> <posr:@R> => TypeKind::Generic(n, to_data(posl, posr)),
     "(" <Sep2<TypeAnnotation0, ",">> ")" => TypeKind::Tuple(<>),
     "(" <tk:TypeKind0> ")" => tk,
 };

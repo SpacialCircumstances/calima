@@ -92,9 +92,9 @@ impl<'a> Display for RegionAnnotation<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct TypeAnnotation<'a>(pub Option<RegionAnnotation<'a>>, pub TypeKind<'a>);
+pub struct TypeAnnotation<'a, Data>(pub Option<RegionAnnotation<'a>>, pub TypeKind<'a, Data>, pub Data);
 
-impl<'a> Display for TypeAnnotation<'a> {
+impl<'a, Data> Display for TypeAnnotation<'a, Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self.0 {
             None => write!(f, "{}", self.1),
@@ -104,19 +104,19 @@ impl<'a> Display for TypeAnnotation<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum TypeKind<'a> {
-    Name(Vec<&'a str>),
-    Generic(&'a str),
-    Function(Box<TypeAnnotation<'a>>, Box<TypeAnnotation<'a>>),
-    Tuple(Vec<TypeAnnotation<'a>>),
-    Parameterized(Vec<&'a str>, Vec<TypeAnnotation<'a>>)
+pub enum TypeKind<'a, Data> {
+    Name(Vec<&'a str>, Data),
+    Generic(&'a str, Data),
+    Function(Box<TypeAnnotation<'a, Data>>, Box<TypeAnnotation<'a, Data>>),
+    Tuple(Vec<TypeAnnotation<'a, Data>>),
+    Parameterized(Vec<&'a str>, Vec<TypeAnnotation<'a, Data>>)
 }
 
-impl<'a> Display for TypeKind<'a> {
+impl<'a, Data> Display for TypeKind<'a, Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            TypeKind::Name(name) => write!(f, "{}", format_iter(name.iter(), " and ")),
-            TypeKind::Generic(name) => write!(f, "{}", name),
+            TypeKind::Name(name, _) => write!(f, "{}", format_iter(name.iter(), " and ")),
+            TypeKind::Generic(name, _) => write!(f, "{}", name),
             TypeKind::Function(i, o) => write!(f, "({} -> {})", *i, *o),
             TypeKind::Parameterized(name, params) => {
                 write!(f, "({} {})", format_iter(name.iter(), " and "), format_iter(params.iter(), " "))
@@ -144,7 +144,7 @@ impl<'a> Display for Identifier<'a> {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Pattern<'a, Data> {
     Any(Data),
-    Name(Identifier<'a>, Option<TypeAnnotation<'a>>, Data),
+    Name(Identifier<'a>, Option<TypeAnnotation<'a, Data>>, Data),
     Tuple(Vec<Pattern<'a, Data>>, Data),
     Literal(Literal<'a>, Data),
     Record(Vec<(&'a str, Pattern<'a, Data>)>, Data),
@@ -169,13 +169,13 @@ impl<'a, Data> Display for Pattern<'a, Data> {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum TypeDefinition<'a> {
-    Alias(TypeAnnotation<'a>),
-    Record(Vec<(&'a str, TypeAnnotation<'a>)>),
-    Sum(Vec<(&'a str, Option<TypeAnnotation<'a>>)>)
+pub enum TypeDefinition<'a, Data> {
+    Alias(TypeAnnotation<'a, Data>),
+    Record(Vec<(&'a str, TypeAnnotation<'a, Data>)>),
+    Sum(Vec<(&'a str, Option<TypeAnnotation<'a, Data>>)>)
 }
 
-impl<'a> Display for TypeDefinition<'a> {
+impl<'a, Data> Display for TypeDefinition<'a, Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             TypeDefinition::Alias(ta) => write!(f, "{}", ta),
@@ -205,9 +205,9 @@ impl Display for Modifier {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct ClassDefinition<'a>(pub Vec<(Identifier<'a>, TypeAnnotation<'a>)>);
+pub struct ClassDefinition<'a, Data>(pub Vec<(Identifier<'a>, TypeAnnotation<'a, Data>)>);
 
-impl<'a> Display for ClassDefinition<'a> {
+impl<'a, Data> Display for ClassDefinition<'a, Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let members = self.0.iter().map(|(n, ta)| format!("{}: {}", n, ta));
         let members = format_iter(members, ",\n");
@@ -229,9 +229,9 @@ impl<'a, Data> Display for InstanceDefinition<'a, Data> {
 #[derive(Debug, PartialEq, Clone)]
 pub enum TopLevelStatement<'a, Data> {
     Import(Vec<&'a str>, Vec<Identifier<'a>>, Data),
-    Type { name: &'a str, regions: Vec<GenericRegion<'a>>, params: Vec<&'a str>, type_def: TypeDefinition<'a>, data: Data },
-    Class { name: &'a str, regions: Vec<GenericRegion<'a>>, params: Vec<&'a str>, class_def: ClassDefinition<'a>, data: Data },
-    Instance { name: &'a str, regions: Vec<RegionAnnotation<'a>>, args: Vec<TypeAnnotation<'a>>, instance_def: InstanceDefinition<'a, Data>, data: Data }
+    Type { name: &'a str, regions: Vec<GenericRegion<'a>>, params: Vec<&'a str>, type_def: TypeDefinition<'a, Data>, data: Data },
+    Class { name: &'a str, regions: Vec<GenericRegion<'a>>, params: Vec<&'a str>, class_def: ClassDefinition<'a, Data>, data: Data },
+    Instance { name: &'a str, regions: Vec<RegionAnnotation<'a>>, args: Vec<TypeAnnotation<'a, Data>>, instance_def: InstanceDefinition<'a, Data>, data: Data }
 }
 
 impl<'a, Data> Display for TopLevelStatement<'a, Data> {
