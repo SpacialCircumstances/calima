@@ -229,8 +229,8 @@ impl<'a, Data> Display for InstanceDefinition<'a, Data> {
 #[derive(Debug, PartialEq, Clone)]
 pub enum TopLevelStatement<'a, Data> {
     Import(Vec<&'a str>, Vec<Identifier<'a, Data>>, Data),
-    Type { name: &'a str, regions: Vec<GenericRegion<'a, Data>>, params: Vec<&'a str>, type_def: TypeDefinition<'a, Data>, data: Data },
-    Class { name: &'a str, regions: Vec<GenericRegion<'a, Data>>, params: Vec<&'a str>, class_def: ClassDefinition<'a, Data>, data: Data },
+    Type { name: &'a str, regions: Vec<GenericRegion<'a, Data>>, params: Vec<TypeAnnotation<'a, Data>>, type_def: TypeDefinition<'a, Data>, data: Data },
+    Class { name: &'a str, regions: Vec<GenericRegion<'a, Data>>, params: Vec<TypeAnnotation<'a, Data>>, class_def: ClassDefinition<'a, Data>, data: Data },
     Instance { name: &'a str, regions: Vec<RegionAnnotation<'a, Data>>, args: Vec<TypeAnnotation<'a, Data>>, instance_def: InstanceDefinition<'a, Data>, data: Data }
 }
 

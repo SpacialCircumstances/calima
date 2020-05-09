@@ -85,8 +85,8 @@ Block: Block<'input, Data> = {
 
 TopLevelStatement: TopLevelStatement<'input, Data> = {
     Import,
-    <posl:@L> "type" <regions:GenericRegion*> <n:"typename"> <params: "name"*> "=" <td:TypeDefinition> <posr:@R> => TopLevelStatement::Type { name: n, regions, params, type_def: td, data: to_data(posl, posr) },
-    <posl:@L> "class" <regions:GenericRegion*> <n:"typename"> <params:"name"*> "=" <class_rows:Sep1<ClassRow, ",">> "end" <posr:@R> => TopLevelStatement::Class { name: n, regions, params, class_def: ClassDefinition(class_rows), data: to_data(posl, posr) },
+    <posl:@L> "type" <regions:GenericRegion*> <n:"typename"> <params:TypeAnnotation1*> "=" <td:TypeDefinition> <posr:@R> => TopLevelStatement::Type { name: n, regions, params, type_def: td, data: to_data(posl, posr) },
+    <posl:@L> "class" <regions:GenericRegion*> <n:"typename"> <params:TypeAnnotation1*> "=" <class_rows:Sep1<ClassRow, ",">> "end" <posr:@R> => TopLevelStatement::Class { name: n, regions, params, class_def: ClassDefinition(class_rows), data: to_data(posl, posr) },
     <posl:@L> "instance" <regions:RegionAnnotation*> <n:"typename"> <args:TypeAnnotation1*> "=" <instance_rows:Sep1<InstanceRow, ",">> "end" <posr:@R> => TopLevelStatement::Instance { name: n, regions, args, instance_def: InstanceDefinition(instance_rows), data: to_data(posl, posr) }
 };
 
