@@ -127,16 +127,16 @@ impl<'a, Data> Display for TypeKind<'a, Data> {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum Identifier<'a> {
-    Simple(&'a str),
-    Operator(&'a str)
+pub enum Identifier<'a, Data> {
+    Simple(&'a str, Data),
+    Operator(&'a str, Data)
 }
 
-impl<'a> Display for Identifier<'a> {
+impl<'a, Data> Display for Identifier<'a, Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Identifier::Simple(name) => write!(f, "{}", name),
-            Identifier::Operator(op) => write!(f, "({})", op)
+            Identifier::Simple(name, _) => write!(f, "{}", name),
+            Identifier::Operator(op, _) => write!(f, "({})", op)
         }
     }
 }
@@ -144,7 +144,7 @@ impl<'a> Display for Identifier<'a> {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Pattern<'a, Data> {
     Any(Data),
-    Name(Identifier<'a>, Option<TypeAnnotation<'a, Data>>, Data),
+    Name(Identifier<'a, Data>, Option<TypeAnnotation<'a, Data>>, Data),
     Tuple(Vec<Pattern<'a, Data>>, Data),
     Literal(Literal<'a>, Data),
     Record(Vec<(&'a str, Pattern<'a, Data>)>, Data),
@@ -205,7 +205,7 @@ impl Display for Modifier {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct ClassDefinition<'a, Data>(pub Vec<(Identifier<'a>, TypeAnnotation<'a, Data>)>);
+pub struct ClassDefinition<'a, Data>(pub Vec<(Identifier<'a, Data>, TypeAnnotation<'a, Data>)>);
 
 impl<'a, Data> Display for ClassDefinition<'a, Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -216,7 +216,7 @@ impl<'a, Data> Display for ClassDefinition<'a, Data> {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct InstanceDefinition<'a, Data>(pub Vec<(Identifier<'a>, Expr<'a, Data>)>);
+pub struct InstanceDefinition<'a, Data>(pub Vec<(Identifier<'a, Data>, Expr<'a, Data>)>);
 
 impl<'a, Data> Display for InstanceDefinition<'a, Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -228,7 +228,7 @@ impl<'a, Data> Display for InstanceDefinition<'a, Data> {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum TopLevelStatement<'a, Data> {
-    Import(Vec<&'a str>, Vec<Identifier<'a>>, Data),
+    Import(Vec<&'a str>, Vec<Identifier<'a, Data>>, Data),
     Type { name: &'a str, regions: Vec<GenericRegion<'a, Data>>, params: Vec<&'a str>, type_def: TypeDefinition<'a, Data>, data: Data },
     Class { name: &'a str, regions: Vec<GenericRegion<'a, Data>>, params: Vec<&'a str>, class_def: ClassDefinition<'a, Data>, data: Data },
     Instance { name: &'a str, regions: Vec<RegionAnnotation<'a, Data>>, args: Vec<TypeAnnotation<'a, Data>>, instance_def: InstanceDefinition<'a, Data>, data: Data }

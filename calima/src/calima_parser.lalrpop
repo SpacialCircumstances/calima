@@ -90,9 +90,9 @@ TopLevelStatement: TopLevelStatement<'input, Data> = {
     <posl:@L> "instance" <regions:RegionAnnotation*> <n:"typename"> <args:TypeAnnotation1*> "=" <instance_rows:Sep1<InstanceRow, ",">> "end" <posr:@R> => TopLevelStatement::Instance { name: n, regions, args, instance_def: InstanceDefinition(instance_rows), data: to_data(posl, posr) }
 };
 
-ClassRow: (Identifier<'input>, TypeAnnotation<'input, Data>) = <n:Identifier> ":" <ta:TypeAnnotation0> => (n, ta);
+ClassRow: (Identifier<'input, Data>, TypeAnnotation<'input, Data>) = <n:Identifier> ":" <ta:TypeAnnotation0> => (n, ta);
 
-InstanceRow: (Identifier<'input>, Expr<'input, Data>) = <n:Identifier> "=" <expr:Expression1> => (n, expr);
+InstanceRow: (Identifier<'input, Data>, Expr<'input, Data>) = <n:Identifier> "=" <expr:Expression1> => (n, expr);
 
 Import: TopLevelStatement<'input, Data> = {
     <posl:@L> "import" <m:Sep1<AnyName, ".">> <posr:@R> => TopLevelStatement::Import(m, Vec::new(), to_data(posl, posr)),
@@ -189,14 +189,14 @@ Pattern1: Pattern<'input, Data> = {
     <posl:@L> "(" <elements:Sep2<Pattern1, ",">> ")" <posr:@R> => Pattern::Tuple(elements, to_data(posl, posr))
 };
 
-AnnotatedIdentifier: (Identifier<'input>, Option<TypeAnnotation<'input, Data>>) = {
+AnnotatedIdentifier: (Identifier<'input, Data>, Option<TypeAnnotation<'input, Data>>) = {
     <Identifier> => (<>, None),
     "(" <ident:Identifier> ":" <ta:TypeAnnotation0> ")" => (ident, Some(ta))
 };
 
-Identifier: Identifier<'input> = {
-    <"name"> => Identifier::Simple(<>),
-    "(" <"operator"> ")" => Identifier::Operator(<>),
+Identifier: Identifier<'input, Data> = {
+    <posl:@L> <n:"name"> <posr:@R> => Identifier::Simple(n, to_data(posl, posr)),
+    <posl:@L> "(" <n:"operator"> ")" <posr:@R> => Identifier::Operator(n, to_data(posl, posr)),
 };
 
 TypeDefinition: TypeDefinition<'input, Data> = {
