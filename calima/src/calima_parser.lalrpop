@@ -236,14 +236,14 @@ TypeKind1: TypeKind<'input, Data> = {
     "(" <tk:TypeKind0> ")" => tk,
 };
 
-RegionAnnotation: RegionAnnotation<'input> = {
+RegionAnnotation: RegionAnnotation<'input, Data> = {
     <NamedRegion> => RegionAnnotation::Named(<>),
     <GenericRegion> => RegionAnnotation::Generic(<>)
 };
 
-NamedRegion: NamedRegion<'input> = <"regionname"> => NamedRegion(<>);
+NamedRegion: NamedRegion<'input, Data> = <posl:@L> <n:"regionname"> <posr:@R> => NamedRegion(n, to_data(posl, posr));
 
-GenericRegion: GenericRegion<'input> = <"genericregion"> => GenericRegion(<>);
+GenericRegion: GenericRegion<'input, Data> = <posl:@L> <n:"genericregion"> <posr:@R> => GenericRegion(n, to_data(posl, posr));
 
 Literal: Literal<'input> = {
     "(" ")" => Literal::Unit,

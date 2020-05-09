@@ -59,30 +59,30 @@ fn format_iter_end<T: Display, I: Iterator<Item=T>>(iter: I, sep: &str) -> Strin
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub struct GenericRegion<'a>(pub &'a str);
+pub struct GenericRegion<'a, Data>(pub &'a str, pub Data);
 
-impl<'a> Display for GenericRegion<'a> {
+impl<'a, Data> Display for GenericRegion<'a, Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "'{}", self.0)
     }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub struct NamedRegion<'a>(pub &'a str);
+pub struct NamedRegion<'a, Data>(pub &'a str, pub Data);
 
-impl<'a> Display for NamedRegion<'a> {
+impl<'a, Data> Display for NamedRegion<'a, Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "@{}", self.0)
     }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub enum RegionAnnotation<'a> {
-    Named(NamedRegion<'a>),
-    Generic(GenericRegion<'a>)
+pub enum RegionAnnotation<'a, Data> {
+    Named(NamedRegion<'a, Data>),
+    Generic(GenericRegion<'a, Data>)
 }
 
-impl<'a> Display for RegionAnnotation<'a> {
+impl<'a, Data> Display for RegionAnnotation<'a, Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             RegionAnnotation::Named(r) => write!(f, "{}", r),
@@ -92,11 +92,11 @@ impl<'a> Display for RegionAnnotation<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct TypeAnnotation<'a, Data>(pub Option<RegionAnnotation<'a>>, pub TypeKind<'a, Data>, pub Data);
+pub struct TypeAnnotation<'a, Data>(pub Option<RegionAnnotation<'a, Data>>, pub TypeKind<'a, Data>, pub Data);
 
 impl<'a, Data> Display for TypeAnnotation<'a, Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self.0 {
+        match &self.0 {
             None => write!(f, "{}", self.1),
             Some(r) => write!(f, "{} {}", r, self.1)
         }
@@ -229,9 +229,9 @@ impl<'a, Data> Display for InstanceDefinition<'a, Data> {
 #[derive(Debug, PartialEq, Clone)]
 pub enum TopLevelStatement<'a, Data> {
     Import(Vec<&'a str>, Vec<Identifier<'a>>, Data),
-    Type { name: &'a str, regions: Vec<GenericRegion<'a>>, params: Vec<&'a str>, type_def: TypeDefinition<'a, Data>, data: Data },
-    Class { name: &'a str, regions: Vec<GenericRegion<'a>>, params: Vec<&'a str>, class_def: ClassDefinition<'a, Data>, data: Data },
-    Instance { name: &'a str, regions: Vec<RegionAnnotation<'a>>, args: Vec<TypeAnnotation<'a, Data>>, instance_def: InstanceDefinition<'a, Data>, data: Data }
+    Type { name: &'a str, regions: Vec<GenericRegion<'a, Data>>, params: Vec<&'a str>, type_def: TypeDefinition<'a, Data>, data: Data },
+    Class { name: &'a str, regions: Vec<GenericRegion<'a, Data>>, params: Vec<&'a str>, class_def: ClassDefinition<'a, Data>, data: Data },
+    Instance { name: &'a str, regions: Vec<RegionAnnotation<'a, Data>>, args: Vec<TypeAnnotation<'a, Data>>, instance_def: InstanceDefinition<'a, Data>, data: Data }
 }
 
 impl<'a, Data> Display for TopLevelStatement<'a, Data> {
@@ -260,9 +260,9 @@ impl<'a, Data> Display for TopLevelStatement<'a, Data> {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement<'a, Data> {
-    Let(Vec<Modifier>, Option<RegionAnnotation<'a>>, Pattern<'a, Data>, Expr<'a, Data>, Data),
-    Do(Option<RegionAnnotation<'a>>, Expr<'a, Data>, Data),
-    Region(NamedRegion<'a>, Data)
+    Let(Vec<Modifier>, Option<RegionAnnotation<'a, Data>>, Pattern<'a, Data>, Expr<'a, Data>, Data),
+    Do(Option<RegionAnnotation<'a, Data>>, Expr<'a, Data>, Data),
+    Region(NamedRegion<'a, Data>, Data)
 }
 
 impl<'a, Data> Display for Statement<'a, Data> {
@@ -328,7 +328,7 @@ pub enum Expr<'a, Data> {
     Record(Vec<(&'a str, Expr<'a, Data>)>, Data),
     Tuple(Vec<Expr<'a, Data>>, Data),
     Literal(Literal<'a>, Data),
-    Lambda { regions: Vec<GenericRegion<'a>>, params: Vec<Pattern<'a, Data>>, body: Block<'a, Data>, data: Data },
+    Lambda { regions: Vec<GenericRegion<'a, Data>>, params: Vec<Pattern<'a, Data>>, body: Block<'a, Data>, data: Data },
     If { data: Data, cond: Box<Expr<'a, Data>>, if_true: Block<'a, Data>, if_false: Block<'a, Data> },
     Case { data: Data, value: Box<Expr<'a, Data>>, matches: Vec<(Pattern<'a, Data>, Block<'a, Data>)> },
     List(Vec<Expr<'a, Data>>, Data)
