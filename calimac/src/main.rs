@@ -1,5 +1,5 @@
 use clap::Clap;
-use calima::compile;
+use calima::{compile, CompilerArguments};
 
 #[derive(Clap)]
 #[clap(version = "0.1.0", author = "SpacialCircumstances")]
@@ -10,5 +10,6 @@ struct Options {
 fn main() {
     let options: Options = Options::parse();
     let file_name = &options.input_file;
-    compile(file_name).expect("Compiler error");
+    let args = CompilerArguments::new(file_name, Vec::new());
+    compile(args).expect("Compiler error");
 }

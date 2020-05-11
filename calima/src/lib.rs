@@ -2,17 +2,33 @@
 
 use std::fs::File;
 use std::io::Read;
+use crate::ast::TopLevelBlock;
+use crate::token::Span;
+use std::error::Error;
 
 mod token;
 mod lexer;
 mod ast;
 mod parser;
 
-pub fn compile(file_name: &str) -> Result<(), String> {
-    let mut file = File::open(file_name).expect(format!("Error opening file {}", file_name).as_ref());
-    let mut file_content = String::new();
-    file.read_to_string(&mut file_content).expect("Error reading from input file");
-    let ast = parser::parse(&file_content)?;
+#[derive(Debug)]
+pub struct CompilerArguments<'a> {
+    entrypoint: &'a str,
+    search_paths: Vec<&'a str>
+}
+
+impl<'a> CompilerArguments<'a> {
+    pub fn new(entrypoint: &'a str, search_paths: Vec<&'a str>) -> Self {
+        CompilerArguments {
+            entrypoint,
+            search_paths
+        }
+    }
+}
+
+pub fn compile(args: CompilerArguments) -> Result<(), Box<dyn Error>> {
+    let code = std::fs::read_to_string(args.entrypoint)?;
+    let ast = parser::parse(&code)?;
     println!("{}", ast);
     Ok(())
 }
