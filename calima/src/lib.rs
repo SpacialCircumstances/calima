@@ -48,8 +48,18 @@ struct CompilerContext {
 
 impl CompilerContext {
     fn from_args(args: CompilerArguments) -> Result<Self, Box<dyn Error>> {
+        let entrypoint_path = PathBuf::from(args.entrypoint);
+        if !entrypoint_path.is_file() {
+            return Err(Box::new(CompilerError(format!("Entrypoint file {} not found", args.entrypoint))))
+        }
+        //Get directory of entrypoint
+        let mut entrypoint_dir = entrypoint_path.clone();
+        entrypoint_dir.pop();
+
+        let module_queue = vec![ entrypoint_path ];
+        
         let mut search_dirs = Vec::new();
-        search_dirs.push(std::env::current_dir()?);
+        search_dirs.push(entrypoint_dir);
         for dir in args.search_paths {
             let path = PathBuf::from(dir);
             if path.is_dir() {
@@ -58,11 +68,6 @@ impl CompilerContext {
                 return Err(Box::new(CompilerError(format!("Search directory {} not found or not a directory", dir))))
             }
         }
-        let entrypoint_path = PathBuf::from(args.entrypoint);
-        if !entrypoint_path.is_file() {
-            return Err(Box::new(CompilerError(format!("Entrypoint file {} not found", args.entrypoint))))
-        }
-        let module_queue = vec![ entrypoint_path ];
         Ok(CompilerContext {
             module_queue,
             search_dirs
