@@ -26,14 +26,8 @@ impl<'a> Display for Literal<'a> {
 }
 
 fn format_record<T>(elements: &Vec<(&str, T)>, f: &mut Formatter, sep: &str, element_sep: &str) -> std::fmt::Result where T: Display {
-    write!(f, "{{ ")?;
-    for i in 0..elements.len()-1 {
-        let (n, e) = &elements[i];
-        write!(f, "{}{} {}{}", n, sep, e, element_sep)?;
-    }
-    let (ln, le) = elements.last().unwrap();
-    write!(f, "{}{} {}", ln, sep, le)?;
-    write!(f, "}}")
+    let rows = format_iter(elements.iter().map(|(n, e)| format!("{}{} {}", n, sep, e)), element_sep);
+    write!(f, "{{ {} }}", rows)
 }
 
 fn format_tuple<T>(elements: &Vec<T>, f: &mut Formatter) -> std::fmt::Result where T: Display {
