@@ -1,5 +1,5 @@
 use std::str::Chars;
-use crate::token::{Token, Location};
+use crate::token::{Token, Location, NumberFormat};
 use crate::token::Token::*;
 use std::iter::Peekable;
 use std::fmt::{Display, Formatter};
@@ -189,7 +189,11 @@ impl<'input> Lexer<'input> {
         };
         let lit = &self.input[start_idx..end_idx];
         let end = self.token_start_pos();
-        Some(Ok((start, NumberLiteral(lit), end)))
+        let format = match lit.contains(".") {
+            true => NumberFormat::Float,
+            false => NumberFormat::Integer
+        };
+        Some(Ok((start, NumberLiteral(((lit, format))), end)))
     }
 
     fn identifier(&mut self) -> Option<LexerResult<'input>> {
@@ -237,7 +241,7 @@ impl<'input> Iterator for Lexer<'input> {
 
 #[cfg(test)]
 mod tests {
-    use crate::token::Token;
+    use crate::token::{Token, NumberFormat};
     use crate::token::Token::*;
     use crate::lexer::Lexer;
 
@@ -263,29 +267,29 @@ mod tests {
 
     #[test]
     fn lex3() {
-        let code = "12.3 344.45, 9900";
-        let tokens = vec![ NumberLiteral("12.3"), NumberLiteral("344.45"), Comma, NumberLiteral("9900") ];
+        let code = "12.3 344.45, 9900 -3";
+        let tokens = vec![ NumberLiteral(("12.3", NumberFormat::Float)), NumberLiteral(("344.45", NumberFormat::Float)), Comma, NumberLiteral(("9900", NumberFormat::Integer)), OperatorIdentifier("-"), NumberLiteral(("3", NumberFormat::Integer)) ];
         lex_equal(code, tokens)
     }
 
     #[test]
     fn lex4() {
         let code = "case x of | a:Int -> 2";
-        let tokens = vec![ Case, NameIdentifier("x"), Of, Pipe, NameIdentifier("a"), Colon, TypeIdentifier("Int"), Arrow, NumberLiteral("2") ];
+        let tokens = vec![ Case, NameIdentifier("x"), Of, Pipe, NameIdentifier("a"), Colon, TypeIdentifier("Int"), Arrow, NumberLiteral(("2", NumberFormat::Float)) ];
         lex_equal(code, tokens);
     }
 
     #[test]
     fn lex5() {
         let code = "{ a = \"test\", b = 12.4, c = d (a b) }";
-        let tokens = vec![ CurlyBraceOpen, NameIdentifier("a"), Equal, StringLiteral("test"), Comma, NameIdentifier("b"), Equal, NumberLiteral("12.4"), Comma, NameIdentifier("c"), Equal, NameIdentifier("d"), ParenOpen, NameIdentifier("a"), NameIdentifier("b"), ParenClose, CurlyBraceClose ];
+        let tokens = vec![ CurlyBraceOpen, NameIdentifier("a"), Equal, StringLiteral("test"), Comma, NameIdentifier("b"), Equal, NumberLiteral(("12.4", NumberFormat::Float)), Comma, NameIdentifier("c"), Equal, NameIdentifier("d"), ParenOpen, NameIdentifier("a"), NameIdentifier("b"), ParenClose, CurlyBraceClose ];
         lex_equal(code, tokens)
     }
 
     #[test]
     fn lex6() {
         let code = "if (x == asdf) then fun a -> a else 12";
-        let tokens = vec![ If, ParenOpen, NameIdentifier("x"), OperatorIdentifier("=="), NameIdentifier("asdf"), ParenClose, Then, Fun, NameIdentifier("a"), Arrow, NameIdentifier("a"), Else, NumberLiteral("12") ];
+        let tokens = vec![ If, ParenOpen, NameIdentifier("x"), OperatorIdentifier("=="), NameIdentifier("asdf"), ParenClose, Then, Fun, NameIdentifier("a"), Arrow, NameIdentifier("a"), Else, NumberLiteral(("12", NumberFormat::Integer)) ];
         lex_equal(code, tokens);
     }
 
@@ -303,7 +307,7 @@ test #asdf d.
     #[test]
     fn lex8() {
         let code = "map (fun i -> i + 2) x";
-        let tokens = vec![ NameIdentifier("map"), ParenOpen, Fun, NameIdentifier("i"), Arrow, NameIdentifier("i"), OperatorIdentifier("+"), NumberLiteral("2"), ParenClose, NameIdentifier("x") ];
+        let tokens = vec![ NameIdentifier("map"), ParenOpen, Fun, NameIdentifier("i"), Arrow, NameIdentifier("i"), OperatorIdentifier("+"), NumberLiteral(("2", NumberFormat::Integer)), ParenClose, NameIdentifier("x") ];
         lex_equal(code, tokens);
     }
 

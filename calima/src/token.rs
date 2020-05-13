@@ -1,6 +1,12 @@
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
+pub enum NumberFormat {
+    Float,
+    Integer
+}
+
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum Token<'input> {
     CurlyBraceOpen,
     CurlyBraceClose,
@@ -16,7 +22,7 @@ pub enum Token<'input> {
     GenericRegionIdentifier(&'input str),
     OperatorIdentifier(&'input str),
     StringLiteral(&'input str),
-    NumberLiteral(&'input str),
+    NumberLiteral((&'input str, NumberFormat)),
     BooleanLiteral(bool),
     Do,
     Let,

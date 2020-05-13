@@ -1,5 +1,5 @@
 use crate::ast::{Block, Statement, Expr, Literal, NumberType, Pattern, Identifier, TypeDefinition, TypeAnnotation, Modifier, RegionAnnotation, TypeKind, NamedRegion, GenericRegion, ClassDefinition, InstanceDefinition, TopLevelBlock, TopLevelStatement};
-use crate::token::{Location, Token};
+use crate::token::{Location, Token, NumberFormat};
 use crate::token::Token::*;
 use crate::lexer::Error;
 
@@ -24,7 +24,7 @@ extern {
         "genericregion" => GenericRegionIdentifier(<&'input str>),
         "operator" => OperatorIdentifier(<&'input str>),
         "string" => StringLiteral(<&'input str>),
-        "number" => NumberLiteral(<&'input str>),
+        "number" => NumberLiteral(<(&'input str, NumberFormat)>),
         "bool" => BooleanLiteral(<bool>),
         "do" => Do,
         "in" => In,
@@ -248,6 +248,12 @@ GenericRegion: GenericRegion<'input, Data> = <posl:@L> <n:"genericregion"> <posr
 Literal: Literal<'input> = {
     "(" ")" => Literal::Unit,
     <"bool"> => Literal::Boolean(<>),
-    <"number"> => Literal::Number(<>, NumberType::Float), //TODO
+    <n:"number"> => {
+        let nt = match n.1 {
+            NumberFormat::Integer => NumberType::Integer,
+            NumberFormat::Float => NumberType::Float
+        };
+        Literal::Number(n.0, nt)
+    },
     <"string"> => Literal::String(<>)
 };
