@@ -27,13 +27,13 @@ impl Error for CompilerError {
 }
 
 #[derive(Debug)]
-pub struct CompilerArguments<'a> {
+pub struct CompilerArguments<'a, S: AsRef<str>> {
     entrypoint: &'a str,
-    search_paths: Vec<&'a str>
+    search_paths: &'a Vec<S>
 }
 
-impl<'a> CompilerArguments<'a> {
-    pub fn new(entrypoint: &'a str, search_paths: Vec<&'a str>) -> Self {
+impl<'a, S: AsRef<str>> CompilerArguments<'a, S> {
+    pub fn new(entrypoint: &'a str, search_paths: &'a Vec<S>) -> Self {
         CompilerArguments {
             entrypoint,
             search_paths
@@ -47,7 +47,7 @@ struct CompilerContext {
 }
 
 impl CompilerContext {
-    fn from_args(args: CompilerArguments) -> Result<Self, Box<dyn Error>> {
+    fn from_args<S: AsRef<str>>(args: CompilerArguments<S>) -> Result<Self, Box<dyn Error>> {
         let entrypoint_path = PathBuf::from(args.entrypoint);
         if !entrypoint_path.is_file() {
             return Err(Box::new(CompilerError(format!("Entrypoint file {} not found", args.entrypoint))))
@@ -61,11 +61,11 @@ impl CompilerContext {
         let mut search_dirs = Vec::new();
         search_dirs.push(entrypoint_dir);
         for dir in args.search_paths {
-            let path = PathBuf::from(dir);
+            let path = PathBuf::from(dir.as_ref());
             if path.is_dir() {
-                search_dirs.push(PathBuf::from(dir))
+                search_dirs.push(PathBuf::from(dir.as_ref()))
             } else {
-                return Err(Box::new(CompilerError(format!("Search directory {} not found or not a directory", dir))))
+                return Err(Box::new(CompilerError(format!("Search directory {} not found or not a directory", dir.as_ref()))))
             }
         }
         Ok(CompilerContext {
@@ -75,7 +75,7 @@ impl CompilerContext {
     }
 }
 
-pub fn compile(args: CompilerArguments) -> Result<(), Box<dyn Error>> {
+pub fn compile<S: AsRef<str>>(args: CompilerArguments<S>) -> Result<(), Box<dyn Error>> {
     let context = CompilerContext::from_args(args)?;
     let code = read_to_string(context.module_queue.first().unwrap())?;
     let ast = parser::parse(&code)?;

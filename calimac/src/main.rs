@@ -12,7 +12,6 @@ struct Options {
 fn main() {
     let options: Options = Options::parse();
     let file_name = &options.input_file;
-    let module_paths = options.module_paths.iter().map(AsRef::as_ref).collect();
-    let args = CompilerArguments::new(file_name, module_paths);
+    let args = CompilerArguments::new(file_name, &options.module_paths);
     compile(args).expect("Compiler error");
 }
