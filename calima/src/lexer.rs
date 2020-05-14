@@ -162,10 +162,18 @@ impl<'input> Lexer<'input> {
     fn string_literal(&mut self) -> Option<LexerResult<'input>> {
         let start = self.token_start_pos();
         let start_idx = self.current_pos.pos;
+        let mut escaped = false;
         let end_idx = loop {
             match self.advance() {
                 None => break(self.current_pos.pos),
-                Some('"') => break(self.current_pos.pos - 1),
+                Some('\\') => escaped = true,
+                Some('"') => {
+                    if !escaped {
+                        break(self.current_pos.pos - 1)
+                    } else {
+                        escaped = false
+                    }
+                },
                 Some(_) => ()
             }
         };
@@ -260,8 +268,8 @@ mod tests {
 
     #[test]
     fn lex2() {
-        let code = "\"test\" test";
-        let tokens = vec! [StringLiteral("test"), NameIdentifier("test") ];
+        let code = "\"test\" test \"asdf\\\"\"";
+        let tokens = vec! [StringLiteral("test"), NameIdentifier("test"), StringLiteral("asdf\\\"") ];
         lex_equal(code, tokens)
     }
 
