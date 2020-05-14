@@ -235,6 +235,15 @@ impl<'input> Iterator for Lexer<'input> {
                 Some('\t') => (),
                 Some('#') => self.comment(),
                 Some('"') => break self.string_literal(),
+                Some('-') => {
+                    if let Some(t) = self.chars.peek() {
+                        if t.is_numeric() {
+                            break self.number_literal()
+                        } else {
+                            break self.identifier()
+                        }
+                    }
+                }
                 Some(x) => {
                     if x.is_numeric() { break self.number_literal() }
                     if let Some(t) = single_char_token(x) {
@@ -276,14 +285,14 @@ mod tests {
     #[test]
     fn lex3() {
         let code = "12.3 344.45, 9900 -3";
-        let tokens = vec![ NumberLiteral(("12.3", NumberFormat::Float)), NumberLiteral(("344.45", NumberFormat::Float)), Comma, NumberLiteral(("9900", NumberFormat::Integer)), OperatorIdentifier("-"), NumberLiteral(("3", NumberFormat::Integer)) ];
+        let tokens = vec![ NumberLiteral(("12.3", NumberFormat::Float)), NumberLiteral(("344.45", NumberFormat::Float)), Comma, NumberLiteral(("9900", NumberFormat::Integer)), NumberLiteral(("-3", NumberFormat::Integer)) ];
         lex_equal(code, tokens)
     }
 
     #[test]
     fn lex4() {
         let code = "case x of | a:Int -> 2";
-        let tokens = vec![ Case, NameIdentifier("x"), Of, Pipe, NameIdentifier("a"), Colon, TypeIdentifier("Int"), Arrow, NumberLiteral(("2", NumberFormat::Float)) ];
+        let tokens = vec![ Case, NameIdentifier("x"), Of, Pipe, NameIdentifier("a"), Colon, TypeIdentifier("Int"), Arrow, NumberLiteral(("2", NumberFormat::Integer)) ];
         lex_equal(code, tokens);
     }
 
