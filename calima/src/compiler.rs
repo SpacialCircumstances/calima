@@ -3,6 +3,9 @@ use std::fmt::{Display, Formatter};
 use std::error::Error;
 use std::fs::read_to_string;
 use crate::{parser, CompilerArguments};
+use crate::token::Span;
+use crate::ast::TopLevelBlock;
+use std::collections::HashMap;
 
 //TODO: Use an enum and handle all errors with this
 #[derive(Debug)]
@@ -18,12 +21,20 @@ impl Error for CompilerError {
 
 }
 
-pub struct CompilerContext {
-    module_queue: Vec<PathBuf>,
-    search_dirs: Vec<PathBuf>
+pub struct Module<'input> {
+    ast: TopLevelBlock<'input, Span>,
+    name: &'input str,
+    depth: u32,
+    deps: Vec<&'input str>
 }
 
-impl CompilerContext {
+pub struct CompilerContext<'input> {
+    module_queue: Vec<PathBuf>,
+    search_dirs: Vec<PathBuf>,
+    modules: HashMap<&'input str, Module<'input>>
+}
+
+impl<'input> CompilerContext<'input> {
     pub fn from_args<S: AsRef<str>>(args: CompilerArguments<S>) -> Result<Self, Box<dyn Error>> {
         let entrypoint_path = PathBuf::from(args.entrypoint);
         if !entrypoint_path.is_file() {
@@ -47,7 +58,8 @@ impl CompilerContext {
         }
         Ok(CompilerContext {
             module_queue,
-            search_dirs
+            search_dirs,
+            modules: HashMap::new()
         })
     }
 
