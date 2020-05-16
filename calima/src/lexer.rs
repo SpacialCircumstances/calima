@@ -201,7 +201,7 @@ impl<'input> Lexer<'input> {
             true => NumberFormat::Float,
             false => NumberFormat::Integer
         };
-        Some(Ok((start, NumberLiteral(((lit, format))), end)))
+        Some(Ok((start, NumberLiteral((lit, format)), end)))
     }
 
     fn identifier(&mut self) -> Option<LexerResult<'input>> {
