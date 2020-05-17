@@ -7,6 +7,7 @@ use crate::token::Span;
 use crate::ast::TopLevelBlock;
 use crate::util::*;
 use std::collections::HashMap;
+use std::cmp::min;
 
 //TODO: Use an enum and handle all errors with this
 #[derive(Debug)]
@@ -22,7 +23,7 @@ impl Error for CompilerError {
 
 }
 
-#[derive(Debug, Clone, PartialEq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ModuleIdentifier {
     full_name: String
 }
@@ -56,7 +57,7 @@ pub struct Module<'input> {
     name: ModuleIdentifier,
     path: PathBuf,
     depth: u32,
-    deps: Vec<&'input str>
+    deps: Vec<ModuleIdentifier>
 }
 
 pub struct ModuleDescriptor {
@@ -116,17 +117,25 @@ impl<'input> CompilerContext<'input> {
 
     pub fn parse_all_modules(&mut self) -> Result<(), Box<dyn Error>> {
         while let Some(next) = self.module_queue.pop() {
-            let path = self.resolve_module(&next.identifier)
-                .ok_or_else(|| CompilerError(format!("Error resolving module {}: Not found", next.identifier)))?;
-            let code = read_to_string(&path)?;
-            let ast = parser::parse(&code)?;
-            let module = Module {
-                path,
-                ast,
-                name: next.identifier,
-                depth: next.depth,
-                deps: vec![]
-            };
+            match self.modules.get_mut(&next.identifier) {
+                Some(module) => {
+                    module.depth = min(module.depth, next.depth);
+                },
+                None => {
+                    let path = self.resolve_module(&next.identifier)
+                        .ok_or_else(|| CompilerError(format!("Error resolving module {}: Not found", next.identifier)))?;
+                    let code = read_to_string(&path)?;
+                    let ast = parser::parse(&code)?;
+                    let module = Module {
+                        path,
+                        ast,
+                        name: next.identifier.clone(),
+                        depth: next.depth,
+                        deps: vec![]
+                    };
+                    //self.modules.insert(next.identifier, module);
+                }
+            }
         }
         Ok(())
     }
