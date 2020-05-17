@@ -63,6 +63,20 @@ impl<'input> CompilerContext<'input> {
         })
     }
 
+    fn resolve_module(&self, module_name: &[&str]) -> Option<PathBuf> {
+        self.search_dirs.iter().find_map(|dir| {
+            let mut path = dir.clone();
+            for el in module_name {
+                path.push(el)
+            }
+            path.set_extension("ca");
+            match path.exists() {
+                true => Some(path),
+                false => None
+            }
+        })
+    }
+
     pub fn parse_all_modules(&mut self) -> Result<(), Box<dyn Error>> {
         let code = read_to_string(self.module_queue.first().unwrap())?;
         let ast = parser::parse(&code)?;
