@@ -7,6 +7,7 @@ mod lexer;
 mod ast;
 mod parser;
 mod compiler;
+mod util;
 
 use compiler::CompilerContext;
 

@@ -5,6 +5,7 @@ use std::fs::read_to_string;
 use crate::{parser, CompilerArguments};
 use crate::token::Span;
 use crate::ast::TopLevelBlock;
+use crate::util::*;
 use std::collections::HashMap;
 
 //TODO: Use an enum and handle all errors with this
@@ -23,13 +24,18 @@ impl Error for CompilerError {
 
 pub struct Module<'input> {
     ast: TopLevelBlock<'input, Span>,
-    name: &'input str,
+    name: Vec<String>,
     depth: u32,
     deps: Vec<&'input str>
 }
 
+pub struct ModuleDescriptor {
+    identifier: Vec<String>,
+    depth: u32
+}
+
 pub struct CompilerContext<'input> {
-    module_queue: Vec<PathBuf>,
+    module_queue: Vec<ModuleDescriptor>,
     search_dirs: Vec<PathBuf>,
     modules: HashMap<&'input str, Module<'input>>
 }
@@ -42,9 +48,10 @@ impl<'input> CompilerContext<'input> {
         }
         //Get directory of entrypoint
         let mut entrypoint_dir = entrypoint_path.clone();
+        let entrypoint_module_name = entrypoint_path.file_name().unwrap().to_str().unwrap().to_string();
         entrypoint_dir.pop();
 
-        let module_queue = vec![ entrypoint_path ];
+        let module_queue = vec![ ModuleDescriptor { identifier: vec![ entrypoint_module_name ], depth: 0 } ];
 
         let mut search_dirs = Vec::new();
         search_dirs.push(entrypoint_dir);
@@ -63,11 +70,11 @@ impl<'input> CompilerContext<'input> {
         })
     }
 
-    fn resolve_module(&self, module_name: &[&str]) -> Option<PathBuf> {
+    fn resolve_module<S: AsRef<str>>(&self, module_name: &[S]) -> Option<PathBuf> {
         self.search_dirs.iter().find_map(|dir| {
             let mut path = dir.clone();
             for el in module_name {
-                path.push(el)
+                path.push(el.as_ref())
             }
             path.set_extension("ca");
             match path.exists() {
@@ -78,9 +85,18 @@ impl<'input> CompilerContext<'input> {
     }
 
     pub fn parse_all_modules(&mut self) -> Result<(), Box<dyn Error>> {
-        let code = read_to_string(self.module_queue.first().unwrap())?;
-        let ast = parser::parse(&code)?;
-        println!("{}", ast);
+        while let Some(next) = self.module_queue.pop() {
+            let path = self.resolve_module(&next.identifier)
+                .ok_or_else(|| CompilerError(format!("Error resolving module {}: Not found", format_iter(next.identifier.iter(), "."))))?;
+            let code = read_to_string(path)?;
+            let ast = parser::parse(&code)?;
+            let module = Module {
+                ast,
+                name: next.identifier,
+                depth: next.depth,
+                deps: vec![]
+            };
+        }
         Ok(())
     }
 }

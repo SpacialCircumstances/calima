@@ -1,4 +1,5 @@
 use std::fmt::{Display, Formatter, Debug};
+use crate::util::*;
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum NumberType {
@@ -38,18 +39,6 @@ fn format_tuple<T>(elements: &Vec<T>, f: &mut Formatter) -> std::fmt::Result whe
     // A tuple always has one element
     write!(f, "{}", elements.last().unwrap())?;
     write!(f, ")")
-}
-
-fn format_iter<T: Display, I: Iterator<Item=T>>(iter: I, sep: &str) -> String {
-    iter.map(|e| e.to_string()).collect::<Vec<String>>().join(sep)
-}
-
-fn format_iter_end<T: Display, I: Iterator<Item=T>>(iter: I, sep: &str) -> String {
-    let mut str = format_iter(iter, sep);
-    if str.len() != 0 {
-        str.push_str(sep);
-    }
-    str
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
