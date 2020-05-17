@@ -22,22 +22,52 @@ impl Error for CompilerError {
 
 }
 
+#[derive(Debug, Clone, PartialEq, Hash)]
+pub struct ModuleIdentifier {
+    full_name: String
+}
+
+impl ModuleIdentifier {
+    pub fn from_name(name: &[&str]) -> Self {
+        ModuleIdentifier {
+            full_name: name.join(".")
+        }
+    }
+
+    pub fn from_filename(name: String) -> Self {
+        ModuleIdentifier {
+            full_name: name
+        }
+    }
+
+    pub fn components(&self) -> impl Iterator<Item=&str> {
+        self.full_name.split(".")
+    }
+}
+
+impl Display for ModuleIdentifier {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.full_name)
+    }
+}
+
 pub struct Module<'input> {
     ast: TopLevelBlock<'input, Span>,
-    name: Vec<String>,
+    name: ModuleIdentifier,
+    path: PathBuf,
     depth: u32,
     deps: Vec<&'input str>
 }
 
 pub struct ModuleDescriptor {
-    identifier: Vec<String>,
+    identifier: ModuleIdentifier,
     depth: u32
 }
 
 pub struct CompilerContext<'input> {
     module_queue: Vec<ModuleDescriptor>,
     search_dirs: Vec<PathBuf>,
-    modules: HashMap<&'input str, Module<'input>>
+    modules: HashMap<ModuleIdentifier, Module<'input>>
 }
 
 impl<'input> CompilerContext<'input> {
@@ -51,7 +81,7 @@ impl<'input> CompilerContext<'input> {
         let entrypoint_module_name = entrypoint_path.file_name().unwrap().to_str().unwrap().to_string();
         entrypoint_dir.pop();
 
-        let module_queue = vec![ ModuleDescriptor { identifier: vec![ entrypoint_module_name ], depth: 0 } ];
+        let module_queue = vec![ ModuleDescriptor { identifier: ModuleIdentifier::from_filename(entrypoint_module_name), depth: 0 } ];
 
         let mut search_dirs = Vec::new();
         search_dirs.push(entrypoint_dir);
@@ -70,11 +100,11 @@ impl<'input> CompilerContext<'input> {
         })
     }
 
-    fn resolve_module<S: AsRef<str>>(&self, module_name: &[S]) -> Option<PathBuf> {
+    fn resolve_module(&self, module_ident: &ModuleIdentifier) -> Option<PathBuf> {
         self.search_dirs.iter().find_map(|dir| {
             let mut path = dir.clone();
-            for el in module_name {
-                path.push(el.as_ref())
+            for el in module_ident.components() {
+                path.push(el)
             }
             path.set_extension("ca");
             match path.exists() {
@@ -87,10 +117,11 @@ impl<'input> CompilerContext<'input> {
     pub fn parse_all_modules(&mut self) -> Result<(), Box<dyn Error>> {
         while let Some(next) = self.module_queue.pop() {
             let path = self.resolve_module(&next.identifier)
-                .ok_or_else(|| CompilerError(format!("Error resolving module {}: Not found", format_iter(next.identifier.iter(), "."))))?;
-            let code = read_to_string(path)?;
+                .ok_or_else(|| CompilerError(format!("Error resolving module {}: Not found", next.identifier)))?;
+            let code = read_to_string(&path)?;
             let ast = parser::parse(&code)?;
             let module = Module {
+                path,
                 ast,
                 name: next.identifier,
                 depth: next.depth,
