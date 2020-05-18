@@ -1,21 +1,26 @@
 use std::collections::HashSet;
+use std::cell::RefCell;
 
 #[derive(Debug, Clone)]
 pub struct StringInterner {
-    strings: HashSet<String>
+    strings: RefCell<HashSet<String>>
 }
 
 impl StringInterner {
     pub fn new() -> Self {
         StringInterner {
-            strings: HashSet::new()
+            strings: RefCell::new(HashSet::new())
         }
     }
 
-    pub fn intern(&mut self, string: &str) -> &str {
-        if !self.strings.contains(string) {
-            self.strings.insert(string.to_string());
+    pub fn intern<'a, 'b>(&'b self, string: &'a str) -> &'b str {
+        let mut strings = self.strings.borrow_mut();
+        if !strings.contains(string) {
+            strings.insert(string.to_string());
         }
-        self.strings.get(string).unwrap()
+        let res = strings.get(string).unwrap().as_str();
+        unsafe {
+            std::mem::transmute(res)
+        }
     }
 }
