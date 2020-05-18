@@ -43,11 +43,13 @@ mod tests {
     use crate::ast::Expr::*;
     use crate::token::{Location, Span};
     use goldenfile::Mint;
+    use crate::string_interner::StringInterner;
 
     #[test]
     fn test_hello_world() {
+        let interner = StringInterner::new();
         let code = "println \"Hello World!\"";
-        let parsed = parse(code);
+        let parsed = parse(code, &interner);
         let ast = parsed.expect("Parser error");
         let loc1 = Span {
             left: Location { pos: 0, col: 1, line: 1 },
@@ -76,6 +78,7 @@ mod tests {
     #[test]
     fn test_by_comparing_to_parsed() {
         let mut mint = Mint::new("tests/parsed/");
+        let interner = StringInterner::new();
 
         for entry in read_dir("../examples/basic/").unwrap() {
             match entry {
@@ -85,7 +88,7 @@ mod tests {
                         let filename = entry_path.file_name().unwrap();
                         let mut parsed_file = mint.new_goldenfile(filename).unwrap();
                         let file_content = std::fs::read_to_string(&entry_path).unwrap();
-                        let parsed = parse(&file_content).expect(format!("Error parsing {}", filename.to_string_lossy()).as_ref());
+                        let parsed = parse(&file_content, &interner).expect(format!("Error parsing {}", filename.to_string_lossy()).as_ref());
                         write!(parsed_file, "{}", parsed).unwrap();
                     }
                 },

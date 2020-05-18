@@ -264,9 +264,11 @@ mod tests {
     use crate::token::{Token, NumberFormat};
     use crate::token::Token::*;
     use crate::lexer::Lexer;
+    use crate::string_interner::StringInterner;
 
     fn lex_equal(code: &str, tokens: Vec<Token>) {
-        let lexer = Lexer::new(code);
+        let interner = StringInterner::new();
+        let lexer = Lexer::new(code, &interner);
         let res: Vec<Token> = lexer.map(|tk| tk.unwrap()).map(|(_, t, _)| t).collect();
         assert_eq!(res, tokens);
     }
