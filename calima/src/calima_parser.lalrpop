@@ -3,7 +3,7 @@ use crate::token::{Location, Token, NumberFormat};
 use crate::token::Token::*;
 use crate::lexer::Error;
 
-grammar<'input, Data, F>(input: &'input str, to_data: &F) where F: Fn(Location, Location) -> Data;
+grammar<'input, Data, F>(to_data: &F) where F: Fn(Location, Location) -> Data;
 
 extern {
     type Location = Location;

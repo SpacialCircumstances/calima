@@ -4,6 +4,7 @@ use crate::token::{Span, Location, Token};
 
 use lalrpop_util::ParseError;
 use std::fmt::{Display, Formatter};
+use crate::string_interner::StringInterner;
 
 lalrpop_mod!(pub calima_parser);
 
@@ -26,10 +27,10 @@ impl std::error::Error for ParserError {
 
 }
 
-pub fn parse(code: &str) -> Result<TopLevelBlock<Span>, ParserError> {
-    let lexer = Lexer::new(code);
+pub fn parse<'source, 'input>(code: &'source str, interner: &'input StringInterner) -> Result<TopLevelBlock<'input, Span>, ParserError> {
+    let lexer = Lexer::new(code, interner);
     let parser = calima_parser::TopLevelBlockParser::new();
-    let ast = parser.parse(code, &|left_loc, right_loc| Span { left: left_loc, right: right_loc }, lexer).map_err(|e| ParserError::new(e))?;
+    let ast = parser.parse(&|left_loc, right_loc| Span { left: left_loc, right: right_loc }, lexer).map_err(|e| ParserError::new(e))?;
     Ok(ast)
 }
 

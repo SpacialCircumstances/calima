@@ -3,10 +3,12 @@ use crate::token::{Token, Location, NumberFormat};
 use crate::token::Token::*;
 use std::iter::Peekable;
 use std::fmt::{Display, Formatter};
+use crate::string_interner::StringInterner;
 
-pub struct Lexer<'input> {
-    chars: Peekable<Chars<'input>>,
-    input: &'input str,
+pub struct Lexer<'source, 'input> {
+    chars: Peekable<Chars<'source>>,
+    input: &'source str,
+    interner: &'input StringInterner,
     last_pos: Location,
     current_pos: Location
 }
@@ -100,8 +102,8 @@ fn handle_identifier(ident: &str) -> Token {
     }
 }
 
-impl<'input> Lexer<'input> {
-    pub fn new(input: &'input str) -> Self {
+impl<'source, 'input> Lexer<'source, 'input> {
+    pub fn new(input: &'source str, interner: &'input StringInterner) -> Self {
         let starting_pos = Location {
             pos: 0,
             line: 1,
@@ -111,7 +113,8 @@ impl<'input> Lexer<'input> {
             input,
             chars: input.chars().peekable(),
             last_pos: starting_pos,
-            current_pos: starting_pos
+            current_pos: starting_pos,
+            interner
         }
     }
 
@@ -177,7 +180,7 @@ impl<'input> Lexer<'input> {
                 Some(_) => ()
             }
         };
-        let lit = &self.input[start_idx..end_idx];
+        let lit = self.interner.intern(&self.input[start_idx..end_idx]);
         let end = self.token_start_pos();
         Some(Ok((start, StringLiteral(lit), end)))
     }
@@ -195,7 +198,7 @@ impl<'input> Lexer<'input> {
             }
             self.advance();
         };
-        let lit = &self.input[start_idx..end_idx];
+        let lit = self.interner.intern(&self.input[start_idx..end_idx]);
         let end = self.token_start_pos();
         let format = match lit.contains(".") {
             true => NumberFormat::Float,
@@ -215,13 +218,13 @@ impl<'input> Lexer<'input> {
             }
             self.advance();
         };
-        let lit = &self.input[start_idx..end_idx];
+        let lit = self.interner.intern(&self.input[start_idx..end_idx]);
         let end = self.token_start_pos();
         Some(Ok((start, handle_identifier(lit), end)))
     }
 }
 
-impl<'input> Iterator for Lexer<'input> {
+impl<'source, 'input> Iterator for Lexer<'source, 'input> {
     type Item = LexerResult<'input>;
 
     fn next(&mut self) -> Option<Self::Item> {

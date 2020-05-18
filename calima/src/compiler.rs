@@ -128,7 +128,7 @@ impl<'input> CompilerContext<'input> {
                     let path = self.resolve_module(&next.identifier)
                         .ok_or_else(|| CompilerError(format!("Error resolving module {}: Not found", next.identifier)))?;
                     let code = read_to_string(&path)?;
-                    let ast = parser::parse(&code)?;
+                    let ast = parser::parse(&code, &self.string_interner)?;
                     let module = Module {
                         path,
                         ast,
