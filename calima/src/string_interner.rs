@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 #[derive(Debug, Clone)]
-struct StringInterner {
+pub struct StringInterner {
     strings: HashSet<String>
 }
 

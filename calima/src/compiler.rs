@@ -8,6 +8,7 @@ use crate::ast::TopLevelBlock;
 use crate::util::*;
 use std::collections::HashMap;
 use std::cmp::min;
+use crate::string_interner::StringInterner;
 
 //TODO: Use an enum and handle all errors with this
 #[derive(Debug)]
@@ -68,7 +69,8 @@ pub struct ModuleDescriptor {
 pub struct CompilerContext<'input> {
     module_queue: Vec<ModuleDescriptor>,
     search_dirs: Vec<PathBuf>,
-    modules: HashMap<ModuleIdentifier, Module<'input>>
+    modules: HashMap<ModuleIdentifier, Module<'input>>,
+    string_interner: StringInterner
 }
 
 impl<'input> CompilerContext<'input> {
@@ -97,7 +99,8 @@ impl<'input> CompilerContext<'input> {
         Ok(CompilerContext {
             module_queue,
             search_dirs,
-            modules: HashMap::new()
+            modules: HashMap::new(),
+            string_interner: StringInterner::new()
         })
     }
 
