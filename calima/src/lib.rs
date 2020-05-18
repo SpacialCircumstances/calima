@@ -8,6 +8,7 @@ mod ast;
 mod parser;
 mod compiler;
 mod util;
+mod string_interner;
 
 use compiler::CompilerContext;
 
