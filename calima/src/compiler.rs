@@ -118,7 +118,7 @@ impl<'input> CompilerContext<'input> {
         })
     }
 
-    pub fn parse_all_modules(&mut self) -> Result<(), Box<dyn Error>> {
+    pub fn parse_all_modules(&'input mut self) -> Result<(), Box<dyn Error>> {
         while let Some(next) = self.module_queue.pop() {
             match self.modules.get_mut(&next.identifier) {
                 Some(module) => {
@@ -136,7 +136,7 @@ impl<'input> CompilerContext<'input> {
                         depth: next.depth,
                         deps: vec![]
                     };
-                    //self.modules.insert(next.identifier, module);
+                    self.modules.insert(next.identifier, module);
                 }
             }
         }
