@@ -130,6 +130,13 @@ impl<'input> CompilerContext<'input> {
                     let code = read_to_string(&path)?;
                     let ast = parser::parse(&code, &self.string_interner)?;
                     let deps = find_imported_modules(&ast);
+                    for x in &deps {
+                        let desc = ModuleDescriptor {
+                            identifier: x.clone(),
+                            depth: next.depth + 1
+                        };
+                        self.module_queue.push(desc);
+                    }
                     let module = Module {
                         path,
                         ast,
