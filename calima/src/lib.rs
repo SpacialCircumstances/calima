@@ -9,6 +9,7 @@ mod parser;
 mod compiler;
 mod util;
 mod string_interner;
+mod analyze;
 
 use compiler::CompilerContext;
 

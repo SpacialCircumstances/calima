@@ -5,10 +5,10 @@ use std::fs::read_to_string;
 use crate::{parser, CompilerArguments};
 use crate::token::Span;
 use crate::ast::TopLevelBlock;
-use crate::util::*;
 use std::collections::HashMap;
 use std::cmp::min;
 use crate::string_interner::StringInterner;
+use crate::analyze::find_imported_modules;
 
 //TODO: Use an enum and handle all errors with this
 #[derive(Debug)]
@@ -129,12 +129,13 @@ impl<'input> CompilerContext<'input> {
                         .ok_or_else(|| CompilerError(format!("Error resolving module {}: Not found", next.identifier)))?;
                     let code = read_to_string(&path)?;
                     let ast = parser::parse(&code, &self.string_interner)?;
+                    let deps = find_imported_modules(&ast);
                     let module = Module {
                         path,
                         ast,
                         name: next.identifier.clone(),
                         depth: next.depth,
-                        deps: vec![]
+                        deps
                     };
                     self.modules.insert(next.identifier, module);
                 }
