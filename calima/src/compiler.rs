@@ -63,6 +63,7 @@ pub struct Module<'input> {
 
 pub struct ModuleDescriptor {
     identifier: ModuleIdentifier,
+    path: PathBuf,
     depth: u32
 }
 
@@ -84,7 +85,11 @@ impl<'input> CompilerContext<'input> {
         let entrypoint_module_name = entrypoint_path.file_name().unwrap().to_str().unwrap().to_string();
         entrypoint_dir.pop();
 
-        let module_queue = vec![ ModuleDescriptor { identifier: ModuleIdentifier::from_filename(entrypoint_module_name), depth: 0 } ];
+        let module_queue = vec![ ModuleDescriptor {
+            identifier: ModuleIdentifier::from_filename(entrypoint_module_name),
+            depth: 0,
+            path: entrypoint_path
+        } ];
 
         let mut search_dirs = Vec::new();
         search_dirs.push(entrypoint_dir);
@@ -104,7 +109,7 @@ impl<'input> CompilerContext<'input> {
         })
     }
 
-    fn resolve_module(&self, module_ident: &ModuleIdentifier) -> Option<PathBuf> {
+    fn try_resolve_module(&self, module_ident: &ModuleIdentifier) -> Option<PathBuf> {
         self.search_dirs.iter().find_map(|dir| {
             let mut path = dir.clone();
             for el in module_ident.components() {
@@ -118,33 +123,43 @@ impl<'input> CompilerContext<'input> {
         })
     }
 
+    fn parse_module(desc: ModuleDescriptor, interner: &StringInterner) -> Result<Module, Box<dyn Error>> {
+        let code = read_to_string(&desc.path)?;
+        let ast = parser::parse(&code, interner)?;
+        let deps = find_imported_modules(&ast);
+
+        Ok(Module {
+            path: desc.path,
+            ast,
+            name: desc.identifier.clone(),
+            depth: desc.depth,
+            deps
+        })
+    }
+
     pub fn parse_all_modules(&'input mut self) -> Result<(), Box<dyn Error>> {
         while let Some(next) = self.module_queue.pop() {
-            match self.modules.get_mut(&next.identifier) {
-                Some(module) => {
-                    module.depth = min(module.depth, next.depth);
-                },
-                None => {
-                    let path = self.resolve_module(&next.identifier)
-                        .ok_or_else(|| CompilerError(format!("Error resolving module {}: Not found", next.identifier)))?;
-                    let code = read_to_string(&path)?;
-                    let ast = parser::parse(&code, &self.string_interner)?;
-                    let deps = find_imported_modules(&ast);
-                    for x in &deps {
-                        let desc = ModuleDescriptor {
-                            identifier: x.clone(),
-                            depth: next.depth + 1
-                        };
-                        self.module_queue.push(desc);
+            let module = Self::parse_module(next, &self.string_interner)?;
+            for dep in &module.deps {
+                match self.modules.get_mut(dep) {
+                    Some(dep_mod) => {
+                        dep_mod.depth = min(dep_mod.depth, module.depth + 1)
+                    },
+                    None => {
+                        match self.try_resolve_module(dep) {
+                            Some(found_path) => {
+                                let desc = ModuleDescriptor {
+                                    identifier: dep.clone(),
+                                    depth: module.depth + 1,
+                                    path: found_path
+                                };
+                                self.module_queue.push(desc);
+                            },
+                            None => {
+                                return Err(Box::new(CompilerError(format!("Error resolving dependencies of {}: Module {} not found", &module.name, dep))));
+                            }
+                        }
                     }
-                    let module = Module {
-                        path,
-                        ast,
-                        name: next.identifier.clone(),
-                        depth: next.depth,
-                        deps
-                    };
-                    self.modules.insert(next.identifier, module);
                 }
             }
         }
