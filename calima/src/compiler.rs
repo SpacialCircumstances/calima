@@ -109,7 +109,7 @@ impl<'input> CompilerContext<'input> {
         })
     }
 
-    fn try_resolve_module(&self, module_ident: &ModuleIdentifier) -> Option<PathBuf> {
+    fn try_resolve_module(&self, from: &Module, module_ident: &ModuleIdentifier) -> Option<PathBuf> {
         self.search_dirs.iter().find_map(|dir| {
             let mut path = dir.clone();
             for el in module_ident.components() {
@@ -146,7 +146,7 @@ impl<'input> CompilerContext<'input> {
                         dep_mod.depth = min(dep_mod.depth, module.depth + 1)
                     },
                     None => {
-                        match self.try_resolve_module(dep) {
+                        match self.try_resolve_module(&module, dep) {
                             Some(found_path) => {
                                 let desc = ModuleDescriptor {
                                     identifier: dep.clone(),
@@ -162,6 +162,7 @@ impl<'input> CompilerContext<'input> {
                     }
                 }
             }
+            self.modules.insert(module.name.clone(), module);
         }
         Ok(())
     }
