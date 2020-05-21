@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
 use std::fmt::{Display, Formatter};
 use std::error::Error;
 use std::fs::read_to_string;
@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use std::cmp::min;
 use crate::string_interner::StringInterner;
 use crate::analyze::find_imported_modules;
+use std::iter::once;
 
 //TODO: Use an enum and handle all errors with this
 #[derive(Debug)]
@@ -44,6 +45,15 @@ impl ModuleIdentifier {
 
     pub fn components(&self) -> impl Iterator<Item=&str> {
         self.full_name.split(".")
+    }
+
+    pub fn path_relative_to(&self, path: &Path) -> PathBuf {
+        let mut path = PathBuf::from(path);
+        for el in self.components() {
+            path.push(el)
+        }
+        path.set_extension("ca");
+        path
     }
 }
 
@@ -107,17 +117,16 @@ impl<'input> CompilerContext<'input> {
     }
 
     fn try_resolve_module(&self, from: &Module, module_ident: &ModuleIdentifier) -> Option<PathBuf> {
-        self.search_dirs.iter().find_map(|dir| {
-            let mut path = dir.clone();
-            for el in module_ident.components() {
-                path.push(el)
-            }
-            path.set_extension("ca");
-            match path.exists() {
-                true => Some(path),
-                false => None
-            }
-        })
+        once(&from.path)
+            .chain(self.search_dirs.iter())
+            .find_map(|dir| {
+                let mut path = module_ident.path_relative_to(dir);
+                module_ident.path_relative_to(&mut path);
+                match path.is_file() {
+                    true => Some(path),
+                    false => None
+                }
+            })
     }
 
     fn parse_module(desc: ModuleDescriptor, interner: &StringInterner) -> Result<Module, Box<dyn Error>> {
