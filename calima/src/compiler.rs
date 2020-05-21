@@ -81,9 +81,7 @@ impl<'input> CompilerContext<'input> {
             return Err(Box::new(CompilerError(format!("Entrypoint file {} not found", args.entrypoint))))
         }
         //Get directory of entrypoint
-        let mut entrypoint_dir = entrypoint_path.clone();
         let entrypoint_module_name = entrypoint_path.file_name().unwrap().to_str().unwrap().to_string();
-        entrypoint_dir.pop();
 
         let module_queue = vec![ ModuleDescriptor {
             identifier: ModuleIdentifier::from_filename(entrypoint_module_name),
@@ -91,22 +89,21 @@ impl<'input> CompilerContext<'input> {
             path: entrypoint_path
         } ];
 
-        let mut search_dirs = Vec::new();
-        search_dirs.push(entrypoint_dir);
-        for dir in args.search_paths {
-            let path = PathBuf::from(dir.as_ref());
-            if path.is_dir() {
-                search_dirs.push(PathBuf::from(dir.as_ref()))
-            } else {
-                return Err(Box::new(CompilerError(format!("Search directory {} not found or not a directory", dir.as_ref()))))
-            }
+        let (search_dirs, errors): (Vec<PathBuf>, Vec<PathBuf>) = args.search_paths
+            .iter()
+            .map(|dir| PathBuf::from(dir.as_ref()))
+            .partition(|dir| dir.is_dir());
+
+        if !errors.is_empty() {
+            Err(Box::new(CompilerError(format!("{} is not a valid search directory", errors.first().unwrap().to_string_lossy()))))
+        } else {
+            Ok(CompilerContext {
+                module_queue,
+                search_dirs,
+                modules: HashMap::new(),
+                string_interner: StringInterner::new()
+            })
         }
-        Ok(CompilerContext {
-            module_queue,
-            search_dirs,
-            modules: HashMap::new(),
-            string_interner: StringInterner::new()
-        })
     }
 
     fn try_resolve_module(&self, from: &Module, module_ident: &ModuleIdentifier) -> Option<PathBuf> {
