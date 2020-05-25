@@ -10,6 +10,7 @@ use std::cmp::min;
 use crate::string_interner::StringInterner;
 use crate::analyze::find_imported_modules;
 use std::iter::once;
+use crate::errors::ErrorContext;
 
 //TODO: Use an enum and handle all errors with this
 #[derive(Debug)]
@@ -81,7 +82,8 @@ pub struct CompilerContext<'input> {
     module_queue: Vec<ModuleDescriptor>,
     search_dirs: Vec<PathBuf>,
     modules: HashMap<ModuleIdentifier, Module<'input>>,
-    string_interner: StringInterner
+    string_interner: StringInterner,
+    error_context: ErrorContext<'input>
 }
 
 impl<'input> CompilerContext<'input> {
@@ -111,7 +113,8 @@ impl<'input> CompilerContext<'input> {
                 module_queue,
                 search_dirs,
                 modules: HashMap::new(),
-                string_interner: StringInterner::new()
+                string_interner: StringInterner::new(),
+                error_context: ErrorContext::new()
             })
         }
     }
