@@ -80,7 +80,7 @@ impl<'input> CompilerContext<'input> {
             return Err(GeneralError(None, format!("Entrypoint file {} not found", args.entrypoint)))
         }
         //Get directory of entrypoint
-        let entrypoint_module_name = entrypoint_path.file_name().unwrap().to_str().unwrap().to_string();
+        let entrypoint_module_name = entrypoint_path.file_name()?.to_string_lossy().to_string();
 
         let module_queue = vec![ ModuleDescriptor {
             identifier: ModuleIdentifier::from_filename(entrypoint_module_name),
@@ -135,33 +135,41 @@ impl<'input> CompilerContext<'input> {
 
     pub fn parse_all_modules(&'input mut self) -> Result<(), ()> {
         while let Some(next) = self.module_queue.pop() {
-            //TODO: Store error in error context
-            let module = Self::parse_module(next, &self.string_interner).unwrap();
-            for dep in &module.deps {
-                match self.modules.get_mut(dep) {
-                    Some(dep_mod) => {
-                        dep_mod.depth = min(dep_mod.depth, module.depth + 1)
-                    },
-                    None => {
-                        match self.try_resolve_module(&module, dep) {
-                            Some(found_path) => {
-                                let desc = ModuleDescriptor {
-                                    identifier: dep.clone(),
-                                    depth: module.depth + 1,
-                                    path: found_path
-                                };
-                                self.module_queue.push(desc);
+            match Self::parse_module(next, &self.string_interner) {
+                Err(e) => self.error_context.add_error(e),
+                Ok(module) => {
+                    for dep in &module.deps {
+                        match self.modules.get_mut(dep) {
+                            Some(dep_mod) => {
+                                dep_mod.depth = min(dep_mod.depth, module.depth + 1)
                             },
                             None => {
-                                //TODO: Handle error in error context
-                                //return Err(Box::new(G(format!("Error resolving dependencies of {}: Module {} not found", &module.name, dep))));
+                                match self.try_resolve_module(&module, dep) {
+                                    Some(found_path) => {
+                                        let desc = ModuleDescriptor {
+                                            identifier: dep.clone(),
+                                            depth: module.depth + 1,
+                                            path: found_path
+                                        };
+                                        self.module_queue.push(desc);
+                                    },
+                                    None => {
+                                        let err = ImportError {
+                                            importing_mod: module.name.clone(),
+                                            importing_mod_path: module.path.clone(),
+                                            imported: dep.clone(),
+                                            search_dirs: self.search_dirs.clone()
+                                        };
+                                        self.error_context.add_error(err);
+                                    }
+                                }
                             }
                         }
                     }
+                    self.modules.insert(module.name.clone(), module);
                 }
             }
-            self.modules.insert(module.name.clone(), module);
         }
-        Ok(())
+        self.error_context.handle_errors()
     }
 }
