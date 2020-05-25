@@ -11,13 +11,13 @@ pub enum CompilerError<'a> {
 }
 
 #[derive(Debug)]
-pub enum CompilerWarning<'a> {
+pub enum CompilerWarning {
 
 }
 
 pub struct ErrorContext<'a> {
     errors: Vec<CompilerError<'a>>,
-    warnings: Vec<CompilerWarning<'a>>
+    warnings: Vec<CompilerWarning>
 }
 
 impl<'a> ErrorContext<'a> {
@@ -28,7 +28,7 @@ impl<'a> ErrorContext<'a> {
         }
     }
 
-    pub fn add_error(&mut self, err: CompilerError) {
+    pub fn add_error(&mut self, err: CompilerError<'a>) {
         self.errors.push(err);
     }
 
@@ -37,6 +37,6 @@ impl<'a> ErrorContext<'a> {
     }
 
     pub fn handle_errors(&self) -> Result<(), ()> {
-
+        Ok(())
     }
 }
