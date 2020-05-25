@@ -56,13 +56,13 @@ pub struct Module<'input> {
     name: ModuleIdentifier,
     path: PathBuf,
     depth: u32,
-    deps: Vec<ModuleIdentifier>
+    deps: Vec<ModuleIdentifier>,
 }
 
 pub struct ModuleDescriptor {
     identifier: ModuleIdentifier,
     path: PathBuf,
-    depth: u32
+    depth: u32,
 }
 
 pub struct CompilerContext<'input> {
@@ -70,23 +70,31 @@ pub struct CompilerContext<'input> {
     search_dirs: Vec<PathBuf>,
     modules: HashMap<ModuleIdentifier, Module<'input>>,
     string_interner: StringInterner,
-    error_context: ErrorContext<'input>
+    error_context: ErrorContext<'input>,
 }
 
 impl<'input> CompilerContext<'input> {
-    pub fn from_args<S: AsRef<str>>(args: CompilerArguments<S>) -> Result<Self, CompilerError> {
+    pub fn from_args<S: AsRef<str>>(args: CompilerArguments<S>) -> Result<Self, ()> {
+        let mut error_context = ErrorContext::new();
+
         let entrypoint_path = PathBuf::from(args.entrypoint);
         if !entrypoint_path.is_file() {
-            return Err(GeneralError(None, format!("Entrypoint file {} not found", args.entrypoint)))
+            error_context.add_error(GeneralError(None, format!("Entrypoint file {} not found", args.entrypoint)));
         }
         //Get directory of entrypoint
-        let entrypoint_module_name = entrypoint_path.file_name()?.to_string_lossy().to_string();
+        let entrypoint_module_name = match entrypoint_path.file_name(){
+            None => {
+                error_context.add_error(GeneralError(None, format!("Invalid entrypoint file {}", entrypoint_path.display())));
+                "Error".to_string()
+            },
+            Some(filename) => filename.to_string_lossy().to_string()
+        };
 
-        let module_queue = vec![ ModuleDescriptor {
+        let module_queue = vec![ModuleDescriptor {
             identifier: ModuleIdentifier::from_filename(entrypoint_module_name),
             depth: 0,
-            path: entrypoint_path
-        } ];
+            path: entrypoint_path,
+        }];
 
         let (search_dirs, errors): (Vec<PathBuf>, Vec<PathBuf>) = args.search_paths
             .iter()
@@ -94,16 +102,17 @@ impl<'input> CompilerContext<'input> {
             .partition(|dir| dir.is_dir());
 
         if !errors.is_empty() {
-            Err(GeneralError(None, format!("{} is not a valid search directory", errors.first().unwrap().to_string_lossy())))
-        } else {
-            Ok(CompilerContext {
-                module_queue,
-                search_dirs,
-                modules: HashMap::new(),
-                string_interner: StringInterner::new(),
-                error_context: ErrorContext::new()
-            })
+            for err in errors {
+                error_context.add_error(GeneralError(None, format!("{} is not a valid search directory", err.display())));
+            }
         }
+        error_context.handle_errors().map(|()| CompilerContext {
+            module_queue,
+            search_dirs,
+            modules: HashMap::new(),
+            string_interner: StringInterner::new(),
+            error_context,
+        })
     }
 
     fn try_resolve_module(&self, from: &Module, module_ident: &ModuleIdentifier) -> Option<PathBuf> {
@@ -129,7 +138,7 @@ impl<'input> CompilerContext<'input> {
             ast,
             name: desc.identifier.clone(),
             depth: desc.depth,
-            deps
+            deps,
         })
     }
 
@@ -142,23 +151,23 @@ impl<'input> CompilerContext<'input> {
                         match self.modules.get_mut(dep) {
                             Some(dep_mod) => {
                                 dep_mod.depth = min(dep_mod.depth, module.depth + 1)
-                            },
+                            }
                             None => {
                                 match self.try_resolve_module(&module, dep) {
                                     Some(found_path) => {
                                         let desc = ModuleDescriptor {
                                             identifier: dep.clone(),
                                             depth: module.depth + 1,
-                                            path: found_path
+                                            path: found_path,
                                         };
                                         self.module_queue.push(desc);
-                                    },
+                                    }
                                     None => {
                                         let err = ImportError {
                                             importing_mod: module.name.clone(),
                                             importing_mod_path: module.path.clone(),
                                             imported: dep.clone(),
-                                            search_dirs: self.search_dirs.clone()
+                                            search_dirs: self.search_dirs.clone(),
                                         };
                                         self.error_context.add_error(err);
                                     }
