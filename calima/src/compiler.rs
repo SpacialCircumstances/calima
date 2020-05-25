@@ -10,21 +10,8 @@ use std::cmp::min;
 use crate::string_interner::StringInterner;
 use crate::analyze::find_imported_modules;
 use std::iter::once;
-use crate::errors::ErrorContext;
-
-//TODO: Use an enum and handle all errors with this
-#[derive(Debug)]
-pub struct CompilerError(String);
-
-impl Display for CompilerError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl Error for CompilerError {
-
-}
+use crate::errors::{CompilerError, ErrorContext};
+use crate::errors::CompilerError::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ModuleIdentifier {
@@ -87,10 +74,10 @@ pub struct CompilerContext<'input> {
 }
 
 impl<'input> CompilerContext<'input> {
-    pub fn from_args<S: AsRef<str>>(args: CompilerArguments<S>) -> Result<Self, Box<dyn Error>> {
+    pub fn from_args<S: AsRef<str>>(args: CompilerArguments<S>) -> Result<Self, CompilerError> {
         let entrypoint_path = PathBuf::from(args.entrypoint);
         if !entrypoint_path.is_file() {
-            return Err(Box::new(CompilerError(format!("Entrypoint file {} not found", args.entrypoint))))
+            return Err(GeneralError(None, format!("Entrypoint file {} not found", args.entrypoint)))
         }
         //Get directory of entrypoint
         let entrypoint_module_name = entrypoint_path.file_name().unwrap().to_str().unwrap().to_string();
@@ -107,7 +94,7 @@ impl<'input> CompilerContext<'input> {
             .partition(|dir| dir.is_dir());
 
         if !errors.is_empty() {
-            Err(Box::new(CompilerError(format!("{} is not a valid search directory", errors.first().unwrap().to_string_lossy()))))
+            Err(GeneralError(None, format!("{} is not a valid search directory", errors.first().unwrap().to_string_lossy())))
         } else {
             Ok(CompilerContext {
                 module_queue,
@@ -132,9 +119,9 @@ impl<'input> CompilerContext<'input> {
             })
     }
 
-    fn parse_module(desc: ModuleDescriptor, interner: &StringInterner) -> Result<Module, Box<dyn Error>> {
-        let code = read_to_string(&desc.path)?;
-        let ast = parser::parse(&code, interner)?;
+    fn parse_module(desc: ModuleDescriptor, interner: &StringInterner) -> Result<Module, CompilerError> {
+        let code = read_to_string(&desc.path).map_err(|e| GeneralError(Some(Box::new(e)), format!("Error opening file {}", &desc.path.display())))?;
+        let ast = parser::parse(&code, interner).map_err(|pe| ParserError(pe, desc.identifier.clone(), desc.path.clone()))?;
         let deps = find_imported_modules(&ast);
 
         Ok(Module {
@@ -146,9 +133,10 @@ impl<'input> CompilerContext<'input> {
         })
     }
 
-    pub fn parse_all_modules(&'input mut self) -> Result<(), Box<dyn Error>> {
+    pub fn parse_all_modules(&'input mut self) -> Result<(), ()> {
         while let Some(next) = self.module_queue.pop() {
-            let module = Self::parse_module(next, &self.string_interner)?;
+            //TODO: Store error in error context
+            let module = Self::parse_module(next, &self.string_interner).unwrap();
             for dep in &module.deps {
                 match self.modules.get_mut(dep) {
                     Some(dep_mod) => {
@@ -165,7 +153,8 @@ impl<'input> CompilerContext<'input> {
                                 self.module_queue.push(desc);
                             },
                             None => {
-                                return Err(Box::new(CompilerError(format!("Error resolving dependencies of {}: Module {} not found", &module.name, dep))));
+                                //TODO: Handle error in error context
+                                //return Err(Box::new(G(format!("Error resolving dependencies of {}: Module {} not found", &module.name, dep))));
                             }
                         }
                     }

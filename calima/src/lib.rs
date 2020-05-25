@@ -29,7 +29,7 @@ impl<'a, S: AsRef<str>> CompilerArguments<'a, S> {
     }
 }
 
-pub fn compile<S: AsRef<str>>(args: CompilerArguments<S>) -> Result<(), Box<dyn Error>> {
-    let mut context = CompilerContext::from_args(args)?;
+pub fn compile<S: AsRef<str>>(args: CompilerArguments<S>) -> Result<(), ()> {
+    let mut context = CompilerContext::from_args(args).expect("Error constructing compiler");
     context.parse_all_modules()
 }

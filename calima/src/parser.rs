@@ -1,36 +1,16 @@
 use crate::ast::*;
 use crate::lexer::*;
 use crate::token::{Span, Location, Token};
-
 use lalrpop_util::ParseError;
 use std::fmt::{Display, Formatter};
 use crate::string_interner::StringInterner;
 
 lalrpop_mod!(pub calima_parser);
 
-#[derive(Debug)]
-pub struct ParserError(String);
-
-impl ParserError {
-    fn new(err: ParseError<Location, Token, Error>) -> Self {
-        ParserError(err.to_string())
-    }
-}
-
-impl Display for ParserError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl std::error::Error for ParserError {
-
-}
-
-pub fn parse<'source, 'input>(code: &'source str, interner: &'input StringInterner) -> Result<TopLevelBlock<'input, Span>, ParserError> {
+pub fn parse<'source, 'input>(code: &'source str, interner: &'input StringInterner) -> Result<TopLevelBlock<'input, Span>, ParseError<Location, Token<'input>, Error>> {
     let lexer = Lexer::new(code, interner);
     let parser = calima_parser::TopLevelBlockParser::new();
-    let ast = parser.parse(&|left_loc, right_loc| Span { left: left_loc, right: right_loc }, lexer).map_err(|e| ParserError::new(e))?;
+    let ast = parser.parse(&|left_loc, right_loc| Span { left: left_loc, right: right_loc }, lexer)?;
     Ok(ast)
 }
 
