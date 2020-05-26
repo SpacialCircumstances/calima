@@ -1,6 +1,5 @@
 use std::path::{PathBuf, Path};
 use std::fmt::{Display, Formatter};
-use std::error::Error;
 use std::fs::read_to_string;
 use crate::{parser, CompilerArguments};
 use crate::token::Span;

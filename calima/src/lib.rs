@@ -1,7 +1,5 @@
 #[macro_use] extern crate lalrpop_util;
 
-use std::error::Error;
-
 mod token;
 mod lexer;
 mod ast;

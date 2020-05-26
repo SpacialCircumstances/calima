@@ -2,7 +2,6 @@ use crate::ast::*;
 use crate::lexer::*;
 use crate::token::{Span, Location, Token};
 use lalrpop_util::ParseError;
-use std::fmt::{Display, Formatter};
 use crate::string_interner::StringInterner;
 
 lalrpop_mod!(pub calima_parser);
