@@ -3,7 +3,8 @@ use std::io::Write;
 use crate::token::{Token, Location};
 use crate::compiler::ModuleIdentifier;
 use std::path::PathBuf;
-use termcolor::{StandardStream, ColorChoice, WriteColor, ColorSpec, Color};
+use codespan_reporting::term::termcolor::{StandardStream, ColorChoice, WriteColor, ColorSpec, Color};
+use codespan_reporting::diagnostic::{Diagnostic, Severity};
 
 #[derive(Debug)]
 pub enum CompilerError<'a> {
@@ -50,7 +51,6 @@ impl<'a> ErrorContext<'a> {
             match err {
                 CompilerError::GeneralError(source, descr) => general_errors.push((source, descr)),
                 CompilerError::ParserError(parser_err, module, path) => {
-
                 },
                 CompilerError::ImportError { importing_mod, importing_mod_path, imported, search_dirs } => {
 

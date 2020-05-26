@@ -116,7 +116,6 @@ dependencies = [
  "goldenfile 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "lalrpop 0.18.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "lalrpop-util 0.18.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "termcolor 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
