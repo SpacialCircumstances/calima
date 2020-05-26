@@ -13,3 +13,4 @@ goldenfile = "1.1.0"
 [dependencies]
 lalrpop-util = "0.18.1"
 codespan-reporting = "0.9.4"
+termcolor = "1.1.0"
