@@ -38,6 +38,7 @@ impl CompilerFile {
 
 struct CompilerFiles {
     file_map: HashMap<u32, CompilerFile>,
+    path_map: HashMap<PathBuf, u32>,
     file_id: u32
 }
 
@@ -45,20 +46,27 @@ impl<'a> CompilerFiles {
     fn new() -> Self {
         CompilerFiles {
             file_map: HashMap::new(),
+            path_map: HashMap::new(),
             file_id: 0
         }
     }
 
-    fn add(&mut self, path: PathBuf) -> Option<u32> {
-        let content = match read_to_string(&path) {
-            Err(_) => return None,
-            Ok(s) => s
-        };
-        let file = CompilerFile::new(path, content);
-        let id = self.file_id;
-        self.file_id += 1;
-        self.file_map.insert(id, file);
-        Some(id)
+    fn add_or_get(&mut self, path: &Path) -> Option<u32> {
+        match self.path_map.get(path) {
+            Some(id) => Some(*id),
+            None => {
+                let content = match read_to_string(&path) {
+                    Err(_) => return None,
+                    Ok(s) => s
+                };
+                let file = CompilerFile::new(path.to_path_buf(), content);
+                let id = self.file_id;
+                self.file_id += 1;
+                self.path_map.insert(path.to_path_buf(), id);
+                self.file_map.insert(id, file);
+                Some(id)
+            }
+        }
     }
 
     fn get(&'a self, id: u32) -> Option<&CompilerFile> {
