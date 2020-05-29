@@ -9,6 +9,7 @@ use codespan_reporting::files::{SimpleFiles, Files};
 use std::ops::Range;
 use std::collections::HashMap;
 use std::fs::read_to_string;
+use std::iter::once;
 
 #[derive(Debug)]
 pub enum CompilerError<'a> {
@@ -19,7 +20,20 @@ pub enum CompilerError<'a> {
 
 struct CompilerFile {
     path: PathBuf,
-    content: String
+    content: String,
+    lines: Vec<usize>
+}
+
+
+impl CompilerFile {
+    fn new(path: PathBuf, content: String) -> Self {
+        let lines = once(0).chain(content.match_indices('\n').map(|(idx, _)| idx + 1)).collect();
+        CompilerFile {
+            path,
+            content,
+            lines
+        }
+    }
 }
 
 struct CompilerFiles {
@@ -40,10 +54,7 @@ impl<'a> CompilerFiles {
             Err(_) => return None,
             Ok(s) => s
         };
-        let file = CompilerFile {
-            path,
-            content
-        };
+        let file = CompilerFile::new(path, content);
         let id = self.file_id;
         self.file_id += 1;
         self.file_map.insert(id, file);
@@ -69,11 +80,14 @@ impl<'a> codespan_reporting::files::Files<'a> for CompilerFiles {
     }
 
     fn line_index(&'a self, id: Self::FileId, byte_index: usize) -> Option<usize> {
-        unimplemented!()
+        self.get(id).map(|f| f.lines.binary_search(&byte_index).unwrap_or_else(|x| x - 1))
     }
 
     fn line_range(&'a self, id: Self::FileId, line_index: usize) -> Option<Range<usize>> {
-        unimplemented!()
+        let file = self.get(id)?;
+        let start = *file.lines.get(line_index).or(Some(&file.content.len()))?;
+        let end = *file.lines.get(line_index + 1).or(Some(&file.content.len()))?;
+        Some(start..end)
     }
 }
 
