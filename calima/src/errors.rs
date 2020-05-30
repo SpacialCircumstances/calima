@@ -10,6 +10,8 @@ use std::ops::Range;
 use std::collections::HashMap;
 use std::fs::read_to_string;
 use std::iter::once;
+use lalrpop_util::ParseError;
+use codespan_reporting::term::emit;
 
 #[derive(Debug)]
 pub enum CompilerError<'a> {
@@ -105,6 +107,7 @@ pub enum CompilerWarning {}
 pub struct ErrorContext<'a> {
     errors: Vec<CompilerError<'a>>,
     warnings: Vec<CompilerWarning>,
+    files: CompilerFiles
 }
 
 impl<'a> ErrorContext<'a> {
@@ -112,6 +115,7 @@ impl<'a> ErrorContext<'a> {
         ErrorContext {
             warnings: Vec::new(),
             errors: Vec::new(),
+            files: CompilerFiles::new()
         }
     }
 
@@ -130,13 +134,45 @@ impl<'a> ErrorContext<'a> {
 
         let mut stdout = StandardStream::stdout(ColorChoice::Auto);
 
-        //First, print the general errors.
+        let mut diagnostics = Vec::new();
         let mut general_errors = Vec::new();
 
         for err in &self.errors {
             match err {
                 CompilerError::GeneralError(source, descr) => general_errors.push((source, descr)),
                 CompilerError::ParserError(parser_err, module, path) => {
+                    let file_id = self.files.add_or_get(path).expect("Error loading file");
+                    match parser_err {
+                        ParseError::User { error } => {
+                            let e = Diagnostic::new(Severity::Error)
+                                .with_message(format!("Parser Error: {}", error));
+                            diagnostics.push(e);
+                        },
+                        ParseError::ExtraToken { token: (s, token, e) } => {
+                            let e = Diagnostic::new(Severity::Error)
+                                .with_message("Parser Error")
+                                .with_labels(vec![
+                                    Label::primary(file_id, s.pos..e.pos).with_message(format!("Extra token {} found", token))
+                                ])
+                                .with_notes(vec![ format!("Parser found unexpected token: {}", token) ]);
+                            diagnostics.push(e);
+                        },
+                        ParseError::InvalidToken { location } => {
+                            let e = Diagnostic::new(Severity::Error)
+                                .with_message("Parser Error")
+                                .with_labels(vec![
+                                    Label::primary(file_id, location.pos..location.pos+1).with_message(format!("Invalid token found here"))
+                                ])
+                                .with_notes(vec![ format!("Parser found invalid token") ]);
+                            diagnostics.push(e);
+                        },
+                        ParseError::UnrecognizedEOF { location, expected } => {
+
+                        },
+                        ParseError::UnrecognizedToken { token: (s, token, e), expected } => {
+
+                        }
+                    }
                 },
                 CompilerError::ImportError { importing_mod, importing_mod_path, imported, search_dirs } => {
 
@@ -158,6 +194,13 @@ impl<'a> ErrorContext<'a> {
             }
 
             stdout.reset().expect("Error resetting output color");
+        }
+
+        if !diagnostics.is_empty() {
+            let config = codespan_reporting::term::Config::default();
+            for di in diagnostics {
+                emit(&mut stdout.lock(), &config, &self.files, &di).expect("Error writing to stdout");
+            }
         }
 
         if !self.errors.is_empty() {
