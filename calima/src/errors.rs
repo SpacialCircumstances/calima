@@ -144,6 +144,7 @@ impl<'a> ErrorContext<'a> {
                     let file_id = self.files.add_or_get(path).expect("Error loading file");
                     match parser_err {
                         ParseError::User { error } => {
+                            //TODO: Location  info etc.
                             let e = Diagnostic::new(Severity::Error)
                                 .with_message(format!("Parser Error: {}", error));
                             diagnostics.push(e);
@@ -167,10 +168,24 @@ impl<'a> ErrorContext<'a> {
                             diagnostics.push(e);
                         },
                         ParseError::UnrecognizedEOF { location, expected } => {
-
+                            let expected = expected.join(", ");
+                            let e = Diagnostic::new(Severity::Error)
+                                .with_message("Parser error")
+                                .with_labels(vec![
+                                    Label::primary(file_id, location.pos-1..location.pos).with_message(format!("Unrecognized EOF, expected one of: {{{}}}", expected))
+                                ])
+                                .with_notes(vec![ "Parser encountered unexpected EOF".to_string() ]);
+                            diagnostics.push(e);
                         },
                         ParseError::UnrecognizedToken { token: (s, token, e), expected } => {
-
+                            let expected = expected.join(", ");
+                            let e = Diagnostic::new(Severity::Error)
+                                .with_message("Parser error")
+                                .with_labels(vec![
+                                    Label::primary(file_id, s.pos..e.pos).with_message(format!("Unrecognized token {}, expected one of: {{{}}}", token, expected))
+                                ])
+                                .with_notes(vec![ format!("Parser found unrecognized token {}", token) ]);
+                            diagnostics.push(e);
                         }
                     }
                 },
