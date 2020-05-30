@@ -9,9 +9,9 @@ struct Options {
     module_paths: Vec<String>
 }
 
-fn main() {
+fn main() -> Result<(), ()> {
     let options: Options = Options::parse();
     let file_name = &options.input_file;
     let args = CompilerArguments::new(file_name, &options.module_paths);
-    compile(args).expect("Compiler error");
+    compile(args)
 }
