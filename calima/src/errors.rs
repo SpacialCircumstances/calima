@@ -132,7 +132,7 @@ impl<'a> ErrorContext<'a> {
             return Ok(())
         }
 
-        let mut stdout = StandardStream::stdout(ColorChoice::Auto);
+        let mut stderr = StandardStream::stderr(ColorChoice::Auto);
 
         let mut diagnostics = Vec::new();
         let mut general_errors = Vec::new();
@@ -181,25 +181,25 @@ impl<'a> ErrorContext<'a> {
         }
 
         if !general_errors.is_empty() {
-            stdout.set_color(&ColorSpec::new().set_fg(Some(Color::Red))).expect("Error setting output color");
+            stderr.set_color(&ColorSpec::new().set_fg(Some(Color::Red))).expect("Error setting output color");
 
             for (source, descr) in general_errors {
                 match source {
-                    None => writeln!(&mut stdout, "Error occured: {}", descr).expect("Error writing to stdout"),
+                    None => writeln!(&mut stderr, "Error occured: {}", descr).expect("Error writing to stderr"),
                     Some(source) => {
-                        writeln!(&mut stdout, "Error occured: {}", descr).expect("Error writing to stdout");
-                        writeln!(&mut stdout, "Caused by: {}", source).expect("Error writing to stdout")
+                        writeln!(&mut stderr, "Error occured: {}", descr).expect("Error writing to stderr");
+                        writeln!(&mut stderr, "Caused by: {}", source).expect("Error writing to stderr")
                     }
                 }
             }
 
-            stdout.reset().expect("Error resetting output color");
+            stderr.reset().expect("Error resetting output color");
         }
 
         if !diagnostics.is_empty() {
             let config = codespan_reporting::term::Config::default();
             for di in diagnostics {
-                emit(&mut stdout.lock(), &config, &self.files, &di).expect("Error writing to stdout");
+                emit(&mut stderr.lock(), &config, &self.files, &di).expect("Error writing to stderr");
             }
         }
 
