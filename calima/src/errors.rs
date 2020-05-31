@@ -190,10 +190,24 @@ impl<'a> ErrorContext<'a> {
                     }
                 },
                 CompilerError::ImportError { importing_mod, importing_mod_path, location, imported, search_dirs } => {
-
+                    let file_id = self.files.add_or_get(importing_mod_path).expect("Error loading file");
+                    let mut notes = vec![
+                        format!("Importing module {} into {} failed.", imported, importing_mod),
+                        format!("Reason: Module not found in search paths:"),
+                    ];
+                    notes.extend(search_dirs.iter().map(|p| p.display().to_string()));
+                    let e = Diagnostic::new(Severity::Error)
+                        .with_message(format!("Error importing module {}", imported))
+                        .with_labels(vec![
+                            Label::primary(file_id, location.left.pos..location.right.pos).with_message(format!("Module {} not found", imported))
+                        ])
+                        .with_notes(notes);
+                    diagnostics.push(e);
                 }
             }
         }
+
+        //Warnings should be added here as soon as we have them
 
         if !general_errors.is_empty() {
             stderr.set_color(&ColorSpec::new().set_fg(Some(Color::Red))).expect("Error setting output color");
