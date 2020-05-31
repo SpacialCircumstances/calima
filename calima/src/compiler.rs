@@ -55,7 +55,7 @@ pub struct Module<'input> {
     name: ModuleIdentifier,
     path: PathBuf,
     depth: u32,
-    deps: Vec<ModuleIdentifier>,
+    deps: Vec<(ModuleIdentifier, Span)>,
 }
 
 pub struct ModuleDescriptor {
@@ -146,7 +146,7 @@ impl<'input> CompilerContext<'input> {
             match Self::parse_module(next, &self.string_interner) {
                 Err(e) => self.error_context.add_error(e),
                 Ok(module) => {
-                    for dep in &module.deps {
+                    for (dep, location) in &module.deps {
                         match self.modules.get_mut(dep) {
                             Some(dep_mod) => {
                                 dep_mod.depth = min(dep_mod.depth, module.depth + 1)
@@ -167,6 +167,7 @@ impl<'input> CompilerContext<'input> {
                                             importing_mod_path: module.path.clone(),
                                             imported: dep.clone(),
                                             search_dirs: self.search_dirs.clone(),
+                                            location: *location
                                         };
                                         self.error_context.add_error(err);
                                     }

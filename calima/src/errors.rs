@@ -1,6 +1,6 @@
 use std::error::Error;
 use std::io::Write;
-use crate::token::{Token, Location};
+use crate::token::{Token, Location, Span};
 use crate::compiler::ModuleIdentifier;
 use std::path::{PathBuf, Path};
 use codespan_reporting::term::termcolor::{StandardStream, ColorChoice, WriteColor, ColorSpec, Color};
@@ -17,7 +17,7 @@ use codespan_reporting::term::emit;
 pub enum CompilerError<'a> {
     GeneralError(Option<Box<dyn Error>>, String),
     ParserError(lalrpop_util::ParseError<Location, Token<'a>, crate::lexer::Error>, ModuleIdentifier, PathBuf),
-    ImportError { importing_mod: ModuleIdentifier, importing_mod_path: PathBuf, imported: ModuleIdentifier, search_dirs: Vec<PathBuf> },
+    ImportError { importing_mod: ModuleIdentifier, importing_mod_path: PathBuf, location: Span, imported: ModuleIdentifier, search_dirs: Vec<PathBuf> },
 }
 
 struct CompilerFile {
@@ -189,7 +189,7 @@ impl<'a> ErrorContext<'a> {
                         }
                     }
                 },
-                CompilerError::ImportError { importing_mod, importing_mod_path, imported, search_dirs } => {
+                CompilerError::ImportError { importing_mod, importing_mod_path, location, imported, search_dirs } => {
 
                 }
             }
