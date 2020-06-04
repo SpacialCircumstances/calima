@@ -116,19 +116,23 @@ impl<'input> CompilerContext<'input> {
         })
     }
 
-    fn try_resolve_module(&self, from: &Module, module_ident: &ModuleIdentifier) -> Option<PathBuf> {
+    fn try_resolve_module(&self, from: &Module, module_ident: &ModuleIdentifier) -> Result<PathBuf, Vec<PathBuf>> {
         let mut module_dir = from.path.to_path_buf();
         module_dir.pop();
         once(&module_dir)
             .chain(self.search_dirs.iter())
-            .find_map(|dir| {
+            .map(|dir| {
                 let mut path = module_ident.path_relative_to(dir);
                 module_ident.path_relative_to(&mut path);
                 match path.is_file() {
-                    true => Some(path),
-                    false => None
+                    true => Ok(path),
+                    false => {
+                        let mut search_dirs = self.search_dirs.clone();
+                        search_dirs.insert(0, module_dir.clone());
+                        Err(search_dirs)
+                    }
                 }
-            })
+            }).collect()
     }
 
     fn parse_module(desc: ModuleDescriptor, interner: &StringInterner) -> Result<Module, CompilerError> {
@@ -157,7 +161,7 @@ impl<'input> CompilerContext<'input> {
                             }
                             None => {
                                 match self.try_resolve_module(&module, dep) {
-                                    Some(found_path) => {
+                                    Ok(found_path) => {
                                         let desc = ModuleDescriptor {
                                             identifier: dep.clone(),
                                             depth: module.depth + 1,
@@ -165,12 +169,12 @@ impl<'input> CompilerContext<'input> {
                                         };
                                         self.module_queue.push(desc);
                                     }
-                                    None => {
+                                    Err(search_dirs) => {
                                         let err = ImportError {
                                             importing_mod: module.name.clone(),
                                             importing_mod_path: module.path.clone(),
                                             imported: dep.clone(),
-                                            search_dirs: self.search_dirs.clone(),
+                                            search_dirs,
                                             location: *location
                                         };
                                         self.error_context.add_error(err);
