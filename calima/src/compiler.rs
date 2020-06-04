@@ -37,7 +37,7 @@ impl ModuleIdentifier {
     pub fn path_relative_to(&self, path: &Path) -> PathBuf {
         let mut path = PathBuf::from(path);
         for el in self.components() {
-            path.push(el)
+            path.push(el.to_lowercase())
         }
         path.set_extension("ca");
         path
