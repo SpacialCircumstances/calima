@@ -195,7 +195,12 @@ impl<'a> ErrorContext<'a> {
                         format!("Importing module {} into {} failed.", imported, importing_mod),
                         format!("Reason: Module not found in search paths:"),
                     ];
-                    notes.extend(search_dirs.iter().map(|p| p.display().to_string()));
+                    notes.extend(search_dirs.iter().map(|p| {
+                        match std::fs::canonicalize(p) {
+                            Ok(p) => p.display().to_string(),
+                            Err(_) => p.display().to_string()
+                        }
+                    }));
                     let e = Diagnostic::new(Severity::Error)
                         .with_message(format!("Error importing module {}", imported))
                         .with_labels(vec![
