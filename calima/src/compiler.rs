@@ -50,6 +50,7 @@ impl Display for ModuleIdentifier {
     }
 }
 
+#[derive(Debug)]
 pub struct Module<'input> {
     ast: TopLevelBlock<'input, Span>,
     name: ModuleIdentifier,
@@ -58,6 +59,7 @@ pub struct Module<'input> {
     deps: Vec<(ModuleIdentifier, Span)>,
 }
 
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ModuleDescriptor {
     identifier: ModuleIdentifier,
     path: PathBuf,
@@ -143,6 +145,7 @@ impl<'input> CompilerContext<'input> {
 
     pub fn parse_all_modules(&'input mut self) -> Result<(), ()> {
         while let Some(next) = self.module_queue.pop() {
+            dbg!(&next);
             match Self::parse_module(next, &self.string_interner) {
                 Err(e) => self.error_context.add_error(e),
                 Ok(module) => {
