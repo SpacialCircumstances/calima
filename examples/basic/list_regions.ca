@@ -1,11 +1,4 @@
-type List a =
-    | Node (List a, a)
-    | Empty
-in
-let head = fun list -> case list of
-    | Empty -> None
-    | Node (_, e) -> Some e
-end
+import List in
 region @test
 let alloc = fun 'a () ->
     let 'a a = Empty in a
