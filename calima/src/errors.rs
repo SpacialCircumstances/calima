@@ -1,11 +1,10 @@
 use std::error::Error;
 use std::io::Write;
 use crate::token::{Token, Location, Span};
-use crate::compiler::ModuleIdentifier;
+use crate::common::ModuleIdentifier;
 use std::path::{PathBuf, Path};
 use codespan_reporting::term::termcolor::{StandardStream, ColorChoice, WriteColor, ColorSpec, Color};
 use codespan_reporting::diagnostic::{Diagnostic, Severity, Label};
-use codespan_reporting::files::{SimpleFiles, Files};
 use std::ops::Range;
 use std::collections::HashMap;
 use std::fs::read_to_string;

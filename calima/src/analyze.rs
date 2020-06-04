@@ -1,6 +1,5 @@
 use crate::ast::{TopLevelBlock, TopLevelStatement};
-use crate::compiler::ModuleIdentifier;
-use crate::token::Span;
+use crate::common::ModuleIdentifier;
 
 pub fn find_imported_modules<D: Copy>(ast: &TopLevelBlock<D>) -> Vec<(ModuleIdentifier, D)> {
     ast.top_levels.iter().fold(Vec::new(), |mut imports, statement| {

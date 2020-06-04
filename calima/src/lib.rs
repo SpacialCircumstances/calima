@@ -9,6 +9,7 @@ mod util;
 mod string_interner;
 mod analyze;
 mod errors;
+mod common;
 
 use compiler::CompilerContext;
 
