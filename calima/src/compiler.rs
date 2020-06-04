@@ -117,7 +117,9 @@ impl<'input> CompilerContext<'input> {
     }
 
     fn try_resolve_module(&self, from: &Module, module_ident: &ModuleIdentifier) -> Option<PathBuf> {
-        once(&from.path)
+        let mut module_dir = from.path.to_path_buf();
+        module_dir.pop();
+        once(&module_dir)
             .chain(self.search_dirs.iter())
             .find_map(|dir| {
                 let mut path = module_ident.path_relative_to(dir);
@@ -145,7 +147,6 @@ impl<'input> CompilerContext<'input> {
 
     pub fn parse_all_modules(&'input mut self) -> Result<(), ()> {
         while let Some(next) = self.module_queue.pop() {
-            dbg!(&next);
             match Self::parse_module(next, &self.string_interner) {
                 Err(e) => self.error_context.add_error(e),
                 Ok(module) => {
