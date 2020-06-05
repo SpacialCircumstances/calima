@@ -11,7 +11,7 @@ mod analyze;
 mod errors;
 mod common;
 
-use compiler::CompilerContext;
+use string_interner::StringInterner;
 
 #[derive(Debug)]
 pub struct CompilerArguments<'a, S: AsRef<str>> {
@@ -29,6 +29,7 @@ impl<'a, S: AsRef<str>> CompilerArguments<'a, S> {
 }
 
 pub fn compile<S: AsRef<str>>(args: CompilerArguments<S>) -> Result<(), ()> {
-    let mut context = CompilerContext::from_args(args).expect("Error constructing compiler");
-    context.parse_all_modules()
+    let strs = StringInterner::new();
+    let module_context = compiler::parse_all_modules(&strs, args)?;
+    Ok(())
 }
