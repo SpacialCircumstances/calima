@@ -20,7 +20,6 @@ pub struct ModuleDescriptor {
 pub struct ModuleTreeContext<'input> {
     search_dirs: Vec<PathBuf>,
     modules: HashMap<ModuleIdentifier, Module<'input>>,
-    error_context: ErrorContext<'input>,
 }
 
 fn try_resolve_module(search_dirs: &[PathBuf], from: &Module, module_ident: &ModuleIdentifier) -> Result<PathBuf, Vec<PathBuf>> {
@@ -56,9 +55,7 @@ fn parse_module(desc: ModuleDescriptor, interner: &StringInterner) -> Result<Mod
     })
 }
 
-pub fn parse_all_modules<'input, S: AsRef<str>>(string_interner: &'input StringInterner, args: CompilerArguments<S>) -> Result<ModuleTreeContext<'input>, ()> {
-    let mut error_context = ErrorContext::new();
-
+pub fn parse_all_modules<'input, S: AsRef<str>>(string_interner: &'input StringInterner, error_context: &mut ErrorContext<'input>, args: CompilerArguments<S>) -> Result<ModuleTreeContext<'input>, ()> {
     let entrypoint_path = PathBuf::from(args.entrypoint);
     if !entrypoint_path.is_file() {
         error_context.add_error(GeneralError(None, format!("Entrypoint file {} not found", args.entrypoint)));
@@ -133,7 +130,6 @@ pub fn parse_all_modules<'input, S: AsRef<str>>(string_interner: &'input StringI
 
     error_context.handle_errors().map(|()| ModuleTreeContext {
         search_dirs,
-        modules,
-        error_context
+        modules
     })
 }

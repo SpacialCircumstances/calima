@@ -12,6 +12,7 @@ mod errors;
 mod common;
 
 use string_interner::StringInterner;
+use crate::errors::ErrorContext;
 
 #[derive(Debug)]
 pub struct CompilerArguments<'a, S: AsRef<str>> {
@@ -30,6 +31,7 @@ impl<'a, S: AsRef<str>> CompilerArguments<'a, S> {
 
 pub fn compile<S: AsRef<str>>(args: CompilerArguments<S>) -> Result<(), ()> {
     let strs = StringInterner::new();
-    let module_context = compiler::parse_all_modules(&strs, args)?;
+    let mut errors = ErrorContext::new();
+    let module_context = compiler::parse_all_modules(&strs, &mut errors, args)?;
     Ok(())
 }
