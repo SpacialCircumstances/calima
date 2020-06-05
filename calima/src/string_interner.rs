@@ -19,6 +19,7 @@ impl StringInterner {
             strings.insert(string.to_string());
         }
         let res = strings.get(string).unwrap().as_str();
+        //This should be safe because we never remove values from the map
         unsafe {
             std::mem::transmute(res)
         }
