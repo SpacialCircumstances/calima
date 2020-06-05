@@ -10,6 +10,7 @@ mod string_interner;
 mod analyze;
 mod errors;
 mod common;
+mod typechecker;
 
 use string_interner::StringInterner;
 use crate::errors::ErrorContext;
@@ -33,5 +34,6 @@ pub fn compile<S: AsRef<str>>(args: CompilerArguments<S>) -> Result<(), ()> {
     let strs = StringInterner::new();
     let mut errors = ErrorContext::new();
     let module_context = compiler::parse_all_modules(&strs, &mut errors, args)?;
+    let typed_context = typechecker::typecheck(&strs, &mut errors, module_context)?;
     Ok(())
 }
