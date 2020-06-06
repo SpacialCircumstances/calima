@@ -18,8 +18,8 @@ pub struct ModuleDescriptor {
 }
 
 pub struct ModuleTreeContext<'input> {
-    search_dirs: Vec<PathBuf>,
-    modules: HashMap<ModuleIdentifier, Module<'input>>,
+    pub search_dirs: Vec<PathBuf>,
+    pub modules: HashMap<ModuleIdentifier, Module<'input>>,
 }
 
 fn try_resolve_module(search_dirs: &[PathBuf], from: &Module, module_ident: &ModuleIdentifier) -> Result<PathBuf, Vec<PathBuf>> {
