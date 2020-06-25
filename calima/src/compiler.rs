@@ -9,6 +9,7 @@ use std::iter::once;
 use crate::errors::{CompilerError, ErrorContext};
 use crate::errors::CompilerError::*;
 use crate::common::*;
+use crate::token::Span;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ModuleDescriptor {
@@ -19,10 +20,10 @@ pub struct ModuleDescriptor {
 
 pub struct ModuleTreeContext<'input> {
     pub search_dirs: Vec<PathBuf>,
-    pub modules: HashMap<ModuleIdentifier, Module<'input>>,
+    pub modules: HashMap<ModuleIdentifier, Module<'input, Span>>,
 }
 
-fn try_resolve_module(search_dirs: &[PathBuf], from: &Module, module_ident: &ModuleIdentifier) -> Result<PathBuf, Vec<PathBuf>> {
+fn try_resolve_module(search_dirs: &[PathBuf], from: &Module<Span>, module_ident: &ModuleIdentifier) -> Result<PathBuf, Vec<PathBuf>> {
     let mut module_dir = from.path.to_path_buf();
     module_dir.pop();
     once(&module_dir)
@@ -41,7 +42,7 @@ fn try_resolve_module(search_dirs: &[PathBuf], from: &Module, module_ident: &Mod
         }).collect()
 }
 
-fn parse_module(desc: ModuleDescriptor, interner: &StringInterner) -> Result<Module, CompilerError> {
+fn parse_module(desc: ModuleDescriptor, interner: &StringInterner) -> Result<Module<Span>, CompilerError> {
     let code = read_to_string(&desc.path).map_err(|e| GeneralError(Some(Box::new(e)), format!("Error opening file {}", &desc.path.display())))?;
     let ast = parser::parse(&code, interner).map_err(|pe| ParserError(pe, desc.identifier.clone(), desc.path.clone()))?;
     let deps = find_imported_modules(&ast);
@@ -88,7 +89,7 @@ pub fn parse_all_modules<'input, S: AsRef<str>>(string_interner: &'input StringI
 
     error_context.handle_errors()?;
 
-    let mut modules: HashMap<ModuleIdentifier, Module<'input>> = HashMap::new();
+    let mut modules: HashMap<ModuleIdentifier, Module<'input, Span>> = HashMap::new();
 
     while let Some(next) = module_queue.pop() {
         match parse_module(next, string_interner) {
