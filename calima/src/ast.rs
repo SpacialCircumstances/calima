@@ -1,5 +1,6 @@
 use std::fmt::{Display, Formatter, Debug};
 use crate::util::*;
+use crate::common::OwnedFunctor;
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum NumberType {
@@ -268,6 +269,14 @@ impl<'a, Data> Display for Statement<'a, Data> {
 pub struct TopLevelBlock<'a, Data> {
     pub top_levels: Vec<TopLevelStatement<'a, Data>>,
     pub block: Block<'a, Data>
+}
+
+impl<'input, Data, New, M: Fn(Data) -> New> OwnedFunctor<Data, New, M> for TopLevelBlock<'input, Data> {
+    type Output = TopLevelBlock<'input, New>;
+
+    fn fmap(self, f: &M) -> Self::Output {
+        unimplemented!()
+    }
 }
 
 impl<'a, Data> Display for TopLevelBlock<'a, Data> {
