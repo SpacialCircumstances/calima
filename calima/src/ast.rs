@@ -189,33 +189,9 @@ impl Display for Modifier {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct ClassDefinition<'a, Data>(pub Vec<(Identifier<'a, Data>, TypeAnnotation<'a, Data>)>);
-
-impl<'a, Data> Display for ClassDefinition<'a, Data> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let members = self.0.iter().map(|(n, ta)| format!("{}: {}", n, ta));
-        let members = format_iter(members, ",\n");
-        write!(f, "{}", members)
-    }
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct InstanceDefinition<'a, Data>(pub Vec<(Identifier<'a, Data>, Expr<'a, Data>)>);
-
-impl<'a, Data> Display for InstanceDefinition<'a, Data> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let members = self.0.iter().map(|(n, expr)| format!("{} = {}", n, expr));
-        let members = format_iter(members, ",\n");
-        write!(f, "{}", members)
-    }
-}
-
-#[derive(Debug, PartialEq, Clone)]
 pub enum TopLevelStatement<'a, Data> {
     Import(Vec<&'a str>, Vec<Identifier<'a, Data>>, Data),
-    Type { name: &'a str, regions: Vec<GenericRegion<'a, Data>>, params: Vec<TypeAnnotation<'a, Data>>, type_def: TypeDefinition<'a, Data>, data: Data },
-    Class { name: &'a str, regions: Vec<GenericRegion<'a, Data>>, params: Vec<TypeAnnotation<'a, Data>>, class_def: ClassDefinition<'a, Data>, data: Data },
-    Instance { name: &'a str, regions: Vec<RegionAnnotation<'a, Data>>, args: Vec<TypeAnnotation<'a, Data>>, instance_def: InstanceDefinition<'a, Data>, data: Data }
+    Type { name: &'a str, regions: Vec<GenericRegion<'a, Data>>, params: Vec<TypeAnnotation<'a, Data>>, type_def: TypeDefinition<'a, Data>, data: Data }
 }
 
 impl<'a, Data> Display for TopLevelStatement<'a, Data> {
@@ -227,17 +203,7 @@ impl<'a, Data> Display for TopLevelStatement<'a, Data> {
                     false => write!(f, "import {}{{{}}}", format_iter(module.iter(), "."), format_iter(fields.iter(), ", "))
                 }
             },
-            TopLevelStatement::Type { name, regions, params, type_def: typedef, data: _ } => write!(f, "type {} {}{} = {}", name, format_iter_end(regions.iter(), " "), format_iter(params.iter(), " "), typedef),
-            TopLevelStatement::Class { name, regions, params, class_def: classdef, data: _ } => {
-                writeln!(f, "class {} {}{}=", name, format_iter_end(regions.iter(), " "), format_iter_end(params.iter(), " "))?;
-                writeln!(f, "{}", classdef)?;
-                write!(f, "end")
-            },
-            TopLevelStatement::Instance { name, regions, args, instance_def: instancedef, data: _ } => {
-                writeln!(f, "instance {} {}{}=", name, format_iter_end(regions.iter(), " "), format_iter_end(args.iter(), " "))?;
-                writeln!(f, "{}", instancedef)?;
-                write!(f, "end")
-            }
+            TopLevelStatement::Type { name, regions, params, type_def: typedef, data: _ } => write!(f, "type {} {}{} = {}", name, format_iter_end(regions.iter(), " "), format_iter(params.iter(), " "), typedef)
         }
     }
 }
