@@ -5,11 +5,11 @@ authors = ["SpacialCircumstances <SpacialCircumstances@users.noreply.github.com>
 edition = "2018"
 
 [build-dependencies]
-lalrpop = "0.18.1"
+lalrpop = "0.19.0"
 
 [dev-dependencies]
 goldenfile = "1.1.0"
 
 [dependencies]
-lalrpop-util = "0.18.1"
+lalrpop-util = "0.19.0"
 codespan-reporting = "0.9.4"
