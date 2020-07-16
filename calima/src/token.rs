@@ -43,8 +43,6 @@ pub enum Token<'input> {
     Import,
     Colon,
     Arrow,
-    Class,
-    Instance,
     And
 }
 

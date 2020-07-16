@@ -86,8 +86,6 @@ fn handle_identifier(ident: &str) -> Token {
         "_" => Underscore,
         "true" => BooleanLiteral(true),
         "false" => BooleanLiteral(false),
-        "class" => Class,
-        "instance" => Instance,
         "and" => And,
         x => {
             let first = x.chars().next().expect(format!("Fatal Error: Unrecognized identifier '{}'", ident).as_ref());

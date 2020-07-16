@@ -45,8 +45,6 @@ extern {
         "import" => Import,
         ":" => Colon,
         "->" => Arrow,
-        "class" => Class,
-        "instance" => Instance,
         "and" => And
     }
 }
