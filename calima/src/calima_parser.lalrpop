@@ -1,4 +1,4 @@
-use crate::ast::{Block, Statement, Expr, Literal, NumberType, Pattern, Identifier, TypeDefinition, TypeAnnotation, Modifier, RegionAnnotation, TypeKind, NamedRegion, GenericRegion, TopLevelBlock, TopLevelStatement};
+use crate::ast::{Block, Statement, Expr, Literal, NumberType, Pattern, Identifier, TypeDefinition, TypeAnnotation, Modifier, RegionAnnotation, TypeKind, TopLevelBlock, TopLevelStatement};
 use crate::token::{Location, Token, NumberFormat};
 use crate::token::Token::*;
 use crate::lexer::Error;
@@ -83,7 +83,7 @@ Block: Block<'input, Data> = {
 
 TopLevelStatement: TopLevelStatement<'input, Data> = {
     Import,
-    <posl:@L> "type" <regions:GenericRegion*> <n:"typename"> <params:TypeAnnotation1*> "=" <td:TypeDefinition> <posr:@R> => TopLevelStatement::Type { name: n, regions, params, type_def: td, data: to_data(posl, posr) },
+    <posl:@L> "type" <regions:RegionAnnotation*> <n:"typename"> <params:TypeAnnotation1*> "=" <td:TypeDefinition> <posr:@R> => TopLevelStatement::Type { name: n, regions, params, type_def: td, data: to_data(posl, posr) },
 };
 
 Import: TopLevelStatement<'input, Data> = {
@@ -97,7 +97,7 @@ Statement: Statement<'input, Data> = {
     Region
 };
 
-Region: Statement<'input, Data> = <posl:@L> "region" <n:NamedRegion> <posr:@R> => Statement::Region(n, to_data(posl, posr));
+Region: Statement<'input, Data> = <posl:@L> "region" <n:RegionAnnotation> <posr:@R> => Statement::Region(n, to_data(posl, posr));
 
 Do: Statement<'input, Data> = <posl:@L> "do" <reg:RegionAnnotation?> <e:Expression0> <posr:@R> => Statement::Do(reg, e, to_data(posl, posr));
 
@@ -139,7 +139,7 @@ Expression1: Expr<'input, Data> = {
 
 RecordExprRow: (&'input str, Expr<'input, Data>) = <n:"name"> "=" <expr:Expression0> => (n, expr);
 
-Lambda: Expr<'input, Data> = <posl:@L> "fun" <regions:GenericRegion*> <params:Pattern1+>  "->" <block:Block> <posr:@R> => Expr::Lambda { regions, params, body: block, data: to_data(posl, posr) };
+Lambda: Expr<'input, Data> = <posl:@L> "fun" <regions:RegionAnnotation*> <params:Pattern1+>  "->" <block:Block> <posr:@R> => Expr::Lambda { regions, params, body: block, data: to_data(posl, posr) };
 
 FunctionCall: Expr<'input, Data> = <posl:@L> <func:Expression2> <args:Expression2+> <posr:@R> => Expr::FunctionCall(Box::new(func), args, to_data(posl, posr));
 
@@ -228,14 +228,7 @@ TypeKind1: TypeKind<'input, Data> = {
     "(" <tk:TypeKind0> ")" => tk,
 };
 
-RegionAnnotation: RegionAnnotation<'input, Data> = {
-    <NamedRegion> => RegionAnnotation::Named(<>),
-    <GenericRegion> => RegionAnnotation::Generic(<>)
-};
-
-NamedRegion: NamedRegion<'input, Data> = <posl:@L> <n:"regionname"> <posr:@R> => NamedRegion(n, to_data(posl, posr));
-
-GenericRegion: GenericRegion<'input, Data> = <posl:@L> <n:"genericregion"> <posr:@R> => GenericRegion(n, to_data(posl, posr));
+RegionAnnotation: RegionAnnotation<'input, Data> = <posl:@L> <n:"regionname"> <posr:@R> => RegionAnnotation(n, to_data(posl, posr));
 
 Literal: Literal<'input> = {
     "(" ")" => Literal::Unit,
