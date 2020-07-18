@@ -91,7 +91,6 @@ fn handle_identifier(ident: &str) -> Token {
             let first = x.chars().next().expect(format!("Fatal Error: Unrecognized identifier '{}'", ident).as_ref());
             match first {
                 '@' => RegionIdentifier(&ident[1..]),
-                '\'' => GenericRegionIdentifier(&ident[1..]),
                 c if c.is_alphabetic() && c.is_uppercase() => TypeIdentifier(ident),
                 c if c.is_alphabetic() => NameIdentifier(ident),
                 _ => OperatorIdentifier(ident)

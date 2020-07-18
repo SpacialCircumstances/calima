@@ -21,7 +21,6 @@ extern {
         "name" => NameIdentifier(<&'input str>),
         "typename" => TypeIdentifier(<&'input str>),
         "regionname" => RegionIdentifier(<&'input str>),
-        "genericregion" => GenericRegionIdentifier(<&'input str>),
         "operator" => OperatorIdentifier(<&'input str>),
         "string" => StringLiteral(<&'input str>),
         "number" => NumberLiteral(<(&'input str, NumberFormat)>),

@@ -19,7 +19,6 @@ pub enum Token<'input> {
     NameIdentifier(&'input str),
     TypeIdentifier(&'input str),
     RegionIdentifier(&'input str),
-    GenericRegionIdentifier(&'input str),
     OperatorIdentifier(&'input str),
     StringLiteral(&'input str),
     NumberLiteral((&'input str, NumberFormat)),
