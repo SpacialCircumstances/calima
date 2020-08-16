@@ -4,8 +4,44 @@ use crate::string_interner::StringInterner;
 use crate::common::{Module, ModuleIdentifier};
 use crate::token::Span;
 use std::collections::HashMap;
+use std::ops::Index;
+
+#[derive(Copy, Clone, Eq, PartialEq)]
+struct TypeId(usize);
+
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+struct Level(u64);
+
+#[derive(Copy, Clone, Eq, PartialEq)]
+struct GenericId(u64);
+
+enum TypeVar {
+    Link(TypeId),
+    Generic(GenericId),
+    Unbound(GenericId, Level)
+}
+
+enum Type<'a> {
+    Constant(&'a str),
+    Parameterized(Box<Type<'a>>, Vec<Type<'a>>),
+    Arrow(Box<Type<'a>>, Box<Type<'a>>),
+    Var(TypeVar)
+}
+
+struct Context<'a> {
+    types: Vec<Type<'a>>
+}
+
+impl<'a> Index<TypeId> for Context<'a> {
+    type Output = Type<'a>;
+
+    fn index(&self, index: TypeId) -> &Self::Output {
+        return &self.types[index.0];
+    }
+}
 
 fn typecheck_module<'input>(unchecked: Module<'input, Span>, deps: Vec<&Module<'input, TypeData>>) -> Module<'input, TypeData> {
+
     unimplemented!()
 }
 
