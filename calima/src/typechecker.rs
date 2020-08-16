@@ -40,17 +40,18 @@ impl<'a> Index<TypeId> for Context<'a> {
     }
 }
 
-fn typecheck_module<'input>(unchecked: Module<'input, Span>, deps: Vec<&Module<'input, TypeData>>) -> Module<'input, TypeData> {
+fn typecheck_module<'input>(unchecked: Module<'input, Span>, deps: Vec<&Module<'input, TypeData<'input>>>) -> Module<'input, TypeData<'input>> {
 
     unimplemented!()
 }
 
-pub struct TypeData {
-    position: Span
+pub struct TypeData<'a> {
+    position: Span,
+    typ: Type<'a>
 }
 
 pub struct TypedContext<'input> {
-    pub modules: HashMap<ModuleIdentifier, Module<'input, TypeData>>,
+    pub modules: HashMap<ModuleIdentifier, Module<'input, TypeData<'input>>>,
 }
 
 pub fn typecheck<'input>(string_interner: &StringInterner, errors: &mut ErrorContext, mut module_ctx: ModuleTreeContext<'input>) -> Result<TypedContext<'input>, ()> {
