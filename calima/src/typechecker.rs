@@ -6,29 +6,35 @@ use crate::token::Span;
 use std::collections::HashMap;
 use std::ops::Index;
 
+//TODO: Convert types into general representation
+pub struct TypedModule<'a> {
+    module: Module<'a, TypeData>,
+    context: Context<'a>
+}
+
 #[derive(Copy, Clone, Eq, PartialEq)]
-struct TypeId(usize);
+pub struct TypeId(usize);
 
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
-struct Level(u64);
+pub struct Level(u64);
 
 #[derive(Copy, Clone, Eq, PartialEq)]
-struct GenericId(u64);
+pub struct GenericId(u64);
 
-enum TypeVar {
+pub enum TypeVar {
     Link(TypeId),
     Generic(GenericId),
     Unbound(GenericId, Level)
 }
 
-enum Type<'a> {
+pub enum Type<'a> {
     Constant(&'a str),
     Parameterized(Box<Type<'a>>, Vec<Type<'a>>),
     Arrow(Box<Type<'a>>, Box<Type<'a>>),
     Var(TypeVar)
 }
 
-struct Context<'a> {
+pub struct Context<'a> {
     types: Vec<Type<'a>>,
     id_counter: usize
 }
@@ -41,7 +47,7 @@ impl<'a> Index<TypeId> for Context<'a> {
     }
 }
 
-fn typecheck_module<'input>(unchecked: Module<'input, Span>, deps: Vec<&Module<'input, TypeData>>) -> Module<'input, TypeData> {
+fn typecheck_module<'input>(unchecked: Module<'input, Span>, deps: Vec<&TypedModule<'input>>) -> TypedModule<'input> {
     //TODO: Import dependencies into context
     let mut context = Context {
         types: Vec::new(),
@@ -56,7 +62,7 @@ pub struct TypeData {
 }
 
 pub struct TypedContext<'input> {
-    pub modules: HashMap<ModuleIdentifier, Module<'input, TypeData>>,
+    pub modules: HashMap<ModuleIdentifier, TypedModule<'input>>,
 }
 
 pub fn typecheck<'input>(string_interner: &StringInterner, errors: &mut ErrorContext, mut module_ctx: ModuleTreeContext<'input>) -> Result<TypedContext<'input>, ()> {
