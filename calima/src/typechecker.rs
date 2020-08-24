@@ -29,7 +29,8 @@ enum Type<'a> {
 }
 
 struct Context<'a> {
-    types: Vec<Type<'a>>
+    types: Vec<Type<'a>>,
+    id_counter: usize
 }
 
 impl<'a> Index<TypeId> for Context<'a> {
@@ -40,18 +41,22 @@ impl<'a> Index<TypeId> for Context<'a> {
     }
 }
 
-fn typecheck_module<'input>(unchecked: Module<'input, Span>, deps: Vec<&Module<'input, TypeData<'input>>>) -> Module<'input, TypeData<'input>> {
-
+fn typecheck_module<'input>(unchecked: Module<'input, Span>, deps: Vec<&Module<'input, TypeData>>) -> Module<'input, TypeData> {
+    //TODO: Import dependencies into context
+    let mut context = Context {
+        types: Vec::new(),
+        id_counter: 0
+    };
     unimplemented!()
 }
 
-pub struct TypeData<'a> {
+pub struct TypeData {
     position: Span,
-    typ: Type<'a>
+    typ: TypeId
 }
 
 pub struct TypedContext<'input> {
-    pub modules: HashMap<ModuleIdentifier, Module<'input, TypeData<'input>>>,
+    pub modules: HashMap<ModuleIdentifier, Module<'input, TypeData>>,
 }
 
 pub fn typecheck<'input>(string_interner: &StringInterner, errors: &mut ErrorContext, mut module_ctx: ModuleTreeContext<'input>) -> Result<TypedContext<'input>, ()> {
