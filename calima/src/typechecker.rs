@@ -6,6 +6,7 @@ use crate::token::Span;
 use std::collections::HashMap;
 use std::ops::Index;
 use im_rc::HashMap as ImmMap;
+use crate::ast::{Expr, Statement, TopLevelStatement, Block, TopLevelBlock};
 
 //TODO: Convert types into general representation
 pub struct TypedModule<'a> {
@@ -69,11 +70,42 @@ impl<'a> Environment<'a> {
     }
 }
 
+fn infer_expr<'input>(env: Environment<'input>, ctx: &mut Context<'input>, level: Level, expr: &Expr<'input, Span>) -> Expr<'input, TypeData> {
+    unimplemented!()
+}
+
+fn infer_statement<'input>(env: Environment<'input>, ctx: &mut Context<'input>, level: Level, statement: &Statement<'input, Span>) -> Statement<'input, TypeData> {
+    unimplemented!()
+}
+
+fn infer_top_level_statement<'input>(env: Environment<'input>, ctx: &mut Context<'input>, level: Level, tls: &TopLevelStatement<'input, Span>) -> TopLevelStatement<'input, TypeData> {
+    unimplemented!()
+}
+
+fn infer_block<'input>(env: Environment<'input>, ctx: &mut Context<'input>, level: Level, block: &Block<'input, Span>) -> Block<'input, TypeData> {
+    unimplemented!()
+}
+
+fn infer_top_level_block<'input>(env: Environment<'input>, ctx: &mut Context<'input>, level: Level, tlb: &TopLevelBlock<'input, Span>) -> TopLevelBlock<'input, TypeData> {
+    unimplemented!()
+}
+
 fn typecheck_module<'input>(unchecked: Module<'input, Span>, deps: Vec<&TypedModule<'input>>) -> TypedModule<'input> {
     //TODO: Import dependencies into context
     let mut context = Context::new();
     let env = Environment::new();
-    unimplemented!()
+    let infered_ast = infer_top_level_block(env, &mut context, Level(0), &unchecked.ast);
+    let module = Module {
+        ast: infered_ast,
+        name: unchecked.name,
+        path: unchecked.path,
+        depth: unchecked.depth,
+        deps: unchecked.deps
+    };
+    TypedModule {
+        module,
+        context
+    }
 }
 
 pub struct TypeData {
