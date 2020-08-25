@@ -5,6 +5,7 @@ use crate::common::{Module, ModuleIdentifier};
 use crate::token::Span;
 use std::collections::HashMap;
 use std::ops::Index;
+use im_rc::HashMap as ImmMap;
 
 //TODO: Convert types into general representation
 pub struct TypedModule<'a> {
@@ -39,6 +40,15 @@ pub struct Context<'a> {
     id_counter: usize
 }
 
+impl<'a> Context<'a> {
+    pub fn new() -> Self {
+        Context {
+            id_counter: 0,
+            types: Vec::new()
+        }
+    }
+}
+
 impl<'a> Index<TypeId> for Context<'a> {
     type Output = Type<'a>;
 
@@ -47,12 +57,22 @@ impl<'a> Index<TypeId> for Context<'a> {
     }
 }
 
+struct Environment<'a> {
+    values: ImmMap<&'a str, TypeId>
+}
+
+impl<'a> Environment<'a> {
+    fn new() -> Self {
+        Environment {
+            values: ImmMap::new()
+        }
+    }
+}
+
 fn typecheck_module<'input>(unchecked: Module<'input, Span>, deps: Vec<&TypedModule<'input>>) -> TypedModule<'input> {
     //TODO: Import dependencies into context
-    let mut context = Context {
-        types: Vec::new(),
-        id_counter: 0
-    };
+    let mut context = Context::new();
+    let env = Environment::new();
     unimplemented!()
 }
 
