@@ -4,7 +4,7 @@ use crate::string_interner::StringInterner;
 use crate::common::{Module, ModuleIdentifier};
 use crate::token::Span;
 use std::collections::HashMap;
-use std::ops::Index;
+use std::ops::{Index, Add};
 use im_rc::HashMap as ImmMap;
 use crate::ast::{Expr, Statement, TopLevelStatement, Block, TopLevelBlock, RegionAnnotation, Pattern, Identifier};
 
@@ -58,6 +58,7 @@ impl<'a> Index<TypeId> for Context<'a> {
     }
 }
 
+#[derive(Clone)]
 struct Environment<'a> {
     values: ImmMap<&'a str, TypeId>
 }
@@ -66,6 +67,12 @@ impl<'a> Environment<'a> {
     fn new() -> Self {
         Environment {
             values: ImmMap::new()
+        }
+    }
+
+    fn add(&self, name: &'a str, tp: TypeId) -> Self {
+        Environment {
+            values: self.values.update(name, tp)
         }
     }
 }
@@ -84,7 +91,7 @@ fn infer_statement<'input>(env: &mut Environment<'input>, ctx: &mut Context<'inp
         Statement::Let(mods, reg, pat, expr, pos) => {
             //TODO: Recursion
             let (expr_type, expr) = infer_expr(env, ctx, level, expr);
-            bind_in_env(ctx, env, expr_type, pat);
+            let new_env = bind_in_env(ctx, env, expr_type, pat).unwrap_or(env.clone());
             Some(Statement::Let(mods.clone(), reg.map(map_region), map_pattern(pat), expr, TypeData { typ: None, position: *pos }))
         }
     }
@@ -105,8 +112,15 @@ fn map_identifier<'input>(ident: &Identifier<'input, Span>) -> Identifier<'input
     }
 }
 
-fn bind_in_env<'input>(ctx: &mut Context<'input>, env: &mut Environment<'input>, tp: TypeId, pattern: &Pattern<'input, Span>) {
-    //TODO
+fn bind_in_env<'input>(ctx: &mut Context<'input>, env: &mut Environment<'input>, tp: TypeId, pattern: &Pattern<'input, Span>) -> Option<Environment<'input>> {
+    match pattern {
+        Pattern::Name(ident, ta, _) => {
+            //TODO: Type annotation checking
+            Some(env.add(ident.to_name(), tp))
+        },
+        Pattern::Any(_) => None,
+        _ => unimplemented!()
+    }
 }
 
 fn map_region(r: RegionAnnotation<Span>) -> RegionAnnotation<TypeData> {

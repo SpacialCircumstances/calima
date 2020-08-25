@@ -93,6 +93,15 @@ pub enum Identifier<'a, Data> {
     Operator(&'a str, Data)
 }
 
+impl<'a, Data> Identifier<'a, Data> {
+    pub fn to_name(&self) -> &'a str {
+        match self {
+            Identifier::Simple(name, _) => name,
+            Identifier::Operator(name, _) => name
+        }
+    }
+}
+
 impl<'a, Data> Display for Identifier<'a, Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
