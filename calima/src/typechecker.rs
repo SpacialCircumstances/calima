@@ -6,7 +6,7 @@ use crate::token::Span;
 use std::collections::HashMap;
 use std::ops::Index;
 use im_rc::HashMap as ImmMap;
-use crate::ast::{Expr, Statement, TopLevelStatement, Block, TopLevelBlock};
+use crate::ast::{Expr, Statement, TopLevelStatement, Block, TopLevelBlock, RegionAnnotation, Pattern, Identifier};
 
 //TODO: Convert types into general representation
 pub struct TypedModule<'a> {
@@ -70,31 +70,72 @@ impl<'a> Environment<'a> {
     }
 }
 
-fn infer_expr<'input>(env: Environment<'input>, ctx: &mut Context<'input>, level: Level, expr: &Expr<'input, Span>) -> Expr<'input, TypeData> {
+fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context<'input>, level: Level, expr: &Expr<'input, Span>) -> (TypeId, Expr<'input, TypeData>) {
     unimplemented!()
 }
 
-fn infer_statement<'input>(env: Environment<'input>, ctx: &mut Context<'input>, level: Level, statement: &Statement<'input, Span>) -> Statement<'input, TypeData> {
+fn infer_statement<'input>(env: &mut Environment<'input>, ctx: &mut Context<'input>, level: Level, statement: &Statement<'input, Span>) -> Option<Statement<'input, TypeData>> {
+    match statement {
+        Statement::Region(_, _) => None,
+        Statement::Do(reg, expr, dat) => {
+            let (expr_type, expr) = infer_expr(env, ctx, level, expr);
+            Some(Statement::Do(reg.map(map_region), expr, TypeData { typ: Some(expr_type), position: *dat }))
+        },
+        Statement::Let(mods, reg, pat, expr, pos) => {
+            //TODO: Recursion
+            let (expr_type, expr) = infer_expr(env, ctx, level, expr);
+            bind_in_env(ctx, env, expr_type, pat);
+            Some(Statement::Let(mods.clone(), reg.map(map_region), map_pattern(pat), expr, TypeData { typ: None, position: *pos }))
+        }
+    }
+}
+
+fn map_pattern<'input>(p: &Pattern<'input, Span>) -> Pattern<'input, TypeData> {
+    match p {
+        Pattern::Any(pos) => Pattern::Any(TypeData { typ: None, position: *pos }),
+        Pattern::Name(ident, ta, pos) => Pattern::Name(map_identifier(ident), None, TypeData { typ: None, position: *pos }),
+        _ => unimplemented!()
+    }
+}
+
+fn map_identifier<'input>(ident: &Identifier<'input, Span>) -> Identifier<'input, TypeData> {
+    match ident {
+        Identifier::Operator(name, position) => Identifier::Operator(name, TypeData { typ: None, position: *position }),
+        Identifier::Simple(name, position) => Identifier::Simple(name, TypeData { typ: None, position: *position }),
+    }
+}
+
+fn bind_in_env<'input>(ctx: &mut Context<'input>, env: &mut Environment<'input>, tp: TypeId, pattern: &Pattern<'input, Span>) {
+    //TODO
+}
+
+fn map_region(r: RegionAnnotation<Span>) -> RegionAnnotation<TypeData> {
+    RegionAnnotation(r.0, TypeData { typ: None, position: r.1 })
+}
+
+fn infer_top_level_statement<'input>(env: &mut Environment<'input>, ctx: &mut Context<'input>, level: Level, tls: &TopLevelStatement<'input, Span>) -> TopLevelStatement<'input, TypeData> {
     unimplemented!()
 }
 
-fn infer_top_level_statement<'input>(env: Environment<'input>, ctx: &mut Context<'input>, level: Level, tls: &TopLevelStatement<'input, Span>) -> TopLevelStatement<'input, TypeData> {
-    unimplemented!()
+fn infer_block<'input>(env: &mut Environment<'input>, ctx: &mut Context<'input>, level: Level, block: &Block<'input, Span>) -> Block<'input, TypeData> {
+    Block {
+        statements: block.statements.iter().filter_map(|st| infer_statement(env, ctx, level, st)).collect(),
+        result: Box::new(infer_expr(env, ctx, level, &block.result).1)
+    }
 }
 
-fn infer_block<'input>(env: Environment<'input>, ctx: &mut Context<'input>, level: Level, block: &Block<'input, Span>) -> Block<'input, TypeData> {
-    unimplemented!()
-}
-
-fn infer_top_level_block<'input>(env: Environment<'input>, ctx: &mut Context<'input>, level: Level, tlb: &TopLevelBlock<'input, Span>) -> TopLevelBlock<'input, TypeData> {
-    unimplemented!()
+fn infer_top_level_block<'input>(env: &mut Environment<'input>, ctx: &mut Context<'input>, level: Level, tlb: &TopLevelBlock<'input, Span>) -> TopLevelBlock<'input, TypeData> {
+    TopLevelBlock {
+        top_levels: tlb.top_levels.iter().map(|st| infer_top_level_statement(env, ctx, level, st)).collect(),
+        block: infer_block(env, ctx, level, &tlb.block)
+    }
 }
 
 fn typecheck_module<'input>(unchecked: Module<'input, Span>, deps: Vec<&TypedModule<'input>>) -> TypedModule<'input> {
     //TODO: Import dependencies into context
     let mut context = Context::new();
-    let env = Environment::new();
-    let infered_ast = infer_top_level_block(env, &mut context, Level(0), &unchecked.ast);
+    let mut env = Environment::new();
+    let infered_ast = infer_top_level_block(&mut env, &mut context, Level(0), &unchecked.ast);
     let module = Module {
         ast: infered_ast,
         name: unchecked.name,
@@ -110,7 +151,7 @@ fn typecheck_module<'input>(unchecked: Module<'input, Span>, deps: Vec<&TypedMod
 
 pub struct TypeData {
     position: Span,
-    typ: TypeId
+    typ: Option<TypeId>
 }
 
 pub struct TypedContext<'input> {
