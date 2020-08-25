@@ -91,7 +91,7 @@ fn infer_statement<'input>(env: &mut Environment<'input>, ctx: &mut Context<'inp
         Statement::Let(mods, reg, pat, expr, pos) => {
             //TODO: Recursion
             let (expr_type, expr) = infer_expr(env, ctx, level, expr);
-            let new_env = bind_in_env(ctx, env, expr_type, pat).unwrap_or(env.clone());
+            *env = bind_in_env(ctx, env, expr_type, pat);
             Some(Statement::Let(mods.clone(), reg.map(map_region), map_pattern(pat), expr, TypeData { typ: None, position: *pos }))
         }
     }
@@ -112,13 +112,13 @@ fn map_identifier<'input>(ident: &Identifier<'input, Span>) -> Identifier<'input
     }
 }
 
-fn bind_in_env<'input>(ctx: &mut Context<'input>, env: &mut Environment<'input>, tp: TypeId, pattern: &Pattern<'input, Span>) -> Option<Environment<'input>> {
+fn bind_in_env<'input>(ctx: &mut Context<'input>, env: &mut Environment<'input>, tp: TypeId, pattern: &Pattern<'input, Span>) -> Environment<'input> {
     match pattern {
         Pattern::Name(ident, ta, _) => {
             //TODO: Type annotation checking
-            Some(env.add(ident.to_name(), tp))
+            env.add(ident.to_name(), tp)
         },
-        Pattern::Any(_) => None,
+        Pattern::Any(_) => env.clone(),
         _ => unimplemented!()
     }
 }
@@ -132,8 +132,9 @@ fn infer_top_level_statement<'input>(env: &mut Environment<'input>, ctx: &mut Co
 }
 
 fn infer_block<'input>(env: &mut Environment<'input>, ctx: &mut Context<'input>, level: Level, block: &Block<'input, Span>) -> Block<'input, TypeData> {
+    let mut block_env = env;
     Block {
-        statements: block.statements.iter().filter_map(|st| infer_statement(env, ctx, level, st)).collect(),
+        statements: block.statements.iter().filter_map(|st| infer_statement(block_env, ctx, level, st)).collect(),
         result: Box::new(infer_expr(env, ctx, level, &block.result).1)
     }
 }
