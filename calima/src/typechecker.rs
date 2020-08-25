@@ -48,6 +48,12 @@ impl<'a> Context<'a> {
             types: Vec::new()
         }
     }
+
+    fn next_type(&mut self) -> TypeId {
+        let tid = TypeId(self.id_counter);
+        self.id_counter += 1;
+        tid
+    }
 }
 
 impl<'a> Index<TypeId> for Context<'a> {
@@ -75,10 +81,31 @@ impl<'a> Environment<'a> {
             values: self.values.update(name, tp)
         }
     }
+
+    fn lookup(&self, name: &'a str) -> Option<TypeId> {
+        self.values.get(name).map(|t| *t)
+    }
 }
 
 fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context<'input>, level: Level, expr: &Expr<'input, Span>) -> (TypeId, Expr<'input, TypeData>) {
-    unimplemented!()
+    match expr {
+        Expr::Variable(name, data) => {
+            //For now only deal with simple names
+            //TODO: Inst
+            let name = name.first().expect("Identifier must have size >= 1");
+            let tp = env.lookup(name).expect("Error: Variable not found");
+            (tp, Expr::Variable(vec![ name ], TypeData { typ: Some(tp), position: *data }))
+        },
+        Expr::Lambda { regions, params, body, data } => {
+            let mut body_env = env;
+            for param in params {
+                bind_in_env(ctx, body_env, ctx.next_type(), param);
+            }
+            let (body_tp, body) = infer_block(body_env, ctx, level, body);
+            unimplemented!()
+        }
+        _ => unimplemented!()
+    }
 }
 
 fn infer_statement<'input>(env: &mut Environment<'input>, ctx: &mut Context<'input>, level: Level, statement: &Statement<'input, Span>) -> Option<Statement<'input, TypeData>> {
@@ -131,18 +158,19 @@ fn infer_top_level_statement<'input>(env: &mut Environment<'input>, ctx: &mut Co
     unimplemented!()
 }
 
-fn infer_block<'input>(env: &mut Environment<'input>, ctx: &mut Context<'input>, level: Level, block: &Block<'input, Span>) -> Block<'input, TypeData> {
+fn infer_block<'input>(env: &mut Environment<'input>, ctx: &mut Context<'input>, level: Level, block: &Block<'input, Span>) -> (TypeId, Block<'input, TypeData>) {
     let mut block_env = env;
-    Block {
+    let (result_tp, result) = infer_expr(env, ctx, level, &block.result);
+    (result_tp, Block {
         statements: block.statements.iter().filter_map(|st| infer_statement(block_env, ctx, level, st)).collect(),
-        result: Box::new(infer_expr(env, ctx, level, &block.result).1)
-    }
+        result: Box::new(result)
+    })
 }
 
 fn infer_top_level_block<'input>(env: &mut Environment<'input>, ctx: &mut Context<'input>, level: Level, tlb: &TopLevelBlock<'input, Span>) -> TopLevelBlock<'input, TypeData> {
     TopLevelBlock {
         top_levels: tlb.top_levels.iter().map(|st| infer_top_level_statement(env, ctx, level, st)).collect(),
-        block: infer_block(env, ctx, level, &tlb.block)
+        block: infer_block(env, ctx, level, &tlb.block).1
     }
 }
 
