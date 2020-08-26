@@ -42,8 +42,8 @@ impl Display for ModuleIdentifier {
 }
 
 #[derive(Debug)]
-pub struct Module<'input, Data> {
-    pub ast: TopLevelBlock<'input, Data>,
+pub struct Module<ModuleData> {
+    pub data: ModuleData,
     pub name: ModuleIdentifier,
     pub path: PathBuf,
     pub depth: u32,

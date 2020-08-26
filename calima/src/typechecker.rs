@@ -1,4 +1,4 @@
-use crate::compiler::ModuleTreeContext;
+use crate::compiler::{ModuleTreeContext, UntypedModuleData};
 use crate::errors::ErrorContext;
 use crate::string_interner::StringInterner;
 use crate::common::{Module, ModuleIdentifier};
@@ -8,11 +8,7 @@ use std::ops::{Index, Add};
 use im_rc::HashMap as ImmMap;
 use crate::ast::{Expr, Statement, TopLevelStatement, Block, TopLevelBlock, RegionAnnotation, Pattern, Identifier};
 
-//TODO: Convert types into general representation
-pub struct TypedModule<'a> {
-    module: Module<'a, TypeData>,
-    context: Context
-}
+pub struct TypedModuleData<'input>(Context, TopLevelBlock<'input, TypeData>);
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub struct TypeRef(usize);
@@ -226,21 +222,17 @@ fn infer_top_level_block<'input>(env: &mut Environment<'input>, ctx: &mut Contex
     }
 }
 
-fn typecheck_module<'input>(unchecked: Module<'input, Span>, deps: Vec<&TypedModule<'input>>) -> TypedModule<'input> {
+fn typecheck_module<'input>(unchecked: Module<UntypedModuleData<'input>>, deps: Vec<&Module<TypedModuleData<'input>>>) -> Module<TypedModuleData<'input>> {
     //TODO: Import dependencies into context
     let mut context = Context::new();
     let mut env = Environment::new();
-    let infered_ast = infer_top_level_block(&mut env, &mut context, Level(0), &unchecked.ast);
-    let module = Module {
-        ast: infered_ast,
+    let infered_ast = infer_top_level_block(&mut env, &mut context, Level(0), &unchecked.data.0);
+    Module {
+        data: TypedModuleData(context, infered_ast),
         name: unchecked.name,
         path: unchecked.path,
         depth: unchecked.depth,
         deps: unchecked.deps
-    };
-    TypedModule {
-        module,
-        context
     }
 }
 
@@ -250,14 +242,14 @@ pub struct TypeData {
 }
 
 pub struct TypedContext<'input> {
-    pub modules: HashMap<ModuleIdentifier, TypedModule<'input>>,
+    pub modules: HashMap<ModuleIdentifier, Module<TypedModuleData<'input>>>,
 }
 
 pub fn typecheck<'input>(string_interner: &StringInterner, errors: &mut ErrorContext, mut module_ctx: ModuleTreeContext<'input>) -> Result<TypedContext<'input>, ()> {
     let mut ctx = TypedContext {
         modules: HashMap::new()
     };
-    let mut ordered_modules: Vec<Module<Span>> = module_ctx.modules.drain().map(|(_, module)| module).collect();
+    let mut ordered_modules: Vec<Module<UntypedModuleData<'input>>> = module_ctx.modules.drain().map(|(_, module)| module).collect();
     ordered_modules.sort_by(|m1, m2| m1.depth.cmp(&m2.depth));
 
     for module in ordered_modules {
