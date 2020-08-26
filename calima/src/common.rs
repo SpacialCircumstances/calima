@@ -3,22 +3,6 @@ use std::fmt::{Display, Formatter};
 use crate::ast::TopLevelBlock;
 use crate::token::Span;
 
-//Adapted from https://gist.github.com/babygau/41d80225c4bb2acd6c6f
-//Obviously not a real functor, but it does the job sufficiently well
-pub trait OwnedFunctor< A, B, F>
-    where F: Fn(A) -> B {
-    type Output;
-    fn fmap(self, f: &F) -> Self::Output;
-}
-
-impl<A, B, F: Fn(A) -> B, E: OwnedFunctor<A, B, F>> OwnedFunctor<A, B, F> for Vec<E> {
-    type Output = Vec<E::Output>;
-
-    fn fmap(self, f: &F) -> Self::Output {
-        self.into_iter().map(|e| e.fmap(f)).collect()
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ModuleIdentifier {
     full_name: String
@@ -64,18 +48,4 @@ pub struct Module<'input, Data> {
     pub path: PathBuf,
     pub depth: u32,
     pub deps: Vec<(ModuleIdentifier, Span)>,
-}
-
-impl<'input, Data, New, M: Fn(Data) -> New> OwnedFunctor<Data, New, M> for Module<'input, Data> {
-    type Output = Module<'input, New>;
-
-    fn fmap(self, f: &M) -> Self::Output {
-        Module {
-            ast: self.ast.fmap(f),
-            name: self.name,
-            path: self.path,
-            depth: self.depth,
-            deps: self.deps
-        }
-    }
 }
