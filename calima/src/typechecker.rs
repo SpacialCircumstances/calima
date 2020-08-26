@@ -20,16 +20,23 @@ pub struct TypeRef(usize);
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Level(u64);
 
+impl Level {
+    fn incremented(&self) -> Self {
+        Level(self.0 + 1)
+    }
+}
+
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub struct GenericId(u64);
 
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum TypeVar {
     Link(TypeRef),
     Generic(GenericId),
     Unbound(GenericId, Level)
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum BaseType {
     Bool,
     Int,
@@ -38,7 +45,7 @@ pub enum BaseType {
     Char
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum Type {
     Constant(BaseType),
     Parameterized(Box<Type>, Vec<Type>),
@@ -139,17 +146,18 @@ fn make_func_type(params: &[Type], res: Type) -> Type {
     }
 }
 
-fn infer_statement<'input>(env: &mut Environment<'input>, ctx: &mut Context, level: Level, statement: &Statement<'input, Span>) -> Option<Statement<'input, TypeData>> {
+fn infer_statement<'input>(env: &mut Environment<'input>, ctx: &mut Context, level: &mut Level, statement: &Statement<'input, Span>) -> Option<Statement<'input, TypeData>> {
     match statement {
         Statement::Region(_, _) => None,
         Statement::Do(reg, expr, dat) => {
-            let (expr_type, expr) = infer_expr(env, ctx, level, expr);
+            let (expr_type, expr) = infer_expr(env, ctx, *level, expr);
             Some(Statement::Do(reg.map(|r| map_region(&r)), expr, TypeData { typ: Some(expr_type), position: *dat }))
         },
         Statement::Let(mods, reg, pat, expr, pos) => {
             //TODO: Recursion
-            let (expr_type, expr) = infer_expr(env, ctx, level, expr);
+            let (expr_type, expr) = infer_expr(env, ctx, *level, expr);
             bind_in_env(ctx, env, expr_type, pat);
+            *level = level.incremented();
             Some(Statement::Let(mods.clone(), reg.map(|r| map_region(&r)), map_pattern(pat), expr, TypeData { typ: None, position: *pos }))
         }
     }
@@ -191,9 +199,10 @@ fn infer_top_level_statement<'input>(env: &mut Environment<'input>, ctx: &mut Co
 
 fn infer_block<'input>(env: &mut Environment<'input>, ctx: &mut Context, level: Level, block: &Block<'input, Span>) -> (Type, Block<'input, TypeData>) {
     let mut block_env = env.clone();
+    let mut level = level;
     let (result_tp, result) = infer_expr(&mut block_env, ctx, level, &block.result);
     (result_tp, Block {
-        statements: block.statements.iter().filter_map(|st| infer_statement(&mut block_env, ctx, level, st)).collect(),
+        statements: block.statements.iter().filter_map(|st| infer_statement(&mut block_env, ctx, &mut level, st)).collect(),
         result: Box::new(result)
     })
 }
