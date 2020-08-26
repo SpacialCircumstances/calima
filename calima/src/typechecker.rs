@@ -106,14 +106,36 @@ fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, level: L
         },
         Expr::Lambda { regions, params, body, data } => {
             let mut body_env = env;
+            let mut param_types = Vec::with_capacity(params.len());
+            let mut tparams = Vec::with_capacity(params.len());
             for param in params {
-                let tp = ctx.next_type();
-                bind_in_env(ctx, body_env, Type::Var(tp), param);
+                let tp = Type::Var(ctx.next_type());
+                param_types.push(tp.clone());
+                bind_in_env(ctx, body_env, tp, param);
+                tparams.push(map_pattern(param));
             }
             let (body_tp, body) = infer_block(body_env, ctx, level, body);
-            unimplemented!()
+            let func_type = make_func_type(&param_types, body_tp);
+            (func_type.clone(), Expr::Lambda {
+                regions: regions.iter().map(|r| map_region(r)).collect(),
+                params: tparams,
+                body,
+                data: TypeData {
+                    typ: Some(func_type),
+                    position: *data
+                }
+            })
         }
         _ => unimplemented!()
+    }
+}
+
+fn make_func_type(params: &[Type], res: Type) -> Type {
+    if params.len() == 1 {
+        Type::Arrow(Box::new(params.first().unwrap().clone()), Box::new(res))
+    } else {
+        let head = params.first().expect("Func must have at least one parameter");
+        Type::Arrow(Box::new(head.clone()), Box::new(make_func_type(&params[1..], res)))
     }
 }
 
@@ -122,13 +144,13 @@ fn infer_statement<'input>(env: &mut Environment<'input>, ctx: &mut Context, lev
         Statement::Region(_, _) => None,
         Statement::Do(reg, expr, dat) => {
             let (expr_type, expr) = infer_expr(env, ctx, level, expr);
-            Some(Statement::Do(reg.map(map_region), expr, TypeData { typ: Some(expr_type), position: *dat }))
+            Some(Statement::Do(reg.map(|r| map_region(&r)), expr, TypeData { typ: Some(expr_type), position: *dat }))
         },
         Statement::Let(mods, reg, pat, expr, pos) => {
             //TODO: Recursion
             let (expr_type, expr) = infer_expr(env, ctx, level, expr);
             bind_in_env(ctx, env, expr_type, pat);
-            Some(Statement::Let(mods.clone(), reg.map(map_region), map_pattern(pat), expr, TypeData { typ: None, position: *pos }))
+            Some(Statement::Let(mods.clone(), reg.map(|r| map_region(&r)), map_pattern(pat), expr, TypeData { typ: None, position: *pos }))
         }
     }
 }
@@ -159,7 +181,7 @@ fn bind_in_env<'input>(ctx: &mut Context, env: &mut Environment<'input>, tp: Typ
     }
 }
 
-fn map_region(r: RegionAnnotation<Span>) -> RegionAnnotation<TypeData> {
+fn map_region<'a>(r: &RegionAnnotation<'a, Span>) -> RegionAnnotation<'a, TypeData> {
     RegionAnnotation(r.0, TypeData { typ: None, position: r.1 })
 }
 
