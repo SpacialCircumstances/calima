@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::ops::{Index, Add};
 use im_rc::HashMap as ImmMap;
 use crate::ast::{Expr, Statement, TopLevelStatement, Block, TopLevelBlock, RegionAnnotation, Pattern, Identifier};
+use std::collections::hash_map::Entry;
 
 pub struct TypedModuleData<'input>(Context, TopLevelBlock<'input, TypeData>);
 
@@ -22,12 +23,12 @@ impl Level {
     }
 }
 
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash)]
 pub struct GenericId(usize);
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum TypeVar {
-    Link(TypeRef),
+    Link(Type),
     Generic(GenericId),
     Unbound(GenericId, Level)
 }
@@ -108,6 +109,35 @@ impl<'a> Environment<'a> {
     fn lookup(&self, name: &'a str) -> Option<Type> {
         self.values.get(name).map(|t| t.clone())
     }
+}
+
+fn instantiate(ctx: &mut Context, typ: Type, level: Level) -> Type {
+    fn inst(typ: Type, id_map: &mut HashMap<GenericId, Type>, ctx: &mut Context, level: Level) -> Type {
+        match typ {
+            Type::Constant(_) => typ,
+            Type::Arrow(t1, t2) => Type::Arrow(Box::new(inst(*t1, id_map, ctx, level)), Box::new(inst(*t2, id_map, ctx, level))),
+            Type::Parameterized(p, params) => Type::Parameterized(Box::new(inst(*p, id_map, ctx, level)), params.into_iter().map(|t| inst(t, id_map, ctx, level)).collect()),
+            Type::Var(tr) => {
+                match &ctx[tr] {
+                    TypeVar::Link(tr) => inst(tr.clone(), id_map, ctx, level),
+                    TypeVar::Unbound(_, _) => typ,
+                    TypeVar::Generic(id) => {
+                        match id_map.entry(*id) {
+                            Entry::Occupied(v) => v.get().clone(),
+                            Entry::Vacant(v) => {
+                                let var = ctx.new_var(level);
+                                v.insert(var.clone());
+                                var
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let mut id_map = HashMap::new();
+    inst(typ, &mut id_map, ctx, level)
 }
 
 fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, level: Level, expr: &Expr<'input, Span>) -> (Type, Expr<'input, TypeData>) {
