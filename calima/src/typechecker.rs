@@ -27,7 +27,7 @@ impl Level {
 }
 
 #[derive(Copy, Clone, Eq, PartialEq)]
-pub struct GenericId(u64);
+pub struct GenericId(usize);
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum TypeVar {
@@ -55,21 +55,33 @@ pub enum Type {
 
 pub struct Context {
     types: Vec<TypeVar>,
-    id_counter: usize
+    generic_id: usize
 }
 
 impl Context {
     pub fn new() -> Self {
         Context {
-            id_counter: 0,
+            generic_id: 0,
             types: Vec::new()
         }
     }
 
-    fn next_type(&mut self) -> TypeRef {
-        let tid = TypeRef(self.id_counter);
-        self.id_counter += 1;
-        tid
+    fn next_id(&mut self) -> GenericId {
+        let id = self.generic_id;
+        self.generic_id += 1;
+        GenericId(id)
+    }
+
+    fn new_var(&mut self, level: Level) -> Type {
+        let tr = self.next_id();
+        self.types.push(TypeVar::Unbound(tr, level));
+        Type::Var(TypeRef(self.types.len() - 1))
+    }
+
+    fn new_generic(&mut self) -> Type {
+        let tr = self.next_id();
+        self.types.push(TypeVar::Generic(tr));
+        Type::Var(TypeRef(self.types.len() - 1))
     }
 }
 
@@ -116,7 +128,7 @@ fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, level: L
             let mut param_types = Vec::with_capacity(params.len());
             let mut tparams = Vec::with_capacity(params.len());
             for param in params {
-                let tp = Type::Var(ctx.next_type());
+                let tp = ctx.new_var(level);
                 param_types.push(tp.clone());
                 bind_in_env(ctx, body_env, tp, param);
                 tparams.push(map_pattern(param));
