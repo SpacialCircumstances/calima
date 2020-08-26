@@ -146,7 +146,7 @@ fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, level: L
             //For now only deal with simple names
             //TODO: Inst
             let name = name.first().expect("Identifier must have size >= 1");
-            let tp = env.lookup(name).expect("Error: Variable not found");
+            let tp = instantiate(ctx, env.lookup(name).expect("Error: Variable not found"), level);
             (tp.clone(), Expr::Variable(vec![ name ], TypeData { typ: Some(tp), position: *data }))
         },
         Expr::Lambda { regions, params, body, data } => {
