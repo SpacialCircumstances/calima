@@ -11,11 +11,11 @@ use crate::ast::{Expr, Statement, TopLevelStatement, Block, TopLevelBlock, Regio
 //TODO: Convert types into general representation
 pub struct TypedModule<'a> {
     module: Module<'a, TypeData>,
-    context: Context<'a>
+    context: Context
 }
 
 #[derive(Copy, Clone, Eq, PartialEq)]
-pub struct TypeId(usize);
+pub struct TypeRef(usize);
 
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Level(u64);
@@ -24,24 +24,34 @@ pub struct Level(u64);
 pub struct GenericId(u64);
 
 pub enum TypeVar {
-    Link(TypeId),
+    Link(TypeRef),
     Generic(GenericId),
     Unbound(GenericId, Level)
 }
 
-pub enum Type<'a> {
-    Constant(&'a str),
-    Parameterized(Box<Type<'a>>, Vec<Type<'a>>),
-    Arrow(Box<Type<'a>>, Box<Type<'a>>),
-    Var(TypeVar)
+#[derive(Copy, Clone)]
+pub enum BaseType {
+    Bool,
+    Int,
+    Float,
+    String,
+    Char
 }
 
-pub struct Context<'a> {
-    types: Vec<Type<'a>>,
+#[derive(Clone)]
+pub enum Type {
+    Constant(BaseType),
+    Parameterized(Box<Type>, Vec<Type>),
+    Arrow(Box<Type>, Box<Type>),
+    Var(TypeRef)
+}
+
+pub struct Context {
+    types: Vec<TypeVar>,
     id_counter: usize
 }
 
-impl<'a> Context<'a> {
+impl Context {
     pub fn new() -> Self {
         Context {
             id_counter: 0,
@@ -49,57 +59,56 @@ impl<'a> Context<'a> {
         }
     }
 
-    fn next_type(&mut self) -> TypeId {
-        let tid = TypeId(self.id_counter);
+    fn next_type(&mut self) -> TypeRef {
+        let tid = TypeRef(self.id_counter);
         self.id_counter += 1;
         tid
     }
 }
 
-impl<'a> Index<TypeId> for Context<'a> {
-    type Output = Type<'a>;
+impl Index<TypeRef> for Context {
+    type Output = TypeVar;
 
-    fn index(&self, index: TypeId) -> &Self::Output {
+    fn index(&self, index: TypeRef) -> &Self::Output {
         return &self.types[index.0];
     }
 }
 
 #[derive(Clone)]
 struct Environment<'a> {
-    values: ImmMap<&'a str, TypeId>
+    values: HashMap<&'a str, Type>
 }
 
 impl<'a> Environment<'a> {
     fn new() -> Self {
         Environment {
-            values: ImmMap::new()
+            values: HashMap::new()
         }
     }
 
-    fn add(&self, name: &'a str, tp: TypeId) -> Self {
-        Environment {
-            values: self.values.update(name, tp)
-        }
+    fn add(&mut self, name: &'a str, tp: Type) {
+        self.values.insert(name, tp);
     }
 
-    fn lookup(&self, name: &'a str) -> Option<TypeId> {
-        self.values.get(name).map(|t| *t)
+    fn lookup(&self, name: &'a str) -> Option<Type> {
+        self.values.get(name).map(|t| t.clone())
     }
 }
 
-fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context<'input>, level: Level, expr: &Expr<'input, Span>) -> (TypeId, Expr<'input, TypeData>) {
+fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, level: Level, expr: &Expr<'input, Span>) -> (Type, Expr<'input, TypeData>) {
     match expr {
         Expr::Variable(name, data) => {
             //For now only deal with simple names
             //TODO: Inst
             let name = name.first().expect("Identifier must have size >= 1");
             let tp = env.lookup(name).expect("Error: Variable not found");
-            (tp, Expr::Variable(vec![ name ], TypeData { typ: Some(tp), position: *data }))
+            (tp.clone(), Expr::Variable(vec![ name ], TypeData { typ: Some(tp), position: *data }))
         },
         Expr::Lambda { regions, params, body, data } => {
             let mut body_env = env;
             for param in params {
-                bind_in_env(ctx, body_env, ctx.next_type(), param);
+                let tp = ctx.next_type();
+                bind_in_env(ctx, body_env, Type::Var(tp), param);
             }
             let (body_tp, body) = infer_block(body_env, ctx, level, body);
             unimplemented!()
@@ -108,7 +117,7 @@ fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context<'input>, 
     }
 }
 
-fn infer_statement<'input>(env: &mut Environment<'input>, ctx: &mut Context<'input>, level: Level, statement: &Statement<'input, Span>) -> Option<Statement<'input, TypeData>> {
+fn infer_statement<'input>(env: &mut Environment<'input>, ctx: &mut Context, level: Level, statement: &Statement<'input, Span>) -> Option<Statement<'input, TypeData>> {
     match statement {
         Statement::Region(_, _) => None,
         Statement::Do(reg, expr, dat) => {
@@ -118,7 +127,7 @@ fn infer_statement<'input>(env: &mut Environment<'input>, ctx: &mut Context<'inp
         Statement::Let(mods, reg, pat, expr, pos) => {
             //TODO: Recursion
             let (expr_type, expr) = infer_expr(env, ctx, level, expr);
-            *env = bind_in_env(ctx, env, expr_type, pat);
+            bind_in_env(ctx, env, expr_type, pat);
             Some(Statement::Let(mods.clone(), reg.map(map_region), map_pattern(pat), expr, TypeData { typ: None, position: *pos }))
         }
     }
@@ -139,13 +148,13 @@ fn map_identifier<'input>(ident: &Identifier<'input, Span>) -> Identifier<'input
     }
 }
 
-fn bind_in_env<'input>(ctx: &mut Context<'input>, env: &mut Environment<'input>, tp: TypeId, pattern: &Pattern<'input, Span>) -> Environment<'input> {
+fn bind_in_env<'input>(ctx: &mut Context, env: &mut Environment<'input>, tp: Type, pattern: &Pattern<'input, Span>) {
     match pattern {
         Pattern::Name(ident, ta, _) => {
             //TODO: Type annotation checking
             env.add(ident.to_name(), tp)
         },
-        Pattern::Any(_) => env.clone(),
+        Pattern::Any(_) => (),
         _ => unimplemented!()
     }
 }
@@ -154,20 +163,20 @@ fn map_region(r: RegionAnnotation<Span>) -> RegionAnnotation<TypeData> {
     RegionAnnotation(r.0, TypeData { typ: None, position: r.1 })
 }
 
-fn infer_top_level_statement<'input>(env: &mut Environment<'input>, ctx: &mut Context<'input>, level: Level, tls: &TopLevelStatement<'input, Span>) -> TopLevelStatement<'input, TypeData> {
+fn infer_top_level_statement<'input>(env: &mut Environment<'input>, ctx: &mut Context, level: Level, tls: &TopLevelStatement<'input, Span>) -> TopLevelStatement<'input, TypeData> {
     unimplemented!()
 }
 
-fn infer_block<'input>(env: &mut Environment<'input>, ctx: &mut Context<'input>, level: Level, block: &Block<'input, Span>) -> (TypeId, Block<'input, TypeData>) {
-    let mut block_env = env;
-    let (result_tp, result) = infer_expr(env, ctx, level, &block.result);
+fn infer_block<'input>(env: &mut Environment<'input>, ctx: &mut Context, level: Level, block: &Block<'input, Span>) -> (Type, Block<'input, TypeData>) {
+    let mut block_env = env.clone();
+    let (result_tp, result) = infer_expr(&mut block_env, ctx, level, &block.result);
     (result_tp, Block {
-        statements: block.statements.iter().filter_map(|st| infer_statement(block_env, ctx, level, st)).collect(),
+        statements: block.statements.iter().filter_map(|st| infer_statement(&mut block_env, ctx, level, st)).collect(),
         result: Box::new(result)
     })
 }
 
-fn infer_top_level_block<'input>(env: &mut Environment<'input>, ctx: &mut Context<'input>, level: Level, tlb: &TopLevelBlock<'input, Span>) -> TopLevelBlock<'input, TypeData> {
+fn infer_top_level_block<'input>(env: &mut Environment<'input>, ctx: &mut Context, level: Level, tlb: &TopLevelBlock<'input, Span>) -> TopLevelBlock<'input, TypeData> {
     TopLevelBlock {
         top_levels: tlb.top_levels.iter().map(|st| infer_top_level_statement(env, ctx, level, st)).collect(),
         block: infer_block(env, ctx, level, &tlb.block).1
@@ -194,7 +203,7 @@ fn typecheck_module<'input>(unchecked: Module<'input, Span>, deps: Vec<&TypedMod
 
 pub struct TypeData {
     position: Span,
-    typ: Option<TypeId>
+    typ: Option<Type>
 }
 
 pub struct TypedContext<'input> {
