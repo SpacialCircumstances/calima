@@ -6,7 +6,7 @@ use crate::token::Span;
 use std::collections::HashMap;
 use std::ops::{Index, Add};
 use im_rc::HashMap as ImmMap;
-use crate::ast::{Expr, Statement, TopLevelStatement, Block, TopLevelBlock, RegionAnnotation, Pattern, Identifier};
+use crate::ast::{Expr, NumberType, Statement, TopLevelStatement, Block, TopLevelBlock, RegionAnnotation, Pattern, Identifier, Literal};
 use std::collections::hash_map::Entry;
 
 pub struct TypedModuleData<'input>(Context, TopLevelBlock<'input, TypeData>);
@@ -39,6 +39,7 @@ pub enum BaseType {
     Int,
     Float,
     String,
+    Unit,
     Char
 }
 
@@ -144,7 +145,6 @@ fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, level: L
     match expr {
         Expr::Variable(name, data) => {
             //For now only deal with simple names
-            //TODO: Inst
             let name = name.first().expect("Identifier must have size >= 1");
             let tp = instantiate(ctx, env.lookup(name).expect("Error: Variable not found"), level);
             (tp.clone(), Expr::Variable(vec![ name ], TypeData { typ: Some(tp), position: *data }))
@@ -170,9 +170,23 @@ fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, level: L
                     position: *data
                 }
             })
-        }
+        },
+        Expr::Literal(lit, data) => {
+            let tp = get_literal_type(lit);
+            (tp.clone(), Expr::Literal(*lit, TypeData { typ: Some(tp), position: *data }))
+        },
         _ => unimplemented!()
     }
+}
+
+fn get_literal_type(lit: &Literal) -> Type {
+    Type::Constant(match lit {
+        Literal::Boolean(_) => BaseType::Bool,
+        Literal::Unit => BaseType::Unit,
+        Literal::String(_) => BaseType::String,
+        Literal::Number(_, NumberType::Float) => BaseType::Float,
+        Literal::Number(_, NumberType::Integer) => BaseType::Int
+    })
 }
 
 fn make_func_type(params: &[Type], res: Type) -> Type {
