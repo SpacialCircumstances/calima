@@ -72,14 +72,17 @@ impl Context {
 
     fn new_var(&mut self, level: Level) -> Type {
         let tr = self.next_id();
-        self.types.push(TypeVar::Unbound(tr, level));
-        Type::Var(TypeRef(self.types.len() - 1))
+        Type::Var(self.add(TypeVar::Unbound(tr, level)))
     }
 
     fn new_generic(&mut self) -> Type {
         let tr = self.next_id();
-        self.types.push(TypeVar::Generic(tr));
-        Type::Var(TypeRef(self.types.len() - 1))
+        Type::Var(self.add(TypeVar::Generic(tr)))
+    }
+
+    fn add(&mut self, tv: TypeVar) -> TypeRef {
+        self.types.push(tv);
+        TypeRef(self.types.len() - 1)
     }
 }
 
@@ -208,9 +211,23 @@ fn infer_statement<'input>(env: &mut Environment<'input>, ctx: &mut Context, lev
         Statement::Let(mods, reg, pat, expr, pos) => {
             //TODO: Recursion
             let (expr_type, expr) = infer_expr(env, ctx, *level, expr);
+            let expr_type = generalize(ctx, expr_type, *level);
             bind_in_env(ctx, env, expr_type, pat);
             *level = level.incremented();
             Some(Statement::Let(mods.clone(), reg.map(|r| map_region(&r)), map_pattern(pat), expr, TypeData { typ: None, position: *pos }))
+        }
+    }
+}
+
+fn generalize(ctx: &mut Context, tp: Type, level: Level) -> Type {
+    match tp {
+        Type::Constant(_) => tp,
+        Type::Arrow(t1, t2) => Type::Arrow(Box::new(generalize(ctx, *t1, level)), Box::new(generalize(ctx, *t2, level))),
+        Type::Parameterized(t, params) => Type::Parameterized(Box::new(generalize(ctx, *t, level)), params.into_iter().map(|t| generalize(ctx, t, level)).collect()),
+        Type::Var(tr) => match &ctx[tr] {
+            TypeVar::Link(t) => generalize(ctx, t.clone(), level),
+            TypeVar::Unbound(id, other_level) if other_level > &level => Type::Var(ctx.add(TypeVar::Generic(*id))),
+            _ => tp
         }
     }
 }
