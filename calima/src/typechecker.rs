@@ -97,7 +97,7 @@ impl Context {
                     self.unify(*i1, *i2);
                     self.unify(*o1, *o2);
                 },
-                _ => unimplemented!();
+                _ => unimplemented!()
             }
         }
     }
