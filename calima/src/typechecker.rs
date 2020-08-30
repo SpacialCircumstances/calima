@@ -86,7 +86,20 @@ impl Context {
     }
 
     fn unify(&mut self, t1: Type, t2: Type) {
-
+        if t1 != t2 {
+            match (t1, t2) {
+                (Type::Constant(c1), Type::Constant(c2)) if c1 == c2 => (),
+                (Type::Parameterized(b1, ts1), Type::Parameterized(b2, ts2)) => {
+                    self.unify(*b1, *b2);
+                    ts1.into_iter().zip(ts2.into_iter()).for_each(|(t1, t2)| self.unify(t1, t2));
+                },
+                (Type::Arrow(i1, o1), Type::Arrow(i2, o2)) => {
+                    self.unify(*i1, *i2);
+                    self.unify(*o1, *o2);
+                },
+                _ => unimplemented!();
+            }
+        }
     }
 }
 
