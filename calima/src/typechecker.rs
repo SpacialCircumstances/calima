@@ -3,7 +3,7 @@ use crate::errors::ErrorContext;
 use crate::string_interner::StringInterner;
 use crate::common::{Module, ModuleIdentifier};
 use crate::token::Span;
-use std::collections::HashMap;
+use std::collections::{HashMap};
 use std::ops::{Index, Add};
 use im_rc::HashMap as ImmMap;
 use crate::ast::{Expr, NumberType, Statement, TopLevelStatement, Block, TopLevelBlock, RegionAnnotation, Pattern, Identifier, Literal};
@@ -83,6 +83,10 @@ impl Context {
     fn add(&mut self, tv: TypeVar) -> TypeRef {
         self.types.push(tv);
         TypeRef(self.types.len() - 1)
+    }
+
+    fn unify(&mut self, t1: Type, t2: Type) {
+
     }
 }
 
@@ -178,7 +182,36 @@ fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, level: L
             let tp = get_literal_type(lit);
             (tp.clone(), Expr::Literal(*lit, TypeData { typ: Some(tp), position: *data }))
         },
+        Expr::FunctionCall(fexpr, params, data) => {
+            let (f_tp, tfexpr) = infer_expr(env, ctx, level, &**fexpr);
+            let (res_type, ptypes) = apply_function_type(f_tp, params.len());
+            let typed_params = params
+                .iter()
+                .zip(ptypes.into_iter())
+                .map(|(p, expected_tp)| {
+                    let (pt, npexpr) = infer_expr(env, ctx, level, p);
+                    ctx.unify(pt, expected_tp);
+                    npexpr
+                }).collect();
+
+            (res_type.clone(), Expr::FunctionCall(Box::new(tfexpr), typed_params, TypeData { typ: Some(res_type), position: *data }))
+        },
         _ => unimplemented!()
+    }
+}
+
+fn apply_function_type(ft: Type, depth: usize) -> (Type, Vec<Type>) {
+    if depth == 0 {
+        (ft, Vec::new())
+    } else {
+        match ft {
+            Type::Arrow(f, n) => {
+                let (rt, mut rest) = apply_function_type(*n, depth - 1);
+                rest.push(*f);
+                (rt, rest)
+            },
+            _ => panic!("Too many parameters")
+        }
     }
 }
 
