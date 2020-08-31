@@ -54,7 +54,7 @@ impl Substitution {
     fn subst(&self, typ: Type) -> Type {
         match typ {
             Type::Constant(_) => typ,
-            Type::Var(v) => self[v].unwrap_or(typ),
+            Type::Var(v) => self[v].as_ref().map(|t| t.clone()).unwrap_or(typ),
             Type::Arrow(t1, t2) => Type::Arrow(Box::new(self.subst(*t1)), Box::new(self.subst(*t2))),
             Type::Parameterized(t, params) => Type::Parameterized(Box::new(self.subst(*t)), params.into_iter().map(|t| self.subst(t)).collect())
         }
@@ -91,7 +91,7 @@ impl Context {
 
     fn new_generic(&mut self) -> Type {
         let tr = self.next_id();
-        Type::Var(self.add(tr))
+        Type::Var(tr)
     }
 
     fn unify(&mut self, t1: Type, t2: Type) {
@@ -122,6 +122,10 @@ impl<'a> Environment<'a> {
     }
 }
 
+fn instantiate(ctx: &mut Context, typ: Type) -> Type {
+    unimplemented!();
+}
+
 fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &Expr<'input, Span>) -> (Type, Expr<'input, TypeData>) {
     match expr {
         Expr::Variable(name, data) => {
@@ -135,12 +139,12 @@ fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &E
             let mut param_types = Vec::with_capacity(params.len());
             let mut tparams = Vec::with_capacity(params.len());
             for param in params {
-                let tp = ctx.new_var(level);
+                let tp = ctx.new_generic();
                 param_types.push(tp.clone());
                 bind_in_env(ctx, body_env, tp, param);
                 tparams.push(map_pattern(param));
             }
-            let (body_tp, body) = infer_block(body_env, ctx, level, body);
+            let (body_tp, body) = infer_block(body_env, ctx, body);
             let func_type = make_func_type(&param_types, body_tp);
             (func_type.clone(), Expr::Lambda {
                 regions: regions.iter().map(|r| map_region(r)).collect(),
@@ -157,13 +161,13 @@ fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &E
             (tp.clone(), Expr::Literal(*lit, TypeData { typ: Some(tp), position: *data }))
         },
         Expr::FunctionCall(fexpr, params, data) => {
-            let (f_tp, tfexpr) = infer_expr(env, ctx, level, &**fexpr);
+            let (f_tp, tfexpr) = infer_expr(env, ctx, &**fexpr);
             let (res_type, ptypes) = apply_function_type(f_tp, params.len());
             let typed_params = params
                 .iter()
                 .zip(ptypes.into_iter())
                 .map(|(p, expected_tp)| {
-                    let (pt, npexpr) = infer_expr(env, ctx, level, p);
+                    let (pt, npexpr) = infer_expr(env, ctx, p);
                     ctx.unify(pt, expected_tp);
                     npexpr
                 }).collect();
@@ -208,35 +212,25 @@ fn make_func_type(params: &[Type], res: Type) -> Type {
     }
 }
 
-fn infer_statement<'input>(env: &mut Environment<'input>, ctx: &mut Context, level: &mut Level, statement: &Statement<'input, Span>) -> Option<Statement<'input, TypeData>> {
+fn infer_statement<'input>(env: &mut Environment<'input>, ctx: &mut Context, statement: &Statement<'input, Span>) -> Option<Statement<'input, TypeData>> {
     match statement {
         Statement::Region(_, _) => None,
         Statement::Do(reg, expr, dat) => {
-            let (expr_type, expr) = infer_expr(env, ctx, *level, expr);
+            let (expr_type, expr) = infer_expr(env, ctx, expr);
             Some(Statement::Do(reg.map(|r| map_region(&r)), expr, TypeData { typ: Some(expr_type), position: *dat }))
         },
         Statement::Let(mods, reg, pat, expr, pos) => {
             //TODO: Recursion
-            let (expr_type, expr) = infer_expr(env, ctx, *level, expr);
-            let expr_type = generalize(ctx, expr_type, *level);
+            let (expr_type, expr) = infer_expr(env, ctx, expr);
+            let expr_type = generalize(ctx, expr_type);
             bind_in_env(ctx, env, expr_type, pat);
-            *level = level.incremented();
             Some(Statement::Let(mods.clone(), reg.map(|r| map_region(&r)), map_pattern(pat), expr, TypeData { typ: None, position: *pos }))
         }
     }
 }
 
-fn generalize(ctx: &mut Context, tp: Type, level: Level) -> Type {
-    match tp {
-        Type::Constant(_) => tp,
-        Type::Arrow(t1, t2) => Type::Arrow(Box::new(generalize(ctx, *t1, level)), Box::new(generalize(ctx, *t2, level))),
-        Type::Parameterized(t, params) => Type::Parameterized(Box::new(generalize(ctx, *t, level)), params.into_iter().map(|t| generalize(ctx, t, level)).collect()),
-        Type::Var(tr) => match &ctx[tr] {
-            TypeVar::Link(t) => generalize(ctx, t.clone(), level),
-            TypeVar::Unbound(id, other_level) if other_level > &level => Type::Var(ctx.add(TypeVar::Generic(*id))),
-            _ => tp
-        }
-    }
+fn generalize(ctx: &mut Context, tp: Type) -> Type {
+    unimplemented!();
 }
 
 fn map_pattern<'input>(p: &Pattern<'input, Span>) -> Pattern<'input, TypeData> {
@@ -269,24 +263,23 @@ fn map_region<'a>(r: &RegionAnnotation<'a, Span>) -> RegionAnnotation<'a, TypeDa
     RegionAnnotation(r.0, TypeData { typ: None, position: r.1 })
 }
 
-fn infer_top_level_statement<'input>(env: &mut Environment<'input>, ctx: &mut Context, level: Level, tls: &TopLevelStatement<'input, Span>) -> TopLevelStatement<'input, TypeData> {
+fn infer_top_level_statement<'input>(env: &mut Environment<'input>, ctx: &mut Context, tls: &TopLevelStatement<'input, Span>) -> TopLevelStatement<'input, TypeData> {
     unimplemented!()
 }
 
-fn infer_block<'input>(env: &mut Environment<'input>, ctx: &mut Context, level: Level, block: &Block<'input, Span>) -> (Type, Block<'input, TypeData>) {
+fn infer_block<'input>(env: &mut Environment<'input>, ctx: &mut Context, block: &Block<'input, Span>) -> (Type, Block<'input, TypeData>) {
     let mut block_env = env.clone();
-    let mut level = level;
-    let (result_tp, result) = infer_expr(&mut block_env, ctx, level, &block.result);
+    let (result_tp, result) = infer_expr(&mut block_env, ctx, &block.result);
     (result_tp, Block {
-        statements: block.statements.iter().filter_map(|st| infer_statement(&mut block_env, ctx, &mut level, st)).collect(),
+        statements: block.statements.iter().filter_map(|st| infer_statement(&mut block_env, ctx, st)).collect(),
         result: Box::new(result)
     })
 }
 
-fn infer_top_level_block<'input>(env: &mut Environment<'input>, ctx: &mut Context, level: Level, tlb: &TopLevelBlock<'input, Span>) -> TopLevelBlock<'input, TypeData> {
+fn infer_top_level_block<'input>(env: &mut Environment<'input>, ctx: &mut Context,tlb: &TopLevelBlock<'input, Span>) -> TopLevelBlock<'input, TypeData> {
     TopLevelBlock {
-        top_levels: tlb.top_levels.iter().map(|st| infer_top_level_statement(env, ctx, level, st)).collect(),
-        block: infer_block(env, ctx, level, &tlb.block).1
+        top_levels: tlb.top_levels.iter().map(|st| infer_top_level_statement(env, ctx, st)).collect(),
+        block: infer_block(env, ctx, &tlb.block).1
     }
 }
 
@@ -294,7 +287,7 @@ fn typecheck_module<'input>(unchecked: Module<UntypedModuleData<'input>>, deps: 
     //TODO: Import dependencies into context
     let mut context = Context::new();
     let mut env = Environment::new();
-    let infered_ast = infer_top_level_block(&mut env, &mut context, Level(0), &unchecked.data.0);
+    let infered_ast = infer_top_level_block(&mut env, &mut context, &unchecked.data.0);
     Module {
         data: TypedModuleData(context, infered_ast),
         name: unchecked.name,
