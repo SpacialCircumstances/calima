@@ -135,16 +135,16 @@ fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &E
             (tp.clone(), Expr::Variable(vec![ name ], TypeData { typ: Some(tp), position: *data }))
         },
         Expr::Lambda { regions, params, body, data } => {
-            let mut body_env = env;
+            let mut body_env = env.clone();
             let mut param_types = Vec::with_capacity(params.len());
             let mut tparams = Vec::with_capacity(params.len());
             for param in params {
                 let tp = ctx.new_generic();
                 param_types.push(tp.clone());
-                bind_in_env(ctx, body_env, tp, param);
+                bind_in_env(ctx, &mut body_env, tp, param);
                 tparams.push(map_pattern(param));
             }
-            let (body_tp, body) = infer_block(body_env, ctx, body);
+            let (body_tp, body) = infer_block(&mut body_env, ctx, body);
             let func_type = make_func_type(&param_types, body_tp);
             (func_type.clone(), Expr::Lambda {
                 regions: regions.iter().map(|r| map_region(r)).collect(),
