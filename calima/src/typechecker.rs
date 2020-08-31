@@ -3,7 +3,7 @@ use crate::errors::ErrorContext;
 use crate::string_interner::StringInterner;
 use crate::common::{Module, ModuleIdentifier};
 use crate::token::Span;
-use std::collections::{HashMap};
+use std::collections::{HashMap, HashSet};
 use std::ops::{Index, Add};
 use im_rc::HashMap as ImmMap;
 use crate::ast::{Expr, NumberType, Statement, TopLevelStatement, Block, TopLevelBlock, RegionAnnotation, Pattern, Identifier, Literal};
@@ -11,27 +11,8 @@ use std::collections::hash_map::Entry;
 
 pub struct TypedModuleData<'input>(Context, TopLevelBlock<'input, TypeData>);
 
-#[derive(Copy, Clone, Eq, PartialEq)]
-pub struct TypeRef(usize);
-
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
-pub struct Level(u64);
-
-impl Level {
-    fn incremented(&self) -> Self {
-        Level(self.0 + 1)
-    }
-}
-
 #[derive(Copy, Clone, Eq, PartialEq, Hash)]
 pub struct GenericId(usize);
-
-#[derive(Clone, PartialEq, Eq)]
-pub enum TypeVar {
-    Link(Type),
-    Generic(GenericId),
-    Unbound(GenericId, Level)
-}
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum BaseType {
@@ -48,19 +29,57 @@ pub enum Type {
     Constant(BaseType),
     Parameterized(Box<Type>, Vec<Type>),
     Arrow(Box<Type>, Box<Type>),
-    Var(TypeRef)
+    Var(GenericId)
+}
+
+pub struct Substitution {
+    subst: Vec<Option<Type>>
+}
+
+impl Substitution {
+    fn new() -> Self {
+        Substitution {
+            subst: Vec::new()
+        }
+    }
+
+    fn add(&mut self, key: GenericId, value: Type) {
+        let idx = key.0;
+        if idx >= self.subst.len() {
+            self.subst.resize(idx - 1, Option::None);
+        }
+        self.subst[idx] = Some(value);
+    }
+
+    fn subst(&self, typ: Type) -> Type {
+        match typ {
+            Type::Constant(_) => typ,
+            Type::Var(v) => self[v].unwrap_or(typ),
+            Type::Arrow(t1, t2) => Type::Arrow(Box::new(self.subst(*t1)), Box::new(self.subst(*t2))),
+            Type::Parameterized(t, params) => Type::Parameterized(Box::new(self.subst(*t)), params.into_iter().map(|t| self.subst(t)).collect())
+        }
+    }
+}
+
+impl Index<GenericId> for Substitution {
+    type Output = Option<Type>;
+
+    fn index(&self, index: GenericId) -> &Self::Output {
+        let idx = index.0;
+        self.subst.get(idx).unwrap_or(&Option::None)
+    }
 }
 
 pub struct Context {
-    types: Vec<TypeVar>,
-    generic_id: usize
+    generic_id: usize,
+    subst: Substitution
 }
 
 impl Context {
     pub fn new() -> Self {
         Context {
             generic_id: 0,
-            types: Vec::new()
+            subst: Substitution::new()
         }
     }
 
@@ -70,56 +89,27 @@ impl Context {
         GenericId(id)
     }
 
-    fn new_var(&mut self, level: Level) -> Type {
-        let tr = self.next_id();
-        Type::Var(self.add(TypeVar::Unbound(tr, level)))
-    }
-
     fn new_generic(&mut self) -> Type {
         let tr = self.next_id();
-        Type::Var(self.add(TypeVar::Generic(tr)))
-    }
-
-    fn add(&mut self, tv: TypeVar) -> TypeRef {
-        self.types.push(tv);
-        TypeRef(self.types.len() - 1)
+        Type::Var(self.add(tr))
     }
 
     fn unify(&mut self, t1: Type, t2: Type) {
-        if t1 != t2 {
-            match (t1, t2) {
-                (Type::Constant(c1), Type::Constant(c2)) if c1 == c2 => (),
-                (Type::Parameterized(b1, ts1), Type::Parameterized(b2, ts2)) => {
-                    self.unify(*b1, *b2);
-                    ts1.into_iter().zip(ts2.into_iter()).for_each(|(t1, t2)| self.unify(t1, t2));
-                },
-                (Type::Arrow(i1, o1), Type::Arrow(i2, o2)) => {
-                    self.unify(*i1, *i2);
-                    self.unify(*o1, *o2);
-                },
-                _ => unimplemented!()
-            }
-        }
-    }
-}
-
-impl Index<TypeRef> for Context {
-    type Output = TypeVar;
-
-    fn index(&self, index: TypeRef) -> &Self::Output {
-        return &self.types[index.0];
+        unimplemented!();
     }
 }
 
 #[derive(Clone)]
 struct Environment<'a> {
-    values: HashMap<&'a str, Type>
+    values: HashMap<&'a str, Type>,
+    free_vars: HashSet<GenericId>
 }
 
 impl<'a> Environment<'a> {
     fn new() -> Self {
         Environment {
-            values: HashMap::new()
+            values: HashMap::new(),
+            free_vars: HashSet::new()
         }
     }
 
@@ -132,41 +122,12 @@ impl<'a> Environment<'a> {
     }
 }
 
-fn instantiate(ctx: &mut Context, typ: Type, level: Level) -> Type {
-    fn inst(typ: Type, id_map: &mut HashMap<GenericId, Type>, ctx: &mut Context, level: Level) -> Type {
-        match typ {
-            Type::Constant(_) => typ,
-            Type::Arrow(t1, t2) => Type::Arrow(Box::new(inst(*t1, id_map, ctx, level)), Box::new(inst(*t2, id_map, ctx, level))),
-            Type::Parameterized(p, params) => Type::Parameterized(Box::new(inst(*p, id_map, ctx, level)), params.into_iter().map(|t| inst(t, id_map, ctx, level)).collect()),
-            Type::Var(tr) => {
-                match &ctx[tr] {
-                    TypeVar::Link(tr) => inst(tr.clone(), id_map, ctx, level),
-                    TypeVar::Unbound(_, _) => typ,
-                    TypeVar::Generic(id) => {
-                        match id_map.entry(*id) {
-                            Entry::Occupied(v) => v.get().clone(),
-                            Entry::Vacant(v) => {
-                                let var = ctx.new_var(level);
-                                v.insert(var.clone());
-                                var
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    let mut id_map = HashMap::new();
-    inst(typ, &mut id_map, ctx, level)
-}
-
-fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, level: Level, expr: &Expr<'input, Span>) -> (Type, Expr<'input, TypeData>) {
+fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &Expr<'input, Span>) -> (Type, Expr<'input, TypeData>) {
     match expr {
         Expr::Variable(name, data) => {
             //For now only deal with simple names
             let name = name.first().expect("Identifier must have size >= 1");
-            let tp = instantiate(ctx, env.lookup(name).expect("Error: Variable not found"), level);
+            let tp = instantiate(ctx, env.lookup(name).expect("Error: Variable not found"));
             (tp.clone(), Expr::Variable(vec![ name ], TypeData { typ: Some(tp), position: *data }))
         },
         Expr::Lambda { regions, params, body, data } => {
