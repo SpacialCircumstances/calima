@@ -124,10 +124,37 @@ impl<'a> Environment<'a> {
     fn add_monomorphic_var(&mut self, id: GenericId) {
         self.mono_vars.insert(id);
     }
+
+    fn is_mono(&self, gid: GenericId) -> bool {
+        self.mono_vars.contains(&gid)
+    }
 }
 
-fn instantiate(ctx: &mut Context, typ: Type) -> Type {
-    unimplemented!();
+fn instantiate(ctx: &mut Context, env: &Environment, typ: Type) -> Type {
+    fn instantiate_rec(ctx: &mut Context, env: &Environment, typ: Type, mapping: &mut HashMap<GenericId, Type>) -> Type {
+        match typ {
+            Type::Constant(_) => typ,
+            Type::Arrow(t1, t2) => Type::Arrow(Box::new(instantiate_rec(ctx, env, *t1, mapping)), Box::new(instantiate_rec(ctx, env, *t2, mapping))),
+            Type::Parameterized(t, params) => Type::Parameterized(Box::new(instantiate_rec(ctx, env, *t, mapping)), params.into_iter().map(|t| instantiate_rec(ctx, env, t, mapping)).collect()),
+            Type::Var(gid) => match &ctx.subst[gid] {
+                Some(t) => instantiate_rec(ctx, env, t.clone(), mapping),
+                None => if env.is_mono(gid) {
+                    typ
+                } else {
+                    match mapping.entry(gid) {
+                        Entry::Vacant(e) => {
+                            let var = ctx.new_generic();
+                            e.insert(var.clone());
+                            var
+                        },
+                        Entry::Occupied(e) => e.get().clone()
+                    }
+                }
+            }
+        }
+    }
+
+    instantiate_rec(ctx, env, typ, &mut HashMap::new())
 }
 
 fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &Expr<'input, Span>) -> (Type, Expr<'input, TypeData>) {
@@ -135,7 +162,7 @@ fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &E
         Expr::Variable(name, data) => {
             //For now only deal with simple names
             let name = name.first().expect("Identifier must have size >= 1");
-            let tp = instantiate(ctx, env.lookup(name).expect("Error: Variable not found"));
+            let tp = instantiate(ctx, &env, env.lookup(name).expect("Error: Variable not found"));
             (tp.clone(), Expr::Variable(vec![ name ], TypeData { typ: Some(tp), position: *data }))
         },
         Expr::Lambda { regions, params, body, data } => {
@@ -228,14 +255,14 @@ fn infer_statement<'input>(env: &mut Environment<'input>, ctx: &mut Context, sta
         Statement::Let(mods, reg, pat, expr, pos) => {
             //TODO: Recursion
             let (expr_type, expr) = infer_expr(env, ctx, expr);
-            let expr_type = generalize(ctx, expr_type);
+            let expr_type = generalize(ctx, &env, expr_type);
             bind_in_env(ctx, env, expr_type, pat);
             Some(Statement::Let(mods.clone(), reg.map(|r| map_region(&r)), map_pattern(pat), expr, TypeData { typ: None, position: *pos }))
         }
     }
 }
 
-fn generalize(ctx: &mut Context, tp: Type) -> Type {
+fn generalize(ctx: &mut Context, env: &Environment, tp: Type) -> Type {
     unimplemented!();
 }
 
