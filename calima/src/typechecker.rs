@@ -102,14 +102,14 @@ impl Context {
 #[derive(Clone)]
 struct Environment<'a> {
     values: HashMap<&'a str, Type>,
-    free_vars: HashSet<GenericId>
+    mono_vars: HashSet<GenericId>
 }
 
 impl<'a> Environment<'a> {
     fn new() -> Self {
         Environment {
             values: HashMap::new(),
-            free_vars: HashSet::new()
+            mono_vars: HashSet::new()
         }
     }
 
@@ -119,6 +119,10 @@ impl<'a> Environment<'a> {
 
     fn lookup(&self, name: &'a str) -> Option<Type> {
         self.values.get(name).map(|t| t.clone())
+    }
+
+    fn add_monomorphic_var(&mut self, id: GenericId) {
+        self.mono_vars.insert(id);
     }
 }
 
@@ -139,9 +143,11 @@ fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &E
             let mut param_types = Vec::with_capacity(params.len());
             let mut tparams = Vec::with_capacity(params.len());
             for param in params {
-                let tp = ctx.new_generic();
+                let tid = ctx.next_id();
+                let tp = Type::Var(tid);
                 param_types.push(tp.clone());
                 bind_in_env(ctx, &mut body_env, tp, param);
+                body_env.add_monomorphic_var(tid);
                 tparams.push(map_pattern(param));
             }
             let (body_tp, body) = infer_block(&mut body_env, ctx, body);
