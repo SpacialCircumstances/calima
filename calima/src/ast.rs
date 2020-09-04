@@ -1,46 +1,7 @@
 use std::fmt::{Display, Formatter, Debug};
 use crate::util::*;
 use crate::common::ModuleIdentifier;
-
-#[derive(Debug, PartialEq, Copy, Clone)]
-pub enum NumberType {
-    Integer,
-    Float,
-}
-
-#[derive(Debug, PartialEq, Copy, Clone)]
-pub enum Literal<'a> {
-    String(&'a str),
-    Number(&'a str, NumberType),
-    Unit,
-    Boolean(bool)
-}
-
-impl<'a> Display for Literal<'a> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Literal::String(string) => write!(f, "\"{}\"", string),
-            Literal::Boolean(b) => write!(f, "{}", b),
-            Literal::Unit => write!(f, "()"),
-            Literal::Number(num, _) => write!(f, "{}", num)
-        }
-    }
-}
-
-fn format_record<T>(elements: &Vec<(&str, T)>, f: &mut Formatter, sep: &str, element_sep: &str) -> std::fmt::Result where T: Display {
-    let rows = format_iter(elements.iter().map(|(n, e)| format!("{}{} {}", n, sep, e)), element_sep);
-    write!(f, "{{ {} }}", rows)
-}
-
-fn format_tuple<T>(elements: &Vec<T>, f: &mut Formatter) -> std::fmt::Result where T: Display {
-    write!(f, "(")?;
-    for i in 0..elements.len()-1 {
-        write!(f, "{}, ", elements[i])?;
-    }
-    // A tuple always has one element
-    write!(f, "{}", elements.last().unwrap())?;
-    write!(f, ")")
-}
+use crate::ast_common::{Identifier, Pattern, Literal};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct RegionAnnotation<'a, Data>(pub &'a str, pub Data);
@@ -83,57 +44,6 @@ impl<'a, Data> Display for TypeKind<'a, Data> {
                 write!(f, "({} {})", format_iter(name.iter(), " and "), format_iter(params.iter(), " "))
             },
             TypeKind::Tuple(elements) => format_tuple(elements, f)
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum Identifier<'a, Data> {
-    Simple(&'a str, Data),
-    Operator(&'a str, Data)
-}
-
-impl<'a, Data> Identifier<'a, Data> {
-    pub fn to_name(&self) -> &'a str {
-        match self {
-            Identifier::Simple(name, _) => name,
-            Identifier::Operator(name, _) => name
-        }
-    }
-}
-
-impl<'a, Data> Display for Identifier<'a, Data> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Identifier::Simple(name, _) => write!(f, "{}", name),
-            Identifier::Operator(op, _) => write!(f, "({})", op)
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum Pattern<'a, Data> {
-    Any(Data),
-    Name(Identifier<'a, Data>, Option<TypeAnnotation<'a, Data>>, Data),
-    Tuple(Vec<Pattern<'a, Data>>, Data),
-    Literal(Literal<'a>, Data),
-    Record(Vec<(&'a str, Pattern<'a, Data>)>, Data),
-    SumUnwrap(&'a str, Option<Box<Pattern<'a, Data>>>, Data),
-}
-
-impl<'a, Data> Display for Pattern<'a, Data> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Pattern::Any(_) => write!(f, "_"),
-            Pattern::Name(id, ta, _) => match ta {
-                None => write!(f, "{}", id),
-                Some(ta) => write!(f, "({}: {})", id, ta)
-            },
-            Pattern::Literal(lit, _) => write!(f, "{}", lit),
-            Pattern::Tuple(elements, _) => format_tuple(elements, f),
-            Pattern::Record(rows, _) => format_record(rows, f, ":", ", "),
-            Pattern::SumUnwrap(constr, None, _) => write!(f, "{}", constr),
-            Pattern::SumUnwrap(constr, Some(pat), _) => write!(f, "{} {}", constr, *pat)
         }
     }
 }
@@ -196,7 +106,7 @@ impl<'a, Data> Display for TopLevelStatement<'a, Data> {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement<'a, Data> {
-    Let(Vec<Modifier>, Option<RegionAnnotation<'a, Data>>, Pattern<'a, Data>, Expr<'a, Data>, Data),
+    Let(Vec<Modifier>, Option<RegionAnnotation<'a, Data>>, Pattern<'a, TypeAnnotation<'a, Data>, Data>, Expr<'a, Data>, Data),
     Do(Option<RegionAnnotation<'a, Data>>, Expr<'a, Data>, Data),
     Region(RegionAnnotation<'a, Data>, Data)
 }
@@ -264,9 +174,9 @@ pub enum Expr<'a, Data> {
     Record(Vec<(&'a str, Expr<'a, Data>)>, Data),
     Tuple(Vec<Expr<'a, Data>>, Data),
     Literal(Literal<'a>, Data),
-    Lambda { regions: Vec<RegionAnnotation<'a, Data>>, params: Vec<Pattern<'a, Data>>, body: Block<'a, Data>, data: Data },
+    Lambda { regions: Vec<RegionAnnotation<'a, Data>>, params: Vec<Pattern<'a, TypeAnnotation<'a, Data>, Data>>, body: Block<'a, Data>, data: Data },
     If { data: Data, cond: Box<Expr<'a, Data>>, if_true: Block<'a, Data>, if_false: Block<'a, Data> },
-    Case { data: Data, value: Box<Expr<'a, Data>>, matches: Vec<(Pattern<'a, Data>, Block<'a, Data>)> },
+    Case { data: Data, value: Box<Expr<'a, Data>>, matches: Vec<(Pattern<'a, TypeAnnotation<'a, Data>, Data>, Block<'a, Data>)> },
     List(Vec<Expr<'a, Data>>, Data)
 }
 

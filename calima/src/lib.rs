@@ -2,6 +2,7 @@
 
 mod token;
 mod lexer;
+mod ast_common;
 mod ast;
 mod parser;
 mod compiler;
@@ -9,6 +10,7 @@ mod util;
 mod string_interner;
 mod errors;
 mod common;
+mod typed_ast;
 mod typechecker;
 
 use string_interner::StringInterner;

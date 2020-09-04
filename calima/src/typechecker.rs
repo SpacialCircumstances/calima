@@ -6,7 +6,8 @@ use crate::token::Span;
 use std::collections::{HashMap, HashSet};
 use std::ops::{Index, Add};
 use im_rc::HashMap as ImmMap;
-use crate::ast::{Expr, NumberType, Statement, TopLevelStatement, Block, TopLevelBlock, RegionAnnotation, Pattern, Identifier, Literal};
+use crate::ast_common::{NumberType, Literal, Identifier, Pattern};
+use crate::ast::{Expr, Statement, TopLevelStatement, Block, TopLevelBlock, RegionAnnotation, TypeAnnotation};
 use std::collections::hash_map::Entry;
 
 pub struct TypedModuleData<'input>(Context, TopLevelBlock<'input, TypeData>);
@@ -280,7 +281,7 @@ fn generalize(ctx: &mut Context, env: &Environment, tp: Type) -> Type {
     unimplemented!();
 }
 
-fn map_pattern<'input>(p: &Pattern<'input, Span>) -> Pattern<'input, TypeData> {
+fn map_pattern<'input, Data>(p: &Pattern<'input, TypeAnnotation<'input, Data>, Span>) -> Pattern<'input, TypeAnnotation<'input, Data>, TypeData> {
     match p {
         Pattern::Any(pos) => Pattern::Any(TypeData { typ: None, position: *pos }),
         Pattern::Name(ident, ta, pos) => Pattern::Name(map_identifier(ident), None, TypeData { typ: None, position: *pos }),
@@ -295,7 +296,7 @@ fn map_identifier<'input>(ident: &Identifier<'input, Span>) -> Identifier<'input
     }
 }
 
-fn bind_in_env<'input>(ctx: &mut Context, env: &mut Environment<'input>, tp: Type, pattern: &Pattern<'input, Span>) {
+fn bind_in_env<'input, Data>(ctx: &mut Context, env: &mut Environment<'input>, tp: Type, pattern: &Pattern<'input, TypeAnnotation<'input, Data>, Span>) {
     match pattern {
         Pattern::Name(ident, ta, _) => {
             //TODO: Type annotation checking
