@@ -4,13 +4,12 @@ use crate::{parser, CompilerArguments};
 use std::collections::HashMap;
 use std::cmp::min;
 use crate::string_interner::StringInterner;
-use crate::analyze::find_imported_modules;
 use std::iter::once;
 use crate::errors::{CompilerError, ErrorContext};
 use crate::errors::CompilerError::*;
 use crate::common::*;
 use crate::token::Span;
-use crate::ast::TopLevelBlock;
+use crate::ast::{find_imported_modules, TopLevelBlock};
 
 pub struct UntypedModuleData<'input>(pub TopLevelBlock<'input, Span>);
 

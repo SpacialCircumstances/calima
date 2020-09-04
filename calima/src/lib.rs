@@ -7,7 +7,6 @@ mod parser;
 mod compiler;
 mod util;
 mod string_interner;
-mod analyze;
 mod errors;
 mod common;
 mod typechecker;
