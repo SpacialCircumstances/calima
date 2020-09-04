@@ -15,7 +15,7 @@ pub struct TypedModuleData<'input>(Context, TopLevelBlock<'input, TypeData>);
 pub struct GenericId(usize);
 
 #[derive(Copy, Clone, PartialEq, Eq)]
-pub enum BaseType {
+pub enum PrimitiveType {
     Bool,
     Int,
     Float,
@@ -24,13 +24,27 @@ pub enum BaseType {
     Char
 }
 
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub enum ParameterizedType {
+    Function,
+    Tuple(u32)
+}
+
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub enum TypeDefinition {
+    Primitive(PrimitiveType),
+    Parameterized(ParameterizedType) //TODO: User-defined records, sums
+}
+
 #[derive(Clone, PartialEq, Eq)]
 pub enum Type {
-    Constant(BaseType),
+    Basic(TypeDefinition),
     Parameterized(Box<Type>, Vec<Type>),
-    Arrow(Box<Type>, Box<Type>),
     Var(GenericId)
 }
+
+#[derive(Clone, Eq, PartialEq)]
+pub struct Scheme(HashSet<GenericId>, Type);
 
 pub struct Substitution {
     subst: Vec<Option<Type>>
@@ -228,11 +242,11 @@ fn apply_function_type(ft: Type, depth: usize) -> (Type, Vec<Type>) {
 
 fn get_literal_type(lit: &Literal) -> Type {
     Type::Constant(match lit {
-        Literal::Boolean(_) => BaseType::Bool,
-        Literal::Unit => BaseType::Unit,
-        Literal::String(_) => BaseType::String,
-        Literal::Number(_, NumberType::Float) => BaseType::Float,
-        Literal::Number(_, NumberType::Integer) => BaseType::Int
+        Literal::Boolean(_) => PrimitiveType::Bool,
+        Literal::Unit => PrimitiveType::Unit,
+        Literal::String(_) => PrimitiveType::String,
+        Literal::Number(_, NumberType::Float) => PrimitiveType::Float,
+        Literal::Number(_, NumberType::Integer) => PrimitiveType::Int
     })
 }
 
