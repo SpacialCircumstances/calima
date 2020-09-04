@@ -115,7 +115,7 @@ impl Context {
 
 #[derive(Clone)]
 struct Environment<'a> {
-    values: HashMap<&'a str, Type>,
+    values: HashMap<&'a str, Scheme>,
     mono_vars: HashSet<GenericId>
 }
 
@@ -127,12 +127,12 @@ impl<'a> Environment<'a> {
         }
     }
 
-    fn add(&mut self, name: &'a str, tp: Type) {
-        self.values.insert(name, tp);
+    fn add(&mut self, name: &'a str, sch: Scheme) {
+        self.values.insert(name, sch);
     }
 
-    fn lookup(&self, name: &'a str) -> Option<Type> {
-        self.values.get(name).map(|t| t.clone())
+    fn lookup(&self, name: &'a str) -> Option<&Scheme> {
+        self.values.get(name)
     }
 
     fn add_monomorphic_var(&mut self, id: GenericId) {
