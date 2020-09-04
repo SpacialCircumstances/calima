@@ -12,10 +12,10 @@ use std::collections::hash_map::Entry;
 
 pub struct TypedModuleData<'input>(Context, TopLevelBlock<'input, TypeData>);
 
-#[derive(Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct GenericId(usize);
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum PrimitiveType {
     Bool,
     Int,
@@ -25,26 +25,26 @@ pub enum PrimitiveType {
     Char
 }
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum ParameterizedType {
     Function,
     Tuple(u32)
 }
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum TypeDefinition {
     Primitive(PrimitiveType),
     Parameterized(ParameterizedType) //TODO: User-defined records, sums
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Type {
     Basic(TypeDefinition),
     Parameterized(Box<Type>, Vec<Type>),
     Var(GenericId)
 }
 
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub struct Scheme(HashSet<GenericId>, Type);
 
 pub struct Substitution {
