@@ -9,8 +9,9 @@ use im_rc::HashMap as ImmMap;
 use crate::ast_common::{NumberType, Literal, Identifier, Pattern};
 use crate::ast::{Expr, Statement, TopLevelStatement, Block, TopLevelBlock, RegionAnnotation, TypeAnnotation};
 use std::collections::hash_map::Entry;
+use crate::typed_ast::{TBlock, TStatement, TExpression};
 
-pub struct TypedModuleData<'input>(Context, TopLevelBlock<'input, TypeData>);
+pub struct TypedModuleData<'input>(Context, TBlock<'input>);
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct GenericId(usize);
@@ -172,7 +173,7 @@ fn instantiate(ctx: &mut Context, env: &Environment, typ: Type) -> Type {
     instantiate_rec(ctx, env, typ, &mut HashMap::new())
 }
 
-fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &Expr<'input, Span>) -> (Type, Expr<'input, TypeData>) {
+fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &Expr<'input, Span>) -> TExpression<'input> {
     match expr {
         Expr::Variable(name, data) => {
             //For now only deal with simple names
@@ -260,40 +261,12 @@ fn make_func_type(params: &[Type], res: Type) -> Type {
     }
 }
 
-fn infer_statement<'input>(env: &mut Environment<'input>, ctx: &mut Context, statement: &Statement<'input, Span>) -> Option<Statement<'input, TypeData>> {
-    match statement {
-        Statement::Region(_, _) => None,
-        Statement::Do(reg, expr, dat) => {
-            let (expr_type, expr) = infer_expr(env, ctx, expr);
-            Some(Statement::Do(reg.map(|r| map_region(&r)), expr, TypeData { typ: Some(expr_type), position: *dat }))
-        },
-        Statement::Let(mods, reg, pat, expr, pos) => {
-            //TODO: Recursion
-            let (expr_type, expr) = infer_expr(env, ctx, expr);
-            let expr_type = generalize(ctx, &env, expr_type);
-            bind_in_env(ctx, env, expr_type, pat);
-            Some(Statement::Let(mods.clone(), reg.map(|r| map_region(&r)), map_pattern(pat), expr, TypeData { typ: None, position: *pos }))
-        }
-    }
+fn infer_statement<'input>(env: &mut Environment<'input>, ctx: &mut Context, statement: &Statement<'input, Span>) -> Option<TStatement<'input>> {
+    None
 }
 
 fn generalize(ctx: &mut Context, env: &Environment, tp: Type) -> Type {
     unimplemented!();
-}
-
-fn map_pattern<'input, Data>(p: &Pattern<'input, TypeAnnotation<'input, Data>, Span>) -> Pattern<'input, TypeAnnotation<'input, Data>, TypeData> {
-    match p {
-        Pattern::Any(pos) => Pattern::Any(TypeData { typ: None, position: *pos }),
-        Pattern::Name(ident, ta, pos) => Pattern::Name(map_identifier(ident), None, TypeData { typ: None, position: *pos }),
-        _ => unimplemented!()
-    }
-}
-
-fn map_identifier<'input>(ident: &Identifier<'input, Span>) -> Identifier<'input, TypeData> {
-    match ident {
-        Identifier::Operator(name, position) => Identifier::Operator(name, TypeData { typ: None, position: *position }),
-        Identifier::Simple(name, position) => Identifier::Simple(name, TypeData { typ: None, position: *position }),
-    }
 }
 
 fn bind_in_env<'input, Data>(ctx: &mut Context, env: &mut Environment<'input>, tp: Type, pattern: &Pattern<'input, TypeAnnotation<'input, Data>, Span>) {
@@ -307,14 +280,6 @@ fn bind_in_env<'input, Data>(ctx: &mut Context, env: &mut Environment<'input>, t
     }
 }
 
-fn map_region<'a>(r: &RegionAnnotation<'a, Span>) -> RegionAnnotation<'a, TypeData> {
-    RegionAnnotation(r.0, TypeData { typ: None, position: r.1 })
-}
-
-fn infer_top_level_statement<'input>(env: &mut Environment<'input>, ctx: &mut Context, tls: &TopLevelStatement<'input, Span>) -> TopLevelStatement<'input, TypeData> {
-    unimplemented!()
-}
-
 fn infer_block<'input>(env: &mut Environment<'input>, ctx: &mut Context, block: &Block<'input, Span>) -> (Type, Block<'input, TypeData>) {
     let mut block_env = env.clone();
     let (result_tp, result) = infer_expr(&mut block_env, ctx, &block.result);
@@ -324,10 +289,15 @@ fn infer_block<'input>(env: &mut Environment<'input>, ctx: &mut Context, block: 
     })
 }
 
-fn infer_top_level_block<'input>(env: &mut Environment<'input>, ctx: &mut Context,tlb: &TopLevelBlock<'input, Span>) -> TopLevelBlock<'input, TypeData> {
-    TopLevelBlock {
-        top_levels: tlb.top_levels.iter().map(|st| infer_top_level_statement(env, ctx, st)).collect(),
-        block: infer_block(env, ctx, &tlb.block).1
+fn process_top_level<'input>(env: &mut Environment<'input>, ctx: &mut Context, tls: &TopLevelStatement<'input, Span>) {
+
+}
+
+fn infer_top_level_block<'input>(env: &mut Environment<'input>, ctx: &mut Context,tlb: &TopLevelBlock<'input, Span>) -> TBlock<'input> {
+    tlb.top_levels.iter().for_each(|st| process_top_level(env, ctx, st));
+    TBlock {
+        statements: tlb.block.statements.iter().filter_map(|st| infer_statement(env, ctx, st)).collect(),
+        res: Box::new(infer_expr(env, ctx, &**tlb.block.result))
     }
 }
 
