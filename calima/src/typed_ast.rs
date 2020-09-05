@@ -26,6 +26,20 @@ pub enum TExprData<'input> {
 #[derive(Debug, Clone)]
 pub struct TExpression<'input>(TExprData<'input>, Scheme);
 
+impl<'input> TExpression<'input> {
+    pub fn new(data: TExprData<'input>, scheme: Scheme) -> Self {
+        TExpression(data, scheme)
+    }
+
+    pub fn data(&self) -> &TExprData {
+        &self.0
+    }
+
+    pub fn scheme(&self) -> &Scheme {
+        &self.1
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum TStatement<'input> {
     Do(TExpression<'input>),
