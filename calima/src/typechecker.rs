@@ -9,7 +9,7 @@ use im_rc::HashMap as ImmMap;
 use crate::ast_common::{NumberType, Literal, Identifier, Pattern};
 use crate::ast::{Expr, Statement, TopLevelStatement, Block, TopLevelBlock, RegionAnnotation, TypeAnnotation};
 use std::collections::hash_map::Entry;
-use crate::typed_ast::{TBlock, TStatement, TExpression};
+use crate::typed_ast::{TBlock, TStatement, TExpression, TExprData};
 
 pub struct TypedModuleData<'input>(Context, TBlock<'input>);
 
@@ -47,6 +47,12 @@ pub enum Type {
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct Scheme(HashSet<GenericId>, Type);
+
+impl Scheme {
+    fn simple(tp: Type) -> Self {
+        Scheme(HashSet::new(), tp)
+    }
+}
 
 pub struct Substitution {
     subst: Vec<Option<Type>>
@@ -146,7 +152,10 @@ impl<'a> Environment<'a> {
 }
 
 fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &Expr<'input, Span>) -> TExpression<'input> {
-    unimplemented!()
+    match expr {
+        Expr::Literal(lit, _) => TExpression::new(TExprData::Literal(lit.clone()), Scheme::simple(get_literal_type(lit))),
+        _ => unimplemented!()
+    }
 }
 
 fn get_literal_type(lit: &Literal) -> Type {
