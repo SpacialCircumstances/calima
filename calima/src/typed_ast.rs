@@ -5,6 +5,12 @@ use std::fmt::{Display, Formatter};
 #[derive(Copy, Clone, Debug)]
 pub struct Unit(());
 
+impl Unit {
+    pub fn unit() -> Self {
+        Unit(())
+    }
+}
+
 impl Display for Unit {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         Result::Ok(())

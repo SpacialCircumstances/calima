@@ -9,7 +9,7 @@ use im_rc::HashMap as ImmMap;
 use crate::ast_common::{NumberType, Literal, Identifier, Pattern};
 use crate::ast::{Expr, Statement, TopLevelStatement, Block, TopLevelBlock, RegionAnnotation, TypeAnnotation};
 use std::collections::hash_map::Entry;
-use crate::typed_ast::{TBlock, TStatement, TExpression, TExprData};
+use crate::typed_ast::{TBlock, TStatement, TExpression, TExprData, Unit};
 
 pub struct TypedModuleData<'input>(Context, TBlock<'input>);
 
@@ -173,8 +173,37 @@ fn infer_statement<'input>(env: &mut Environment<'input>, ctx: &mut Context, sta
         Statement::Region(_, _) => None,
         Statement::Do(_, expr, _) => Some(TStatement::Do(infer_expr(env, ctx, expr))),
         Statement::Let(mods, _, pattern, value, _) => {
-            None
+            let v = infer_expr(env, ctx, value);
+            bind_to_pattern(env, pattern, v.scheme());
+            Some(TStatement::Let(v, map_pattern(pattern)))
         }
+    }
+}
+
+fn map_pattern<'input>(pattern: &Pattern<'input, TypeAnnotation<Span>, Span>) -> Pattern<'input, Unit, Unit> {
+    match pattern {
+        Pattern::Any(_) => Pattern::Any(Unit::unit()),
+        Pattern::Literal(lit, _) => Pattern::Literal(lit.clone(), Unit::unit()),
+        Pattern::Name(id, _, _) => Pattern::Name(map_identifier(id), None, Unit::unit()),
+        _ => unimplemented!()
+    }
+}
+
+fn map_identifier<'input>(id: &Identifier<'input, Span>) -> Identifier<'input, Unit> {
+    match id {
+        Identifier::Operator(name, _) => Identifier::Operator(name, Unit::unit()),
+        Identifier::Simple(name, _) => Identifier::Simple(name, Unit::unit())
+    }
+}
+
+fn bind_to_pattern<'input>(env: &mut Environment<'input>, pattern: &Pattern<'input, TypeAnnotation<Span>, Span>, sch: &Scheme) {
+    match pattern {
+        Pattern::Any(_) => (),
+        Pattern::Name(idt, ta, _) => {
+            //TODO: Check type annotation
+            env.add(idt.to_name(), sch.clone());
+        },
+        _ => ()
     }
 }
 
