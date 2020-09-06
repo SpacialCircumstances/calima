@@ -158,9 +158,26 @@ fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &E
             let varname = *name.first().expect("Variable names must have at least one element");
             let scheme = env.lookup(varname).expect("Variable not found");
             TExpression::new(TExprData::Variable(name.clone()), scheme.clone())
+        },
+        Expr::Lambda { regions: _, params, body, data: _ } => {
+            let mut body_env = env.clone();
+            let mut param_types = Vec::with_capacity(params.len());
+            for param in params {
+                let param_type = Scheme::simple(ctx.new_generic());
+                bind_to_pattern(&mut body_env, param, &param_type);
+                param_types.push(param_type);
+            }
+
+            let body = infer_block(&mut body_env, ctx, body);
+            let scheme = create_function_type(&param_types, body.res.scheme());
+            TExpression::new(TExprData::Lambda(params.iter().map(|p| map_pattern(p)).collect(), body), scheme)
         }
         _ => unimplemented!()
     }
+}
+
+fn create_function_type(params: &[Scheme], ret: &Scheme) -> Scheme {
+    unimplemented!()
 }
 
 fn get_literal_type(lit: &Literal) -> Type {
