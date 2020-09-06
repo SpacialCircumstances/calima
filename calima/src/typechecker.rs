@@ -154,6 +154,11 @@ impl<'a> Environment<'a> {
 fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &Expr<'input, Span>) -> TExpression<'input> {
     match expr {
         Expr::Literal(lit, _) => TExpression::new(TExprData::Literal(lit.clone()), Scheme::simple(get_literal_type(lit))),
+        Expr::Variable(name, _) => {
+            let varname = *name.first().expect("Variable names must have at least one element");
+            let scheme = env.lookup(varname).expect("Variable not found");
+            TExpression::new(TExprData::Variable(name.clone()), scheme.clone())
+        }
         _ => unimplemented!()
     }
 }
