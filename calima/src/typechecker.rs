@@ -146,85 +146,8 @@ impl<'a> Environment<'a> {
     }
 }
 
-fn instantiate(ctx: &mut Context, env: &Environment, typ: Type) -> Type {
-    fn instantiate_rec(ctx: &mut Context, env: &Environment, typ: Type, mapping: &mut HashMap<GenericId, Type>) -> Type {
-        match typ {
-            Type::Constant(_) => typ,
-            Type::Arrow(t1, t2) => Type::Arrow(Box::new(instantiate_rec(ctx, env, *t1, mapping)), Box::new(instantiate_rec(ctx, env, *t2, mapping))),
-            Type::Parameterized(t, params) => Type::Parameterized(Box::new(instantiate_rec(ctx, env, *t, mapping)), params.into_iter().map(|t| instantiate_rec(ctx, env, t, mapping)).collect()),
-            Type::Var(gid) => match &ctx.subst[gid] {
-                Some(t) => instantiate_rec(ctx, env, t.clone(), mapping),
-                None => if env.is_mono(gid) {
-                    typ
-                } else {
-                    match mapping.entry(gid) {
-                        Entry::Vacant(e) => {
-                            let var = ctx.new_generic();
-                            e.insert(var.clone());
-                            var
-                        },
-                        Entry::Occupied(e) => e.get().clone()
-                    }
-                }
-            }
-        }
-    }
-
-    instantiate_rec(ctx, env, typ, &mut HashMap::new())
-}
-
 fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &Expr<'input, Span>) -> TExpression<'input> {
-    match expr {
-        Expr::Variable(name, data) => {
-            //For now only deal with simple names
-            let name = name.first().expect("Identifier must have size >= 1");
-            let tp = instantiate(ctx, &env, env.lookup(name).expect("Error: Variable not found"));
-            (tp.clone(), Expr::Variable(vec![ name ], TypeData { typ: Some(tp), position: *data }))
-        },
-        Expr::Lambda { regions, params, body, data } => {
-            let mut body_env = env.clone();
-            let mut param_types = Vec::with_capacity(params.len());
-            let mut tparams = Vec::with_capacity(params.len());
-            for param in params {
-                let tid = ctx.next_id();
-                let tp = Type::Var(tid);
-                param_types.push(tp.clone());
-                bind_in_env(ctx, &mut body_env, tp, param);
-                body_env.add_monomorphic_var(tid);
-                tparams.push(map_pattern(param));
-            }
-            let (body_tp, body) = infer_block(&mut body_env, ctx, body);
-            let func_type = make_func_type(&param_types, body_tp);
-            (func_type.clone(), Expr::Lambda {
-                regions: regions.iter().map(|r| map_region(r)).collect(),
-                params: tparams,
-                body,
-                data: TypeData {
-                    typ: Some(func_type),
-                    position: *data
-                }
-            })
-        },
-        Expr::Literal(lit, data) => {
-            let tp = get_literal_type(lit);
-            (tp.clone(), Expr::Literal(*lit, TypeData { typ: Some(tp), position: *data }))
-        },
-        Expr::FunctionCall(fexpr, params, data) => {
-            let (f_tp, tfexpr) = infer_expr(env, ctx, &**fexpr);
-            let (res_type, ptypes) = apply_function_type(f_tp, params.len());
-            let typed_params = params
-                .iter()
-                .zip(ptypes.into_iter())
-                .map(|(p, expected_tp)| {
-                    let (pt, npexpr) = infer_expr(env, ctx, p);
-                    ctx.unify(pt, expected_tp);
-                    npexpr
-                }).collect();
-
-            (res_type.clone(), Expr::FunctionCall(Box::new(tfexpr), typed_params, TypeData { typ: Some(res_type), position: *data }))
-        },
-        _ => unimplemented!()
-    }
+    unimplemented!()
 }
 
 fn apply_function_type(ft: Type, depth: usize) -> (Type, Vec<Type>) {
@@ -263,21 +186,6 @@ fn make_func_type(params: &[Type], res: Type) -> Type {
 
 fn infer_statement<'input>(env: &mut Environment<'input>, ctx: &mut Context, statement: &Statement<'input, Span>) -> Option<TStatement<'input>> {
     None
-}
-
-fn generalize(ctx: &mut Context, env: &Environment, tp: Type) -> Type {
-    unimplemented!();
-}
-
-fn bind_in_env<'input, Data>(ctx: &mut Context, env: &mut Environment<'input>, tp: Type, pattern: &Pattern<'input, TypeAnnotation<'input, Data>, Span>) {
-    match pattern {
-        Pattern::Name(ident, ta, _) => {
-            //TODO: Type annotation checking
-            env.add(ident.to_name(), tp)
-        },
-        Pattern::Any(_) => (),
-        _ => unimplemented!()
-    }
 }
 
 fn infer_block<'input>(env: &mut Environment<'input>, ctx: &mut Context, block: &Block<'input, Span>) -> (Type, Block<'input, TypeData>) {
