@@ -69,9 +69,8 @@ impl Substitution {
 
     fn subst(&self, typ: Type) -> Type {
         match typ {
-            Type::Constant(_) => typ,
+            Type::Basic(td) => typ,
             Type::Var(v) => self[v].as_ref().map(|t| t.clone()).unwrap_or(typ),
-            Type::Arrow(t1, t2) => Type::Arrow(Box::new(self.subst(*t1)), Box::new(self.subst(*t2))),
             Type::Parameterized(t, params) => Type::Parameterized(Box::new(self.subst(*t)), params.into_iter().map(|t| self.subst(t)).collect())
         }
     }
@@ -150,51 +149,33 @@ fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &E
     unimplemented!()
 }
 
-fn apply_function_type(ft: Type, depth: usize) -> (Type, Vec<Type>) {
-    if depth == 0 {
-        (ft, Vec::new())
-    } else {
-        match ft {
-            Type::Arrow(f, n) => {
-                let (rt, mut rest) = apply_function_type(*n, depth - 1);
-                rest.push(*f);
-                (rt, rest)
-            },
-            _ => panic!("Too many parameters")
-        }
-    }
-}
-
 fn get_literal_type(lit: &Literal) -> Type {
-    Type::Constant(match lit {
+    Type::Basic(TypeDefinition::Primitive(match lit {
         Literal::Boolean(_) => PrimitiveType::Bool,
         Literal::Unit => PrimitiveType::Unit,
         Literal::String(_) => PrimitiveType::String,
         Literal::Number(_, NumberType::Float) => PrimitiveType::Float,
         Literal::Number(_, NumberType::Integer) => PrimitiveType::Int
-    })
-}
-
-fn make_func_type(params: &[Type], res: Type) -> Type {
-    if params.len() == 1 {
-        Type::Arrow(Box::new(params.first().unwrap().clone()), Box::new(res))
-    } else {
-        let head = params.first().expect("Func must have at least one parameter");
-        Type::Arrow(Box::new(head.clone()), Box::new(make_func_type(&params[1..], res)))
-    }
+    }))
 }
 
 fn infer_statement<'input>(env: &mut Environment<'input>, ctx: &mut Context, statement: &Statement<'input, Span>) -> Option<TStatement<'input>> {
-    None
+    match statement {
+        Statement::Region(_, _) => None,
+        Statement::Do(_, expr, _) => Some(TStatement::Do(infer_expr(env, ctx, expr))),
+        Statement::Let(mods, _, pattern, value, _) => {
+            None
+        }
+    }
 }
 
-fn infer_block<'input>(env: &mut Environment<'input>, ctx: &mut Context, block: &Block<'input, Span>) -> (Type, Block<'input, TypeData>) {
+fn infer_block<'input>(env: &mut Environment<'input>, ctx: &mut Context, block: &Block<'input, Span>) -> TBlock<'input> {
     let mut block_env = env.clone();
-    let (result_tp, result) = infer_expr(&mut block_env, ctx, &block.result);
-    (result_tp, Block {
+    let result = infer_expr(&mut block_env, ctx, &block.result);
+    TBlock {
         statements: block.statements.iter().filter_map(|st| infer_statement(&mut block_env, ctx, st)).collect(),
-        result: Box::new(result)
-    })
+        res: Box::new(result)
+    }
 }
 
 fn process_top_level<'input>(env: &mut Environment<'input>, ctx: &mut Context, tls: &TopLevelStatement<'input, Span>) {
@@ -205,7 +186,7 @@ fn infer_top_level_block<'input>(env: &mut Environment<'input>, ctx: &mut Contex
     tlb.top_levels.iter().for_each(|st| process_top_level(env, ctx, st));
     TBlock {
         statements: tlb.block.statements.iter().filter_map(|st| infer_statement(env, ctx, st)).collect(),
-        res: Box::new(infer_expr(env, ctx, &**tlb.block.result))
+        res: Box::new(infer_expr(env, ctx, &*tlb.block.result))
     }
 }
 
