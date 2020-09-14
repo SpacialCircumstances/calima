@@ -153,15 +153,23 @@ impl<'a> Environment<'a> {
     fn is_mono(&self, gid: GenericId) -> bool {
         self.mono_vars.contains(&gid)
     }
+
+    fn inst(&self, sch: &Scheme) -> Type {
+        unimplemented!()
+    }
+
+    fn generalize(&self, tp: &Type) -> Scheme {
+        unimplemented!()
+    }
 }
 
 fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &Expr<'input, Span>) -> TExpression<'input> {
     match expr {
-        Expr::Literal(lit, _) => TExpression::new(TExprData::Literal(lit.clone()), Scheme::simple(get_literal_type(lit))),
+        Expr::Literal(lit, _) => TExpression::new(TExprData::Literal(lit.clone()), get_literal_type(lit)),
         Expr::Variable(name, _) => {
             let varname = *name.first().expect("Variable names must have at least one element");
             let scheme = env.lookup(varname).expect("Variable not found");
-            TExpression::new(TExprData::Variable(name.clone()), scheme.clone())
+            TExpression::new(TExprData::Variable(name.clone()), env.inst(scheme))
         },
         Expr::Lambda { regions: _, params, body, data: _ } => {
             let mut body_env = env.clone();
@@ -171,36 +179,25 @@ fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &E
                 body_env.add_monomorphic_var(gen);
                 let param_type = Scheme::simple(Type::Var(gen));
                 bind_to_pattern(&mut body_env, param, &param_type);
-                param_types.push(param_type);
+                param_types.push(Type::Var(gen));
             }
 
             let body = infer_block(&mut body_env, ctx, body);
-            let scheme = create_function_type(&param_types, body.res.scheme());
+            let scheme = create_function_type(&param_types, body.res.typ());
             TExpression::new(TExprData::Lambda(params.iter().map(|p| map_pattern(p)).collect(), body), scheme)
         }
         _ => unimplemented!()
     }
 }
 
-fn create_function_type(params: &[Scheme], ret: &Scheme) -> Scheme {
-    fn ft_rec(params: &[Scheme], ret: &Scheme, tv: &mut HashSet<GenericId>) -> Type {
-        match params {
-            [last] => {
-                tv.extend(last.0.iter());
-                Type::Parameterized(func().into(), vec![ last.1.clone(), ret.1.clone() ])
-            },
-            _ => {
-                let c = params.first().expect("Error getting parameter");
-                tv.extend(c.0.iter());
-                Type::Parameterized(func().into(), vec![ c.1.clone(), ft_rec(&params[1..], ret, tv) ])
-            }
+fn create_function_type(params: &[Type], ret: &Type) -> Type {
+    match params {
+        [last] => Type::Parameterized(func().into(), vec![ last.clone(), ret.clone() ]),
+        _ => {
+            let c = params.first().expect("Error getting parameter");
+            Type::Parameterized(func().into(), vec![ c.clone(), create_function_type(&params[1..], ret) ])
         }
     }
-
-    let mut tv = HashSet::new();
-    tv.extend(ret.0.iter());
-    let tp = ft_rec(params, ret, &mut tv);
-    Scheme(tv, tp)
 }
 
 fn get_literal_type(lit: &Literal) -> Type {
@@ -219,7 +216,7 @@ fn infer_statement<'input>(env: &mut Environment<'input>, ctx: &mut Context, sta
         Statement::Do(_, expr, _) => Some(TStatement::Do(infer_expr(env, ctx, expr))),
         Statement::Let(mods, _, pattern, value, _) => {
             let v = infer_expr(env, ctx, value);
-            bind_to_pattern(env, pattern, v.scheme());
+            bind_to_pattern(env, pattern, &env.generalize(&v.typ()));
             Some(TStatement::Let(v, map_pattern(pattern)))
         }
     }

@@ -1,5 +1,5 @@
 use crate::ast_common::{Pattern, Literal};
-use crate::typechecker::Scheme;
+use crate::typechecker::{Scheme, Type};
 use std::fmt::{Display, Formatter};
 
 #[derive(Copy, Clone, Debug)]
@@ -30,20 +30,18 @@ pub enum TExprData<'input> {
 }
 
 #[derive(Debug, Clone)]
-pub struct TExpression<'input>(TExprData<'input>, Scheme);
+pub struct TExpression<'input>(TExprData<'input>, Type);
 
 impl<'input> TExpression<'input> {
-    pub fn new(data: TExprData<'input>, scheme: Scheme) -> Self {
-        TExpression(data, scheme)
+    pub fn new(data: TExprData<'input>, tp: Type) -> Self {
+        TExpression(data, tp)
     }
 
     pub fn data(&self) -> &TExprData {
         &self.0
     }
 
-    pub fn scheme(&self) -> &Scheme {
-        &self.1
-    }
+    pub fn typ(&self) -> &Type { &self.1 }
 }
 
 #[derive(Debug, Clone)]
