@@ -154,8 +154,17 @@ impl<'a> Environment<'a> {
         self.mono_vars.contains(&gid)
     }
 
-    fn inst(&self, sch: &Scheme) -> Type {
-        unimplemented!()
+    fn inst(&self, ctx: &mut Context, sch: &Scheme) -> Type {
+        fn inst_rec(tp: &Type, mapping: &HashMap<GenericId, Type>) -> Type {
+            match tp {
+                Type::Basic(_) => tp.clone(),
+                Type::Parameterized(p, ps) => Type::Parameterized(inst_rec(&*p, mapping).into(), ps.iter().map(|p| inst_rec(p, mapping)).collect()),
+                Type::Var(id) => mapping.get(id).cloned().unwrap_or_else(|| tp.clone())
+            }
+        }
+
+        let mapping = sch.0.iter().map(|v| (*v, ctx.new_generic())).collect();
+        inst_rec(&sch.1, &mapping)
     }
 
     fn generalize(&self, tp: &Type) -> Scheme {
@@ -169,7 +178,7 @@ fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &E
         Expr::Variable(name, _) => {
             let varname = *name.first().expect("Variable names must have at least one element");
             let scheme = env.lookup(varname).expect("Variable not found");
-            TExpression::new(TExprData::Variable(name.clone()), env.inst(scheme))
+            TExpression::new(TExprData::Variable(name.clone()), env.inst(ctx, scheme))
         },
         Expr::Lambda { regions: _, params, body, data: _ } => {
             let mut body_env = env.clone();
