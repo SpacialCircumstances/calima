@@ -167,7 +167,9 @@ fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &E
             let mut body_env = env.clone();
             let mut param_types = Vec::with_capacity(params.len());
             for param in params {
-                let param_type = Scheme::simple(ctx.new_generic());
+                let gen = ctx.next_id();
+                body_env.add_monomorphic_var(gen);
+                let param_type = Scheme::simple(Type::Var(gen));
                 bind_to_pattern(&mut body_env, param, &param_type);
                 param_types.push(param_type);
             }
