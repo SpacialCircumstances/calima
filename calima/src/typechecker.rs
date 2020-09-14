@@ -168,7 +168,21 @@ impl<'a> Environment<'a> {
     }
 
     fn generalize(&self, tp: &Type) -> Scheme {
-        unimplemented!()
+        fn gen_rec(tp: &Type, mono_vars: &HashSet<GenericId>, scheme_vars: &mut HashSet<GenericId>) {
+            match tp {
+                Type::Parameterized(p, params) => {
+                    gen_rec(&*p, mono_vars, scheme_vars);
+                    for p in params {
+                        gen_rec(p, mono_vars, scheme_vars);
+                    }
+                },
+                Type::Var(gid) if !mono_vars.contains(gid) => scheme_vars.insert(*gid),
+                _ => ()
+            }
+        }
+        let mut scheme_vars = HashSet::new();
+        gen_rec(tp, &self.mono_vars, &mut scheme_vars);
+        Scheme(scheme_vars, tp.clone())
     }
 }
 
