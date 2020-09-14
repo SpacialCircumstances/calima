@@ -45,6 +45,10 @@ pub enum Type {
     Var(GenericId)
 }
 
+fn func() -> Type {
+    Type::Basic(TypeDefinition::Parameterized(ParameterizedType::Function))
+}
+
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct Scheme(HashSet<GenericId>, Type);
 
@@ -177,7 +181,24 @@ fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &E
 }
 
 fn create_function_type(params: &[Scheme], ret: &Scheme) -> Scheme {
-    unimplemented!()
+    fn ft_rec(params: &[Scheme], ret: &Scheme, tv: &mut HashSet<GenericId>) -> Type {
+        match params {
+            [last] => {
+                tv.extend(last.0.iter());
+                Type::Parameterized(func().into(), vec![ last.1.clone(), ret.1.clone() ])
+            },
+            _ => {
+                let c = params.first().expect("Error getting parameter");
+                tv.extend(c.0.iter());
+                Type::Parameterized(func().into(), vec![ c.1.clone(), ft_rec(&params[1..], ret, tv) ])
+            }
+        }
+    }
+
+    let mut tv = HashSet::new();
+    tv.extend(ret.0.iter());
+    let tp = ft_rec(params, ret, &mut tv);
+    Scheme(tv, tp)
 }
 
 fn get_literal_type(lit: &Literal) -> Type {
