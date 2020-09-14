@@ -119,7 +119,7 @@ impl Context {
         Type::Var(tr)
     }
 
-    fn unify(&mut self, t1: Type, t2: Type) {
+    fn unify(&mut self, t1: &Type, t2: &Type) {
         unimplemented!();
     }
 }
@@ -176,7 +176,9 @@ impl<'a> Environment<'a> {
                         gen_rec(p, mono_vars, scheme_vars);
                     }
                 },
-                Type::Var(gid) if !mono_vars.contains(gid) => scheme_vars.insert(*gid),
+                Type::Var(gid) if !mono_vars.contains(gid) => {
+                    scheme_vars.insert(*gid);
+                },
                 _ => ()
             }
         }
@@ -208,8 +210,41 @@ fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &E
             let body = infer_block(&mut body_env, ctx, body);
             let scheme = create_function_type(&param_types, body.res.typ());
             TExpression::new(TExprData::Lambda(params.iter().map(|p| map_pattern(p)).collect(), body), scheme)
-        }
+        },
+        Expr::FunctionCall(func, args, _) => {
+            let tfunc = infer_expr(env, ctx, &*func);
+            let targs: Vec<TExpression> = args.iter().map(|a| infer_expr(env, ctx, a)).collect();
+            let argtypes: Vec<&Type> = targs.iter().map(TExpression::typ).collect();
+            let ret = apply_function(ctx, tfunc.typ(), &argtypes);
+            TExpression::new(TExprData::FunctionCall(tfunc.into(), targs), ret)
+        },
         _ => unimplemented!()
+    }
+}
+
+fn as_function(func: &Type) -> Option<(&Type, &Type)> {
+    match func {
+        Type::Parameterized(p, params) => {
+            match **p {
+                Type::Basic(TypeDefinition::Parameterized(ParameterizedType::Function)) if params.len() == 2 => Some((&params[0], &params[1])),
+                _ => None
+            }
+        },
+        _ => None
+    }
+}
+
+fn apply_function(ctx: &mut Context, func: &Type, args: &[&Type]) -> Type {
+    match (as_function(func), args) {
+        (Some((in_tp, out_tp)), [arg]) => {
+            ctx.unify(in_tp, arg);
+            out_tp.clone()
+        },
+        (Some((in_tp, out_tp)), _) if !args.is_empty() => {
+            ctx.unify(in_tp, args.first().unwrap());
+            apply_function(ctx, out_tp, &args[1..])
+        },
+        _ => panic!("Error calling function")
     }
 }
 
