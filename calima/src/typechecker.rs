@@ -215,7 +215,7 @@ fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &E
         Expr::Literal(lit, _) => TExpression::new(TExprData::Literal(lit.clone()), get_literal_type(lit)),
         Expr::Variable(name, _) => {
             let varname = *name.first().expect("Variable names must have at least one element");
-            let scheme = env.lookup(varname).expect("Variable not found");
+            let scheme = env.lookup(varname).expect(format!("Variable {} not found", varname).as_str());
             TExpression::new(TExprData::Variable(name.clone()), env.inst(ctx, scheme))
         },
         Expr::Lambda { regions: _, params, body, data: _ } => {
