@@ -4,7 +4,7 @@ use crate::string_interner::StringInterner;
 use crate::common::{Module, ModuleIdentifier};
 use crate::token::Span;
 use std::collections::{HashMap, HashSet};
-use std::ops::{Index, Add};
+use std::ops::{Index, Add, Deref};
 use im_rc::HashMap as ImmMap;
 use crate::ast_common::{NumberType, Literal, Identifier, Pattern};
 use crate::ast::{Expr, Statement, TopLevelStatement, Block, TopLevelBlock, RegionAnnotation, TypeAnnotation};
@@ -119,8 +119,30 @@ impl Context {
         Type::Var(tr)
     }
 
+    fn bind(&mut self, gid: GenericId, t2: &Type) {
+        match &self.subst[gid] {
+            Some(t) => self.unify(t, t2),
+            None => self.subst.add(*gid, t2.clone())
+        }
+    }
+
     fn unify(&mut self, t1: &Type, t2: &Type) {
-        unimplemented!();
+        if t1 != t2 {
+            match (t1, t2) {
+                (Type::Basic(td1), Type::Basic(td2)) => if td1 != td2 {
+                    panic!(format!("Cannot unify {:?} with {:?}", td1, td2))
+                },
+                (Type::Var(gid), _) => self.bind(*gid, t2),
+                (_, Type::Var(gid)) => self.bind(*gid, t1),
+                (Type::Parameterized(p1, params1), Type::Parameterized(p2, params2)) => {
+                    if p1 != p2 || params1.len() != params2.len() {
+                        panic!(format!("Cannot unify {:?} with {:?}", t1, t2))
+                    }
+                    params1.iter().zip(params2.iter()).for_each(|(p1, p2)| self.unify(p1, p2));
+                },
+                _ => panic!(format!("Cannot unify {:?} with {:?}", t1, t2))
+            }
+        }
     }
 }
 
