@@ -331,9 +331,10 @@ fn bind_to_pattern<'input>(env: &mut Environment<'input>, pattern: &Pattern<'inp
 
 fn infer_block<'input>(env: &mut Environment<'input>, ctx: &mut Context, block: &Block<'input, Span>) -> TBlock<'input> {
     let mut block_env = env.clone();
+    let tstatements = block.statements.iter().filter_map(|st| infer_statement(&mut block_env, ctx, st)).collect();
     let result = infer_expr(&mut block_env, ctx, &block.result);
     TBlock {
-        statements: block.statements.iter().filter_map(|st| infer_statement(&mut block_env, ctx, st)).collect(),
+        statements: tstatements,
         res: Box::new(result)
     }
 }
