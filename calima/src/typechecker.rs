@@ -356,7 +356,8 @@ fn typecheck_module<'input>(unchecked: Module<UntypedModuleData<'input>>, deps: 
     let mut env = Environment::new();
     let infered_ast = infer_top_level_block(&mut env, &mut context, &unchecked.data.0);
     //TODO
-    println!("Return type of program: {:?}", infered_ast.res.typ());
+    let rettype = context.subst.subst(infered_ast.res.typ().clone());
+    println!("Return type of program: {:?}", rettype);
     Module {
         data: TypedModuleData(context, infered_ast),
         name: unchecked.name,
