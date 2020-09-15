@@ -65,7 +65,7 @@ pub struct Substitution {
 impl Substitution {
     fn new() -> Self {
         Substitution {
-            subst: Vec::new()
+            subst: (1..10).map(|_| None).collect()
         }
     }
 
