@@ -18,7 +18,8 @@ mod tests {
     use std::fs::read_dir;
     use std::io::Write;
     use crate::parser::parse;
-    use crate::ast::{Block, Literal, TopLevelBlock};
+    use crate::ast::{Block, TopLevelBlock};
+    use crate::ast_common::Literal;
     use crate::ast::Expr::*;
     use crate::token::{Location, Span};
     use goldenfile::Mint;
