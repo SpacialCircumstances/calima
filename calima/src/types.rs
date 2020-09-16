@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashSet, HashMap};
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct GenericId(pub usize);
@@ -84,5 +84,22 @@ pub fn deconstruct_function(func: &Type) -> Option<(&Type, &Type)> {
             }
         },
         _ => None
+    }
+}
+
+#[derive(Debug)]
+pub struct Exports<'input>(HashMap<&'input str, Scheme>);
+
+impl<'input> Exports<'input> {
+    pub fn new() -> Self {
+        Exports(HashMap::new())
+    }
+
+    pub fn add_variable(&mut self, name: &'input str, sch: Scheme) {
+        self.0.insert(name, sch);
+    }
+
+    pub fn iter_vars(&self) -> impl Iterator<Item=(&'input str, &Scheme)> {
+        self.0.iter().map(|(a, b)| (*a, b))
     }
 }
