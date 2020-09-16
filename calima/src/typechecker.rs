@@ -234,6 +234,21 @@ fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &E
             let ret = apply_function(ctx, tfunc.typ(), &argtypes);
             TExpression::new(TExprData::FunctionCall(tfunc.into(), targs), ret)
         },
+        Expr::If { data: _, cond, if_true, if_false } => {
+            let tcond = infer_expr(env, ctx, &*cond);
+            ctx.unify(tcond.typ(), &Type::Basic(TypeDefinition::Primitive(PrimitiveType::Bool)));
+            let mut true_env = env.clone();
+            let mut false_env = env.clone();
+            let ttrue = infer_block(&mut true_env, ctx, if_true);
+            let tfalse = infer_block(&mut false_env, ctx, if_false);
+            ctx.unify(ttrue.res.typ(), tfalse.res.typ());
+            let rett = ttrue.res.typ().clone();
+            let case = vec![
+                (Pattern::Literal(Literal::Boolean(true), Unit::unit()), ttrue),
+                (Pattern::Literal(Literal::Boolean(false), Unit::unit()), tfalse)
+            ];
+            TExpression::new(TExprData::Case(tcond.into(), case), rett)
+        },
         _ => unimplemented!()
     }
 }
