@@ -1,5 +1,5 @@
 use crate::ast_common::{Pattern, Literal};
-use crate::typechecker::{Scheme, Type};
+use crate::typechecker::Type;
 use std::fmt::{Display, Formatter};
 
 #[derive(Copy, Clone, Debug)]
@@ -12,7 +12,7 @@ impl Unit {
 }
 
 impl Display for Unit {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, _f: &mut Formatter<'_>) -> std::fmt::Result {
         Result::Ok(())
     }
 }

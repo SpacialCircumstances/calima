@@ -4,11 +4,9 @@ use crate::string_interner::StringInterner;
 use crate::common::{Module, ModuleIdentifier};
 use crate::token::Span;
 use std::collections::{HashMap, HashSet};
-use std::ops::{Index, Add, Deref};
-use im_rc::HashMap as ImmMap;
+use std::ops::Index;
 use crate::ast_common::{NumberType, Literal, Identifier, Pattern};
-use crate::ast::{Expr, Statement, TopLevelStatement, Block, TopLevelBlock, RegionAnnotation, TypeAnnotation};
-use std::collections::hash_map::Entry;
+use crate::ast::{Expr, Statement, TopLevelStatement, Block, TopLevelBlock, TypeAnnotation};
 use crate::typed_ast::{TBlock, TStatement, TExpression, TExprData, Unit};
 
 pub struct TypedModuleData<'input>(Context, TBlock<'input>);
@@ -79,7 +77,7 @@ impl Substitution {
 
     fn subst(&self, typ: Type) -> Type {
         match typ {
-            Type::Basic(td) => typ,
+            Type::Basic(_) => typ,
             Type::Var(v) => self[v].as_ref().map(|t| t.clone()).unwrap_or(typ),
             Type::Parameterized(t, params) => Type::Parameterized(Box::new(self.subst(*t)), params.into_iter().map(|t| self.subst(t)).collect())
         }
@@ -170,10 +168,6 @@ impl<'a> Environment<'a> {
 
     fn add_monomorphic_var(&mut self, id: GenericId) {
         self.mono_vars.insert(id);
-    }
-
-    fn is_mono(&self, gid: GenericId) -> bool {
-        self.mono_vars.contains(&gid)
     }
 
     fn inst(&self, ctx: &mut Context, sch: &Scheme) -> Type {
@@ -366,11 +360,6 @@ fn typecheck_module<'input>(unchecked: Module<UntypedModuleData<'input>>, deps: 
         depth: unchecked.depth,
         deps: unchecked.deps
     }
-}
-
-pub struct TypeData {
-    position: Span,
-    typ: Option<Type>
 }
 
 pub struct TypedContext<'input> {

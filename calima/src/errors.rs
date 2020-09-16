@@ -139,7 +139,7 @@ impl<'a> ErrorContext<'a> {
         for err in &self.errors {
             match err {
                 CompilerError::GeneralError(source, descr) => general_errors.push((source, descr)),
-                CompilerError::ParserError(parser_err, module, path) => {
+                CompilerError::ParserError(parser_err, _, path) => {
                     let file_id = self.files.add_or_get(path).expect("Error loading file");
                     match parser_err {
                         ParseError::User { error } => {

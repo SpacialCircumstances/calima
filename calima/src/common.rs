@@ -1,6 +1,5 @@
 use std::path::{Path, PathBuf};
 use std::fmt::{Display, Formatter};
-use crate::ast::TopLevelBlock;
 use crate::token::Span;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
