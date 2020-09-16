@@ -8,53 +8,9 @@ use std::ops::Index;
 use crate::ast_common::{NumberType, Literal, Identifier, Pattern};
 use crate::ast::{Expr, Statement, TopLevelStatement, Block, TopLevelBlock, TypeAnnotation, Modifier};
 use crate::typed_ast::{TBlock, TStatement, TExpression, TExprData, Unit};
+use crate::types::{Type, GenericId, Scheme, TypeDefinition, PrimitiveType, ParameterizedType, func};
 
 pub struct TypedModuleData<'input>(Context, TBlock<'input>);
-
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
-pub struct GenericId(usize);
-
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
-pub enum PrimitiveType {
-    Bool,
-    Int,
-    Float,
-    String,
-    Unit,
-    Char
-}
-
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
-pub enum ParameterizedType {
-    Function,
-    Tuple(u32)
-}
-
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
-pub enum TypeDefinition {
-    Primitive(PrimitiveType),
-    Parameterized(ParameterizedType) //TODO: User-defined records, sums
-}
-
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub enum Type {
-    Basic(TypeDefinition),
-    Parameterized(Box<Type>, Vec<Type>),
-    Var(GenericId)
-}
-
-fn func() -> Type {
-    Type::Basic(TypeDefinition::Parameterized(ParameterizedType::Function))
-}
-
-#[derive(Clone, Eq, PartialEq, Debug)]
-pub struct Scheme(HashSet<GenericId>, Type);
-
-impl Scheme {
-    fn simple(tp: Type) -> Self {
-        Scheme(HashSet::new(), tp)
-    }
-}
 
 pub struct Substitution {
     subst: Vec<Option<Type>>

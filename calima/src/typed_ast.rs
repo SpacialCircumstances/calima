@@ -1,6 +1,6 @@
 use crate::ast_common::{Pattern, Literal};
-use crate::typechecker::Type;
 use std::fmt::{Display, Formatter};
+use crate::types::Type;
 
 #[derive(Copy, Clone, Debug)]
 pub struct Unit(());

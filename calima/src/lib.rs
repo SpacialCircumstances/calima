@@ -10,6 +10,7 @@ mod util;
 mod string_interner;
 mod errors;
 mod common;
+mod types;
 mod typed_ast;
 mod typechecker;
 
