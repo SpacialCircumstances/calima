@@ -11,6 +11,7 @@ mod string_interner;
 mod errors;
 mod common;
 mod types;
+mod prelude;
 mod typed_ast;
 mod typechecker;
 

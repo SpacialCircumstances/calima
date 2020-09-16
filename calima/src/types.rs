@@ -87,6 +87,7 @@ pub fn deconstruct_function(func: &Type) -> Option<(&Type, &Type)> {
     }
 }
 
+//All variables in an Exports map shall be fully substituted to not leave any free variables
 #[derive(Debug)]
 pub struct Exports<'input>(HashMap<&'input str, Scheme>);
 

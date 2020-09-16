@@ -9,6 +9,7 @@ use crate::ast_common::{NumberType, Literal, Identifier, Pattern};
 use crate::ast::{Expr, Statement, TopLevelStatement, Block, TopLevelBlock, TypeAnnotation, Modifier};
 use crate::typed_ast::{TBlock, TStatement, TExpression, TExprData, Unit};
 use crate::types::{Type, GenericId, Scheme, TypeDefinition, PrimitiveType, ParameterizedType, func, build_function, deconstruct_function};
+use crate::prelude::prelude;
 
 pub struct TypedModuleData<'input>(Context, TBlock<'input>);
 
@@ -157,6 +158,10 @@ impl<'a> Environment<'a> {
         let mut scheme_vars = HashSet::new();
         gen_rec(tp, &self.mono_vars, &mut scheme_vars);
         Scheme(scheme_vars, tp.clone())
+    }
+
+    fn import(&mut self, ctx: &mut Context, name: &str, tp: &Scheme) {
+        
     }
 }
 
@@ -319,6 +324,9 @@ fn typecheck_module<'input>(unchecked: Module<UntypedModuleData<'input>>, deps: 
     //TODO: Import dependencies into context
     let mut context = Context::new();
     let mut env = Environment::new();
+    let prelude = prelude();
+    prelude.iter_vars().for_each(|(name, tp)| env.import(&mut context, name, tp));
+
     let infered_ast = infer_top_level_block(&mut env, &mut context, &unchecked.data.0);
     //TODO
     let rettype = context.subst.subst(infered_ast.res.typ().clone());
