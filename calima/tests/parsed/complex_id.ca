@@ -1,0 +1,5 @@
+let drop = fun a b -> ()
+let id = fun x -> let a = x
+in a
+
+in drop id true id 2
