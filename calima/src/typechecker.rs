@@ -204,6 +204,13 @@ impl<'a> Environment<'a> {
     }
 }
 
+fn function_call<'a, 'input: 'a, I: Iterator<Item=&'a Expr<'input, Span>>>(env: &mut Environment<'input>, ctx: &mut Context, tfunc: TExpression<'input>, args: I) -> TExpression<'input> {
+    let targs: Vec<TExpression> = args.map(|a| infer_expr(env, ctx, a)).collect();
+    let argtypes: Vec<&Type> = targs.iter().map(TExpression::typ).collect();
+    let ret = apply_function(ctx, tfunc.typ(), &argtypes);
+    TExpression::new(TExprData::FunctionCall(tfunc.into(), targs), ret)
+}
+
 fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &Expr<'input, Span>) -> TExpression<'input> {
     match expr {
         Expr::Literal(lit, _) => TExpression::new(TExprData::Literal(lit.clone()), get_literal_type(lit)),
@@ -228,12 +235,15 @@ fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &E
             TExpression::new(TExprData::Lambda(params.iter().map(|p| map_pattern(p)).collect(), body), scheme)
         },
         Expr::FunctionCall(func, args, _) => {
-            let tfunc = infer_expr(env, ctx, &*func);
-            let targs: Vec<TExpression> = args.iter().map(|a| infer_expr(env, ctx, a)).collect();
-            let argtypes: Vec<&Type> = targs.iter().map(TExpression::typ).collect();
-            let ret = apply_function(ctx, tfunc.typ(), &argtypes);
-            TExpression::new(TExprData::FunctionCall(tfunc.into(), targs), ret)
+            let tfunc = infer_expr(env, ctx, func);
+            function_call(env, ctx, tfunc, args.iter())
         },
+        Expr::OperatorCall(l, op, r, _) => {
+            //TODO: Generate variable expr for op in ast
+            let tfunc = infer_expr(env, ctx, &Expr::Variable(vec![ op ], Span::default()));
+            let args: Vec<&Expr<Span>> = vec![ &*l, &*r ];
+            function_call(env, ctx, tfunc, args.into_iter())
+        }
         Expr::If { data: _, cond, if_true, if_false } => {
             let tcond = infer_expr(env, ctx, &*cond);
             ctx.unify(tcond.typ(), &Type::Basic(TypeDefinition::Primitive(PrimitiveType::Bool)));
