@@ -8,7 +8,7 @@ use std::ops::Index;
 use crate::ast_common::{NumberType, Literal, Identifier, Pattern};
 use crate::ast::{Expr, Statement, TopLevelStatement, Block, TopLevelBlock, TypeAnnotation, Modifier};
 use crate::typed_ast::{TBlock, TStatement, TExpression, TExprData, Unit};
-use crate::types::{Type, GenericId, Scheme, TypeDefinition, PrimitiveType, ParameterizedType, func};
+use crate::types::{Type, GenericId, Scheme, TypeDefinition, PrimitiveType, ParameterizedType, func, build_function, deconstruct_function};
 
 pub struct TypedModuleData<'input>(Context, TBlock<'input>);
 
@@ -187,7 +187,7 @@ fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &E
             }
 
             let body = infer_block(&mut body_env, ctx, body);
-            let scheme = create_function_type(&param_types, body.res.typ());
+            let scheme = build_function(&param_types, body.res.typ());
             TExpression::new(TExprData::Lambda(params.iter().map(|p| map_pattern(p)).collect(), body), scheme)
         },
         Expr::FunctionCall(func, args, _) => {
@@ -219,20 +219,8 @@ fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &E
     }
 }
 
-fn as_function(func: &Type) -> Option<(&Type, &Type)> {
-    match func {
-        Type::Parameterized(p, params) => {
-            match **p {
-                Type::Basic(TypeDefinition::Parameterized(ParameterizedType::Function)) if params.len() == 2 => Some((&params[0], &params[1])),
-                _ => None
-            }
-        },
-        _ => None
-    }
-}
-
 fn apply_function(ctx: &mut Context, func: &Type, args: &[&Type]) -> Type {
-    match (as_function(func), args) {
+    match (deconstruct_function(func), args) {
         (Some((in_tp, out_tp)), [arg]) => {
             ctx.unify(in_tp, arg);
             out_tp.clone()
@@ -242,16 +230,6 @@ fn apply_function(ctx: &mut Context, func: &Type, args: &[&Type]) -> Type {
             apply_function(ctx, out_tp, &args[1..])
         },
         _ => panic!("Error calling function")
-    }
-}
-
-fn create_function_type(params: &[Type], ret: &Type) -> Type {
-    match params {
-        [last] => Type::Parameterized(func().into(), vec![ last.clone(), ret.clone() ]),
-        _ => {
-            let c = params.first().expect("Error getting parameter");
-            Type::Parameterized(func().into(), vec![ c.clone(), create_function_type(&params[1..], ret) ])
-        }
     }
 }
 
