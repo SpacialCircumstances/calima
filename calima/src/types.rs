@@ -1,7 +1,15 @@
 use std::collections::{HashSet, HashMap};
+use std::fmt::{Display, Formatter, Pointer};
+use crate::util::format_iter;
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct GenericId(pub usize);
+
+impl Display for GenericId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "'{}", self.0)
+    }
+}
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum PrimitiveType {
@@ -13,16 +21,47 @@ pub enum PrimitiveType {
     Char
 }
 
+impl Display for PrimitiveType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PrimitiveType::Unit => write!(f, "Unit"),
+            PrimitiveType::Float => write!(f, "Float"),
+            PrimitiveType::Int => write!(f, "Int"),
+            PrimitiveType::Char => write!(f, "Char"),
+            PrimitiveType::Bool => write!(f, "Bool"),
+            PrimitiveType::String => write!(f, "String")
+        }
+    }
+}
+
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum ParameterizedType {
     Function,
     Tuple(u32)
 }
 
+impl Display for ParameterizedType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ParameterizedType::Function => write!(f, "->"),
+            ParameterizedType::Tuple(e) => write!(f, "Tuple{}", e)
+        }
+    }
+}
+
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum TypeDefinition {
     Primitive(PrimitiveType),
     Parameterized(ParameterizedType) //TODO: User-defined records, sums
+}
+
+impl Display for TypeDefinition {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TypeDefinition::Primitive(pt) => write!(f, "{}", pt),
+            TypeDefinition::Parameterized(pt) => write!(f, "{}", pt)
+        }
+    }
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -32,12 +71,32 @@ pub enum Type {
     Var(GenericId)
 }
 
+impl Display for Type {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Type::Basic(td) => write!(f, "{}", td),
+            Type::Var(id) => write!(f, "{}", id),
+            Type::Parameterized(p, params) => write!(f, "({} {})", p, format_iter(params.iter(), " "))
+        }
+    }
+}
+
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct Scheme(pub HashSet<GenericId>, pub Type);
 
 impl Scheme {
     pub fn simple(tp: Type) -> Self {
         Scheme(HashSet::new(), tp)
+    }
+}
+
+impl Display for Scheme {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        if self.0.is_empty() {
+            write!(f, "{}", self.1)
+        } else {
+            write!(f, "forall {}. {}", format_iter(self.0.iter(), " "), self.1)
+        }
     }
 }
 

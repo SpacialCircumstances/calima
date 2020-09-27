@@ -85,17 +85,17 @@ impl Context {
         if t1 != t2 {
             match (t1, t2) {
                 (Type::Basic(td1), Type::Basic(td2)) => if td1 != td2 {
-                    panic!(format!("Cannot unify {:?} with {:?}", td1, td2))
+                    panic!(format!("Cannot unify {} with {}", td1, td2))
                 },
                 (Type::Var(gid), _) => self.bind(*gid, t2),
                 (_, Type::Var(gid)) => self.bind(*gid, t1),
                 (Type::Parameterized(p1, params1), Type::Parameterized(p2, params2)) => {
                     if p1 != p2 || params1.len() != params2.len() {
-                        panic!(format!("Cannot unify {:?} with {:?}", t1, t2))
+                        panic!(format!("Cannot unify {} with {}", t1, t2))
                     }
                     params1.iter().zip(params2.iter()).for_each(|(p1, p2)| self.unify(p1, p2));
                 },
-                _ => panic!(format!("Cannot unify {:?} with {:?}", t1, t2))
+                _ => panic!(format!("Cannot unify {} with {}", t1, t2))
             }
         }
     }
@@ -332,7 +332,7 @@ fn typecheck_module<'input>(unchecked: Module<UntypedModuleData<'input>>, deps: 
     let infered_ast = infer_top_level_block(&mut env, &mut context, &unchecked.data.0);
     //TODO
     let rettype = context.subst.subst(infered_ast.res.typ().clone());
-    println!("Return type of program: {:?}", rettype);
+    println!("Return type of program: {}", rettype);
     Module {
         data: TypedModuleData(context, infered_ast),
         name: unchecked.name,
