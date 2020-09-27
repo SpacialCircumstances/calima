@@ -229,16 +229,14 @@ fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &E
 }
 
 fn apply_function(ctx: &mut Context, func: &Type, args: &[&Type]) -> Type {
-    match (deconstruct_function(func), args) {
-        (Some((in_tp, out_tp)), [arg]) => {
-            ctx.unify(in_tp, arg);
-            out_tp.clone()
-        },
-        (Some((in_tp, out_tp)), _) if !args.is_empty() => {
-            ctx.unify(in_tp, args.first().unwrap());
-            apply_function(ctx, out_tp, &args[1..])
-        },
-        _ => panic!("Error calling function")
+    match args {
+        [] => func.clone(),
+        _ => {
+            let next = ctx.new_generic();
+            let ft = build_function(&[args[0].clone()], &next);
+            ctx.unify(func, &ft);
+            apply_function(ctx, &ft, &args[1..])
+        }
     }
 }
 
