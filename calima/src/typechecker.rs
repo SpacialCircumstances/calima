@@ -27,7 +27,7 @@ impl Substitution {
     fn add(&mut self, key: GenericId, value: Type) {
         let idx = key.0;
         if idx >= self.subst.len() {
-            self.subst.resize(idx - 1, Option::None);
+            self.subst.resize(idx + 1, Option::None);
         }
         self.subst[idx] = Some(value);
     }
