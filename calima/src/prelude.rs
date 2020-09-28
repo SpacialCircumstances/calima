@@ -9,6 +9,12 @@ fn float_op() -> Scheme {
     Scheme::simple(build_function(&[ float(), float() ], &float()))
 }
 
+fn scheme(gen: &[GenericId], tp: Type) -> Scheme {
+    let mut gens = HashSet::new();
+    gens.extend(gen.iter());
+    Scheme(gens, tp)
+}
+
 fn eq_type() -> Scheme {
     let mut eq_set = HashSet::new();
     let id = GenericId(1);
@@ -27,7 +33,7 @@ pub fn prelude() -> Exports<'static> {
     ex.add_variable("/", int_op());
     ex.add_variable("./", float_op());
     ex.add_variable("..", Scheme::simple(build_function(&[ string(), string() ], &string())));
-    ex.add_variable("println", Scheme::simple(build_function(&[ string() ], &unit())));
+    ex.add_variable("println", scheme(&[ GenericId(1) ], build_function(&[ Type::Var(GenericId(1)) ], &unit())));
     ex.add_variable("==", eq_type());
     ex
 }
