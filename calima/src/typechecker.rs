@@ -171,8 +171,11 @@ impl<'a> Environment<'a> {
 
 fn function_call<'a, 'input: 'a, I: Iterator<Item=&'a Expr<'input, Span>>>(env: &mut Environment<'input>, ctx: &mut Context, tfunc: TExpression<'input>, args: I) -> TExpression<'input> {
     let targs: Vec<TExpression> = args.map(|a| infer_expr(env, ctx, a)).collect();
-    let argtypes: Vec<&Type> = targs.iter().map(TExpression::typ).collect();
-    let ret = apply_function(ctx, tfunc.typ(), &argtypes);
+    let argtypes: Vec<Type> = targs.iter().map(TExpression::typ).cloned().collect();
+    let ret = ctx.new_generic();
+    let arg_fun_type = build_function(&argtypes, &ret);
+    println!("{}, {}", tfunc.typ(), &arg_fun_type);
+    ctx.unify(tfunc.typ(), &arg_fun_type);
     TExpression::new(TExprData::FunctionCall(tfunc.into(), targs), ret)
 }
 
@@ -190,9 +193,10 @@ fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &E
             for param in params {
                 let gen = ctx.next_id();
                 body_env.add_monomorphic_var(gen);
-                let param_type = Scheme::simple(Type::Var(gen));
+                let tp = Type::Var(gen);
+                let param_type = Scheme::simple(tp.clone());
                 bind_to_pattern(&mut body_env, param, &param_type);
-                param_types.push(Type::Var(gen));
+                param_types.push(tp);
             }
 
             let body = infer_block(&mut body_env, ctx, body);
@@ -225,18 +229,6 @@ fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &E
             TExpression::new(TExprData::Case(tcond.into(), case), rett)
         },
         _ => unimplemented!()
-    }
-}
-
-fn apply_function(ctx: &mut Context, func: &Type, args: &[&Type]) -> Type {
-    match args {
-        [] => func.clone(),
-        _ => {
-            let next = ctx.new_generic();
-            let ft = build_function(&[args[0].clone()], &next);
-            ctx.unify(func, &ft);
-            apply_function(ctx, &ft, &args[1..])
-        }
     }
 }
 
