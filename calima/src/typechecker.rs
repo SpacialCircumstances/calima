@@ -81,13 +81,37 @@ impl Context {
         }
     }
 
+    fn check_occurs(&self, gid: GenericId, t: &Type) {
+        match t {
+            Type::Var(i) => {
+                if gid == *i {
+                    panic!("Recursive type")
+                }
+
+                if let Some(next) = &self.subst[*i] {
+                    self.check_occurs(gid, next)
+                }
+            }
+            Type::Parameterized(t, params) => {
+                self.check_occurs(gid, t);
+                for p in params {
+                    self.check_occurs(gid, p);
+                }
+            }
+            Type::Basic(_) => ()
+        }
+    }
+
     fn unify(&mut self, t1: &Type, t2: &Type) {
         if t1 != t2 {
             match (t1, t2) {
                 (Type::Basic(td1), Type::Basic(td2)) => if td1 != td2 {
                     panic!(format!("Cannot unify {} with {}", td1, td2))
                 },
-                (Type::Var(gid), _) => self.bind(*gid, t2),
+                (Type::Var(gid), _) => {
+                    self.check_occurs(*gid, t2);
+                    self.bind(*gid, t2)
+                },
                 (_, Type::Var(gid)) => self.bind(*gid, t1),
                 (Type::Parameterized(p1, params1), Type::Parameterized(p2, params2)) => {
                     if p1 != p2 || params1.len() != params2.len() {
