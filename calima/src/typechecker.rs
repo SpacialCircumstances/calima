@@ -8,7 +8,7 @@ use std::ops::Index;
 use crate::ast_common::{NumberType, Literal, Identifier, Pattern};
 use crate::ast::{Expr, Statement, TopLevelStatement, Block, TopLevelBlock, TypeAnnotation, Modifier};
 use crate::typed_ast::{TBlock, TStatement, TExpression, TExprData, Unit};
-use crate::types::{Type, GenericId, Scheme, TypeDefinition, PrimitiveType, ParameterizedType, func, build_function, deconstruct_function};
+use crate::types::{Type, GenericId, Scheme, TypeDefinition, PrimitiveType, build_function};
 use crate::prelude::prelude;
 
 pub struct TypedModuleData<'input>(Context, TBlock<'input>);
@@ -36,7 +36,7 @@ impl Substitution {
         match typ {
             Type::Basic(_) => typ,
             Type::Var(v) => self[v].as_ref().map(|t| t.clone()).unwrap_or(typ),
-            Type::Parameterized(t, params) => Type::Parameterized(Box::new(self.subst(*t)), params.into_iter().map(|t| self.subst(t)).collect())
+            Type::Parameterized(t, params) => Type::Parameterized(t, params.into_iter().map(|t| self.subst(t)).collect())
         }
     }
 }
@@ -92,8 +92,7 @@ impl Context {
                     self.check_occurs(gid, next)
                 }
             }
-            Type::Parameterized(t, params) => {
-                self.check_occurs(gid, t);
+            Type::Parameterized(_, params) => {
                 for p in params {
                     self.check_occurs(gid, p);
                 }
@@ -154,7 +153,7 @@ impl<'a> Environment<'a> {
     fn replace<F: Fn(GenericId) -> Option<Type>>(tp: &Type, mapper: &F) -> Type {
         match tp {
             Type::Basic(_) => tp.clone(),
-            Type::Parameterized(p, ps) => Type::Parameterized(Self::replace(&*p, mapper).into(), ps.iter().map(|p| Self::replace(p, mapper)).collect()),
+            Type::Parameterized(p, ps) => Type::Parameterized(*p, ps.iter().map(|p| Self::replace(p, mapper)).collect()),
             Type::Var(id) => (mapper)(*id).unwrap_or_else(|| tp.clone())
         }
     }
@@ -167,8 +166,7 @@ impl<'a> Environment<'a> {
     fn generalize(&self, tp: &Type) -> Scheme {
         fn gen_rec(tp: &Type, mono_vars: &HashSet<GenericId>, scheme_vars: &mut HashSet<GenericId>) {
             match tp {
-                Type::Parameterized(p, params) => {
-                    gen_rec(&*p, mono_vars, scheme_vars);
+                Type::Parameterized(_, params) => {
                     for p in params {
                         gen_rec(p, mono_vars, scheme_vars);
                     }

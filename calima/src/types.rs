@@ -1,5 +1,5 @@
 use std::collections::{HashSet, HashMap};
-use std::fmt::{Display, Formatter, Pointer};
+use std::fmt::{Display, Formatter};
 use crate::util::format_iter;
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
@@ -35,16 +35,16 @@ impl Display for PrimitiveType {
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
-pub enum ParameterizedType {
+pub enum ComplexType {
     Function,
-    Tuple(u32)
+    Tuple(u32) //TODO: User-defined
 }
 
-impl Display for ParameterizedType {
+impl Display for ComplexType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            ParameterizedType::Function => write!(f, "->"),
-            ParameterizedType::Tuple(e) => write!(f, "Tuple{}", e)
+            ComplexType::Function => write!(f, "->"),
+            ComplexType::Tuple(e) => write!(f, "Tuple{}", e)
         }
     }
 }
@@ -52,14 +52,14 @@ impl Display for ParameterizedType {
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum TypeDefinition {
     Primitive(PrimitiveType),
-    Parameterized(ParameterizedType) //TODO: User-defined records, sums
+    Complex(ComplexType)
 }
 
 impl Display for TypeDefinition {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             TypeDefinition::Primitive(pt) => write!(f, "{}", pt),
-            TypeDefinition::Parameterized(pt) => write!(f, "{}", pt)
+            TypeDefinition::Complex(pt) => write!(f, "{}", pt)
         }
     }
 }
@@ -67,7 +67,7 @@ impl Display for TypeDefinition {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Type {
     Basic(TypeDefinition),
-    Parameterized(Box<Type>, Vec<Type>),
+    Parameterized(ComplexType, Vec<Type>),
     Var(GenericId)
 }
 
@@ -100,10 +100,6 @@ impl Display for Scheme {
     }
 }
 
-pub fn func() -> Type {
-    Type::Basic(TypeDefinition::Parameterized(ParameterizedType::Function))
-}
-
 pub fn bool() -> Type {
     Type::Basic(TypeDefinition::Primitive(PrimitiveType::Bool))
 }
@@ -126,23 +122,11 @@ pub fn unit() -> Type {
 
 pub fn build_function(params: &[Type], ret: &Type) -> Type {
     match params {
-        [last] => Type::Parameterized(func().into(), vec![ last.clone(), ret.clone() ]),
+        [last] => Type::Parameterized(ComplexType::Function, vec![ last.clone(), ret.clone() ]),
         _ => {
             let c = params.first().expect("Error getting parameter");
-            Type::Parameterized(func().into(), vec![c.clone(), build_function(&params[1..], ret) ])
+            Type::Parameterized(ComplexType::Function, vec![c.clone(), build_function(&params[1..], ret) ])
         }
-    }
-}
-
-pub fn deconstruct_function(func: &Type) -> Option<(&Type, &Type)> {
-    match func {
-        Type::Parameterized(p, params) => {
-            match **p {
-                Type::Basic(TypeDefinition::Parameterized(ParameterizedType::Function)) if params.len() == 2 => Some((&params[0], &params[1])),
-                _ => None
-            }
-        },
-        _ => None
     }
 }
 
