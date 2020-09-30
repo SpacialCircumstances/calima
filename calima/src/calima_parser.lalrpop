@@ -1,4 +1,4 @@
-use crate::ast_common::{Literal, NumberType, Pattern, Identifier};
+use crate::ast_common::{Literal, NumberType, MatchPattern, Identifier};
 use crate::ast::{Block, Statement, Expr, TypeDefinition, TypeAnnotation, Modifier, RegionAnnotation, TypeKind, TopLevelBlock, TopLevelStatement};
 use crate::token::{Location, Token, NumberFormat};
 use crate::token::Token::*;
@@ -101,7 +101,7 @@ Region: Statement<'input, Data> = <posl:@L> "region" <n:RegionAnnotation> <posr:
 
 Do: Statement<'input, Data> = <posl:@L> "do" <reg:RegionAnnotation?> <e:Expression0> <posr:@R> => Statement::Do(reg, e, to_data(posl, posr));
 
-Let: Statement<'input, Data> = <posl:@L> "let" <mods:Modifiers> <reg:RegionAnnotation?> <pat:Pattern1> "=" <expr:Expression0> <posr:@R> => Statement::Let(mods, reg, pat, expr, to_data(posl, posr));
+Let: Statement<'input, Data> = <posl:@L> "let" <mods:Modifiers> <reg:RegionAnnotation?> <pat:MatchPattern1> "=" <expr:Expression0> <posr:@R> => Statement::Let(mods, reg, pat, expr, to_data(posl, posr));
 
 Modifiers: Vec<Modifier> = Modifier*;
 
@@ -121,7 +121,7 @@ Case: Expr<'input, Data> = <posl:@L> "case" <value_expr:Expression1> "of" <rows:
     matches: rows
 };
 
-CaseRow: (Pattern<'input, TypeAnnotation<'input, Data>, Data>, Block<'input, Data>) = "|" <pat:Pattern0> "->" <block:Block> => (pat, block);
+CaseRow: (MatchPattern<'input, TypeAnnotation<'input, Data>, Data>, Block<'input, Data>) = "|" <pat:MatchPattern0> "->" <block:Block> => (pat, block);
 
 If: Expr<'input, Data> = <posl:@L> "if" <cond_expr:Expression1> "then" <if_block:Block> "else" <else_block:Block> "end" <posr:@R> => Expr::If {
     data: to_data(posl, posr),
@@ -139,7 +139,7 @@ Expression1: Expr<'input, Data> = {
 
 RecordExprRow: (&'input str, Expr<'input, Data>) = <n:"name"> "=" <expr:Expression0> => (n, expr);
 
-Lambda: Expr<'input, Data> = <posl:@L> "fun" <regions:RegionAnnotation*> <params:Pattern1+>  "->" <block:Block> <posr:@R> => Expr::Lambda { regions, params, body: block, data: to_data(posl, posr) };
+Lambda: Expr<'input, Data> = <posl:@L> "fun" <regions:RegionAnnotation*> <params:MatchPattern1+>  "->" <block:Block> <posr:@R> => Expr::Lambda { regions, params, body: block, data: to_data(posl, posr) };
 
 FunctionCall: Expr<'input, Data> = <posl:@L> <func:Expression2> <args:Expression2+> <posr:@R> => Expr::FunctionCall(Box::new(func), args, to_data(posl, posr));
 
@@ -165,20 +165,20 @@ AnyName: &'input str = {
 
 LiteralExpr: Expr<'input, Data> = <posl:@L> <lit:Literal> <posr:@R> => Expr::Literal(lit, to_data(posl, posr));
 
-Pattern0: Pattern<'input, TypeAnnotation<'input, Data>, Data> = {
-    Pattern1,
-    <posl:@L> <variant:"typename"> <patt:Pattern1?> <posr:@R> => Pattern::SumUnwrap(variant, patt.map(|p| Box::new(p)), to_data(posl, posr)),
+MatchPattern0: MatchPattern<'input, TypeAnnotation<'input, Data>, Data> = {
+    MatchPattern1,
+    <posl:@L> <variant:"typename"> <patt:MatchPattern1?> <posr:@R> => MatchPattern::SumUnwrap(variant, patt.map(|p| Box::new(p)), to_data(posl, posr)),
 };
 
-RecordPatternRow: (&'input str, Pattern<'input, TypeAnnotation<'input, Data>, Data>) = <name:"name"> "=" <patt:Pattern1> => (name, patt);
+RecordMatchPatternRow: (&'input str, MatchPattern<'input, TypeAnnotation<'input, Data>, Data>) = <name:"name"> "=" <patt:MatchPattern1> => (name, patt);
 
-Pattern1: Pattern<'input, TypeAnnotation<'input, Data>, Data> = {
-    <posl:@L> "_" <posr:@R> => Pattern::Any(to_data(posl, posr)),
-    <posl:@L> <id:AnnotatedIdentifier> <posr:@R> => Pattern::Name(id.0, id.1, to_data(posl, posr)),
-    <posl:@L> <lit:Literal> <posr:@R> => Pattern::Literal(lit, to_data(posl, posr)),
-    "(" <Pattern0> ")" => <>,
-    <posl:@L> "{" <rows:Sep1<RecordPatternRow, ",">> "}" <posr:@R> => Pattern::Record(rows, to_data(posl, posr)),
-    <posl:@L> "(" <elements:Sep2<Pattern1, ",">> ")" <posr:@R> => Pattern::Tuple(elements, to_data(posl, posr))
+MatchPattern1: MatchPattern<'input, TypeAnnotation<'input, Data>, Data> = {
+    <posl:@L> "_" <posr:@R> => MatchPattern::Any(to_data(posl, posr)),
+    <posl:@L> <id:AnnotatedIdentifier> <posr:@R> => MatchPattern::Name(id.0, id.1, to_data(posl, posr)),
+    <posl:@L> <lit:Literal> <posr:@R> => MatchPattern::Literal(lit, to_data(posl, posr)),
+    "(" <MatchPattern0> ")" => <>,
+    <posl:@L> "{" <rows:Sep1<RecordMatchPatternRow, ",">> "}" <posr:@R> => MatchPattern::Record(rows, to_data(posl, posr)),
+    <posl:@L> "(" <elements:Sep2<MatchPattern1, ",">> ")" <posr:@R> => MatchPattern::Tuple(elements, to_data(posl, posr))
 };
 
 AnnotatedIdentifier: (Identifier<'input, Data>, Option<TypeAnnotation<'input, Data>>) = {

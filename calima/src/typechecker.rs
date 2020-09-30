@@ -5,7 +5,7 @@ use crate::common::{Module, ModuleIdentifier};
 use crate::token::Span;
 use std::collections::{HashMap, HashSet};
 use std::ops::Index;
-use crate::ast_common::{NumberType, Literal, Identifier, Pattern};
+use crate::ast_common::{NumberType, Literal, Identifier, MatchPattern};
 use crate::ast::{Expr, Statement, TopLevelStatement, Block, TopLevelBlock, TypeAnnotation, Modifier};
 use crate::typed_ast::{TBlock, TStatement, TExpression, TExprData, Unit};
 use crate::types::{Type, GenericId, Scheme, TypeDefinition, PrimitiveType, build_function};
@@ -245,8 +245,8 @@ fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &E
             ctx.unify(ttrue.res.typ(), tfalse.res.typ());
             let rett = ttrue.res.typ().clone();
             let case = vec![
-                (Pattern::Literal(Literal::Boolean(true), Unit::unit()), ttrue),
-                (Pattern::Literal(Literal::Boolean(false), Unit::unit()), tfalse)
+                (MatchPattern::Literal(Literal::Boolean(true), Unit::unit()), ttrue),
+                (MatchPattern::Literal(Literal::Boolean(false), Unit::unit()), tfalse)
             ];
             TExpression::new(TExprData::Case(tcond.into(), case), rett)
         },
@@ -287,11 +287,11 @@ fn infer_statement<'input>(env: &mut Environment<'input>, ctx: &mut Context, sta
     }
 }
 
-fn map_pattern<'input>(pattern: &Pattern<'input, TypeAnnotation<Span>, Span>) -> Pattern<'input, Unit, Unit> {
+fn map_pattern<'input>(pattern: &MatchPattern<'input, TypeAnnotation<Span>, Span>) -> MatchPattern<'input, Unit, Unit> {
     match pattern {
-        Pattern::Any(_) => Pattern::Any(Unit::unit()),
-        Pattern::Literal(lit, _) => Pattern::Literal(lit.clone(), Unit::unit()),
-        Pattern::Name(id, _, _) => Pattern::Name(map_identifier(id), None, Unit::unit()),
+        MatchPattern::Any(_) => MatchPattern::Any(Unit::unit()),
+        MatchPattern::Literal(lit, _) => MatchPattern::Literal(lit.clone(), Unit::unit()),
+        MatchPattern::Name(id, _, _) => MatchPattern::Name(map_identifier(id), None, Unit::unit()),
         _ => unimplemented!()
     }
 }
@@ -303,10 +303,10 @@ fn map_identifier<'input>(id: &Identifier<'input, Span>) -> Identifier<'input, U
     }
 }
 
-fn bind_to_pattern<'input>(env: &mut Environment<'input>, pattern: &Pattern<'input, TypeAnnotation<Span>, Span>, sch: &Scheme) {
+fn bind_to_pattern<'input>(env: &mut Environment<'input>, pattern: &MatchPattern<'input, TypeAnnotation<Span>, Span>, sch: &Scheme) {
     match pattern {
-        Pattern::Any(_) => (),
-        Pattern::Name(idt, ta, _) => {
+        MatchPattern::Any(_) => (),
+        MatchPattern::Name(idt, ta, _) => {
             //TODO: Check type annotation
             env.add(idt.to_name(), sch.clone());
         },
