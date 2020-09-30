@@ -1,7 +1,7 @@
 use std::fmt::{Display, Formatter, Debug};
 use crate::util::*;
 use crate::common::ModuleIdentifier;
-use crate::ast_common::{Identifier, MatchPattern, Literal};
+use crate::ast_common::{Identifier, MatchPattern, Literal, BindPattern};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct RegionAnnotation<'a, Data>(pub &'a str, pub Data);
@@ -106,7 +106,7 @@ impl<'a, Data> Display for TopLevelStatement<'a, Data> {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement<'a, Data> {
-    Let(Vec<Modifier>, Option<RegionAnnotation<'a, Data>>, MatchPattern<'a, TypeAnnotation<'a, Data>, Data>, Expr<'a, Data>, Data),
+    Let(Vec<Modifier>, Option<RegionAnnotation<'a, Data>>, BindPattern<'a, TypeAnnotation<'a, Data>, Data>, Expr<'a, Data>, Data),
     Do(Option<RegionAnnotation<'a, Data>>, Expr<'a, Data>, Data),
     Region(RegionAnnotation<'a, Data>, Data)
 }
@@ -174,7 +174,7 @@ pub enum Expr<'a, Data> {
     Record(Vec<(&'a str, Expr<'a, Data>)>, Data),
     Tuple(Vec<Expr<'a, Data>>, Data),
     Literal(Literal<'a>, Data),
-    Lambda { regions: Vec<RegionAnnotation<'a, Data>>, params: Vec<MatchPattern<'a, TypeAnnotation<'a, Data>, Data>>, body: Block<'a, Data>, data: Data },
+    Lambda { regions: Vec<RegionAnnotation<'a, Data>>, params: Vec<BindPattern<'a, TypeAnnotation<'a, Data>, Data>>, body: Block<'a, Data>, data: Data },
     If { data: Data, cond: Box<Expr<'a, Data>>, if_true: Block<'a, Data>, if_false: Block<'a, Data> },
     Case { data: Data, value: Box<Expr<'a, Data>>, matches: Vec<(MatchPattern<'a, TypeAnnotation<'a, Data>, Data>, Block<'a, Data>)> },
     List(Vec<Expr<'a, Data>>, Data)

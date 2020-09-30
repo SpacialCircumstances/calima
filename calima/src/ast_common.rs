@@ -51,6 +51,28 @@ impl<'a, Data> Display for Identifier<'a, Data> {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub enum BindPattern<'a, TA: Display, Data> {
+    Any(Data),
+    Name(Identifier<'a, Data>, Option<TA>, Data),
+    Tuple(Vec<BindPattern<'a, TA, Data>>, Data),
+    Record(Vec<(&'a str, BindPattern<'a, TA, Data>)>, Data),
+}
+
+impl<'a, TA: Display, Data> Display for BindPattern<'a, TA, Data> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BindPattern::Any(_) => write!(f, "_"),
+            BindPattern::Name(id, ta, _) => match ta {
+                None => write!(f, "{}", id),
+                Some(ta) => write!(f, "({}: {})", id, ta)
+            },
+            BindPattern::Tuple(elements, _) => format_tuple(elements, f),
+            BindPattern::Record(rows, _) => format_record(rows, f, ":", ", "),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum MatchPattern<'a, TA: Display, Data> {
     Any(Data),
     Name(Identifier<'a, Data>, Option<TA>, Data),
