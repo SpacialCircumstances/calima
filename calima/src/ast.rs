@@ -171,6 +171,7 @@ pub enum Expr<'a, Data> {
     Variable(Vec<&'a str>, Data),
     FunctionCall(Box<Expr<'a, Data>>, Vec<Expr<'a, Data>>, Data),
     OperatorCall(Vec<Expr<'a, Data>>, Vec<&'a str>, Data),
+    UnaryOperatorCall(&'a str, Box<Expr<'a, Data>>, Data),
     Record(Vec<(&'a str, Expr<'a, Data>)>, Data),
     Tuple(Vec<Expr<'a, Data>>, Data),
     Literal(Literal<'a>, Data),
@@ -190,7 +191,8 @@ impl<'a, Data> Display for Expr<'a, Data> {
             Expr::Record(rows, _) => format_record(rows, f, "=", ", "),
             Expr::Lambda { regions, params, body, data: _ } => write!(f, "fun {}{} -> {}", format_iter_end(regions.iter(), " "), format_iter(params.iter(), " "), body),
             Expr::FunctionCall(func, args, _) => write!(f, "{} {}", *func, format_iter(args.iter(), " ")),
-            Expr::OperatorCall(exprs, ops, r) => write!(f, "{}", format_iter(exprs.iter(), " ")), //TODO: Operators
+            Expr::UnaryOperatorCall(op, expr, _) => write!(f, "{}{}", op, expr),
+            Expr::OperatorCall(exprs, ops, _) => write!(f, "{}", format_iter(exprs.iter(), " ")), //TODO: Operators
             Expr::If { data: _, cond, if_true, if_false } => {
                 writeln!(f, "if {} then", *cond)?;
                 writeln!(f, "{}", *if_true)?;
