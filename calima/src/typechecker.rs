@@ -201,6 +201,10 @@ fn function_call<'a, 'input: 'a, I: Iterator<Item=&'a Expr<'input, Span>>>(env: 
     TExpression::new(TExprData::FunctionCall(tfunc.into(), targs), ret)
 }
 
+fn get_precedence(op: &str) -> u32 {
+    10
+}
+
 fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &Expr<'input, Span>) -> TExpression<'input> {
     match expr {
         Expr::Literal(lit, _) => TExpression::new(TExprData::Literal(lit.clone()), get_literal_type(lit)),
@@ -231,6 +235,15 @@ fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &E
         },
         Expr::OperatorCall(exprs, operators, _) => {
             //TODO: Figure out precedence and stuff
+            //Find precedence and types for operators
+            let resolve_operators: Vec<Result<(&str, u32, &Scheme), &str>> = operators.iter().map(|op| {
+                match env.lookup(op) {
+                    Some(tp) => Ok((*op, get_precedence(op), tp)),
+                    None => Err(*op)
+                }
+            }).collect();
+            let operators: Vec<(&str, u32, &Scheme)> = resolve_operators.iter().map(|r| r.unwrap()).collect();
+            //TODO: Turn into function calls
             unimplemented!()
         }
         Expr::If { data: _, cond, if_true, if_false } => {
