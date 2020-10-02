@@ -229,11 +229,9 @@ fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &E
             let tfunc = infer_expr(env, ctx, func);
             function_call(env, ctx, tfunc, args.iter())
         },
-        Expr::OperatorCall(l, op, r, _) => {
-            //TODO: Generate variable expr for op in ast
-            let tfunc = infer_expr(env, ctx, &Expr::Variable(vec![ op ], Span::default()));
-            let args: Vec<&Expr<Span>> = vec![ &*l, &*r ];
-            function_call(env, ctx, tfunc, args.into_iter())
+        Expr::OperatorCall(exprs, operators, _) => {
+            //TODO: Figure out precedence and stuff
+            unimplemented!()
         }
         Expr::If { data: _, cond, if_true, if_false } => {
             let tcond = infer_expr(env, ctx, &*cond);
