@@ -4,7 +4,7 @@ use crate::string_interner::StringInterner;
 use crate::common::{Module, ModuleIdentifier};
 use crate::token::Span;
 use std::collections::{HashMap, HashSet};
-use std::ops::Index;
+use std::ops::{Index, Deref};
 use crate::ast_common::{NumberType, Literal, Identifier, MatchPattern, BindPattern};
 use crate::ast::{Expr, Statement, TopLevelStatement, Block, TopLevelBlock, TypeAnnotation, Modifier};
 use crate::typed_ast::{TBlock, TStatement, TExpression, TExprData, Unit};
@@ -233,6 +233,12 @@ fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &E
             let tfunc = infer_expr(env, ctx, func);
             function_call(env, ctx, tfunc, args.iter())
         },
+        Expr::UnaryOperatorCall(op, expr, _) => {
+            let schem = env.lookup(op).expect(format!("Operator not found: {}", op).as_str());
+            let tp = env.inst(ctx, schem);
+            let expr = expr.deref();
+            function_call(env, ctx, TExpression::new(TExprData::UnaryOperator(op), tp), std::iter::once(expr))
+        }
         Expr::OperatorCall(exprs, operators, _) => {
             //TODO: Figure out precedence and stuff
             //Find precedence and types for operators
