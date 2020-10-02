@@ -69,14 +69,11 @@ Combine<S, T>: (S, T) = {
     <s:S> <t:T> => (s, t)
 };
 
-SepWithStart1<T, S>: (Vec<T>, Vec<S>) = {
-    <t1:T?> <r:(Combine<S, T>)+> => {
+Sep1Collect<T, S>: (Vec<T>, Vec<S>) = {
+    <t1: T> <r:(Combine<S, T>)+> => {
         let mut ts = Vec::new();
         let mut ss = Vec::new();
-        match t1 {
-            Option::Some(x) => ts.push(x),
-            Option::None => ()
-        }
+        ts.push(t1);
         for (s, t) in r {
             ts.push(t);
             ss.push(s);
@@ -163,7 +160,7 @@ Lambda: Expr<'input, Data> = <posl:@L> "fun" <regions:RegionAnnotation*> <params
 
 FunctionCall: Expr<'input, Data> = <posl:@L> <func:Expression2> <args:Expression2+> <posr:@R> => Expr::FunctionCall(Box::new(func), args, to_data(posl, posr));
 
-OperatorCall: Expr<'input, Data> = <posl:@L> <r:SepWithStart1<Expression2, "operator">> <posr:@R> => Expr::OperatorCall(r.0, r.1, to_data(posl, posr));
+OperatorCall: Expr<'input, Data> = <posl:@L> <r:Sep1Collect<Expression2, "operator">> <posr:@R> => Expr::OperatorCall(r.0, r.1, to_data(posl, posr));
 
 Expression2: Expr<'input, Data> = {
     Variable,
