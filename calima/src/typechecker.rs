@@ -75,8 +75,9 @@ impl Context {
     }
 
     fn bind(&mut self, gid: GenericId, t2: &Type) {
-        match &self.subst[gid] {
-            Some(t) => self.unify(&t.clone(), t2),
+        let existing = self.subst[gid].clone();
+        match existing {
+            Some(t) => self.unify(&t, t2),
             None => self.subst.add(gid, t2.clone())
         }
     }
