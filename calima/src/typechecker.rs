@@ -395,7 +395,9 @@ pub fn typecheck<'input>(string_interner: &StringInterner, errors: &mut ErrorCon
 
     for module in ordered_modules {
         let deps = module.deps.iter().map(|(d, _)| ctx.modules.get(d).expect("Fatal error: Dependent module not found")).collect();
-        ctx.modules.insert(module.name.clone(), typecheck_module(module, deps));
+        let name = module.name.clone();
+        let typed_module = typecheck_module(module, deps);
+        ctx.modules.insert(name, typed_module);
     }
 
     errors.handle_errors().map(|()| ctx)
