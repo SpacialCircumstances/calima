@@ -192,18 +192,39 @@ impl<'a> Environment<'a> {
     }
 }
 
-fn function_call<'a, 'input: 'a, I: Iterator<Item=&'a Expr<'input, Span>>>(env: &mut Environment<'input>, ctx: &mut Context, tfunc: TExpression<'input>, args: I) -> TExpression<'input> {
-    let targs: Vec<TExpression> = args.map(|a| infer_expr(env, ctx, a)).collect();
-    let argtypes: Vec<Type> = targs.iter().map(TExpression::typ).cloned().collect();
+fn function_call<'input>(env: &mut Environment<'input>, ctx: &mut Context, tfunc: TExpression<'input>, args: Vec<TExpression<'input>>) -> TExpression<'input> {
+    let argtypes: Vec<Type> = args.iter().map(TExpression::typ).cloned().collect();
     let ret = ctx.new_generic();
     let arg_fun_type = build_function(&argtypes, &ret);
     println!("{}, {}", tfunc.typ(), &arg_fun_type);
     ctx.unify(tfunc.typ(), &arg_fun_type);
-    TExpression::new(TExprData::FunctionCall(tfunc.into(), targs), ret)
+    TExpression::new(TExprData::FunctionCall(tfunc.into(), args), ret)
 }
 
 fn get_precedence(op: &str) -> u32 {
     10
+}
+
+fn transform_operators<'input>(env: &mut Environment<'input>, ctx: &mut Context, ops: &[(&'input str, u32, &Scheme)], exprs: &[Expr<'input, Span>]) -> TExpression<'input> {
+    let (next_op_idx, &op) = ops.iter().enumerate().max_by_key(|(_, op)| op.1).expect("Error finding highest precedence operator");
+    let l_ops = &ops[..next_op_idx];
+    let l_exprs = &exprs[..next_op_idx + 1];
+    let r_ops = &ops[next_op_idx + 1..];
+    let r_exprs = &exprs[next_op_idx + 1..];
+    let l = if l_ops.is_empty() {
+        infer_expr(env, ctx, &l_exprs[0])
+    } else {
+        transform_operators(env, ctx, l_ops, l_exprs)
+    };
+    let r = if r_ops.is_empty() {
+        infer_expr(env, ctx, &r_exprs[0])
+    } else {
+        transform_operators(env, ctx, r_ops, r_exprs)
+    };
+    let (op_name, op_prec, op_scheme) = op;
+    let op_type = env.inst(ctx, op_scheme);
+    let op_expr = TExpression::new(TExprData::Variable(vec![ op_name ]), op_type);
+    function_call(env, ctx, op_expr, vec![ l, r ])
 }
 
 fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &Expr<'input, Span>) -> TExpression<'input> {
@@ -232,13 +253,14 @@ fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &E
         },
         Expr::FunctionCall(func, args, _) => {
             let tfunc = infer_expr(env, ctx, func);
-            function_call(env, ctx, tfunc, args.iter())
+            let targs = args.iter().map(|e| infer_expr(env, ctx, e)).collect();
+            function_call(env, ctx, tfunc, targs)
         },
         Expr::UnaryOperatorCall(op, expr, _) => {
             let schem = env.lookup(op).expect(format!("Operator not found: {}", op).as_str());
             let tp = env.inst(ctx, schem);
-            let expr = expr.deref();
-            function_call(env, ctx, TExpression::new(TExprData::UnaryOperator(op), tp), std::iter::once(expr))
+            let texpr = infer_expr(env, ctx, expr.deref());
+            function_call(env, ctx, TExpression::new(TExprData::UnaryOperator(op), tp), vec![ texpr ])
         }
         Expr::OperatorCall(exprs, operators, _) => {
             //TODO: Figure out precedence and stuff
