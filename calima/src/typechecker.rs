@@ -213,8 +213,8 @@ fn get_precedence(op: &str) -> u32 {
     }
 }
 
-fn transform_operators<'input>(env: &mut Environment<'input>, ctx: &mut Context, ops: &[(&'input str, u32, &Scheme)], exprs: &[Expr<'input, Span>]) -> TExpression<'input> {
-    let (next_op_idx, &op) = ops.iter().enumerate().max_by_key(|(_, op)| op.1).expect("Error finding highest precedence operator");
+fn transform_operators<'input>(env: &mut Environment<'input>, ctx: &mut Context, ops: &[(&'input str, u32, Scheme)], exprs: &[Expr<'input, Span>]) -> TExpression<'input> {
+    let (next_op_idx, op) = ops.iter().enumerate().max_by_key(|(_, op)| op.1).expect("Error finding highest precedence operator");
     let l_ops = &ops[..next_op_idx];
     let l_exprs = &exprs[..next_op_idx + 1];
     let r_ops = &ops[next_op_idx + 1..];
@@ -230,7 +230,7 @@ fn transform_operators<'input>(env: &mut Environment<'input>, ctx: &mut Context,
         transform_operators(env, ctx, r_ops, r_exprs)
     };
     let (op_name, _, op_scheme) = op;
-    let op_type = env.inst(ctx, op_scheme);
+    let op_type = env.inst(ctx, &op_scheme);
     let op_expr = TExpression::new(TExprData::Variable(vec![ op_name ]), op_type);
     function_call(env, ctx, op_expr, vec![ l, r ])
 }
@@ -273,15 +273,14 @@ fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &E
         Expr::OperatorCall(exprs, operators, _) => {
             //TODO: Figure out precedence and stuff
             //Find precedence and types for operators
-            let resolve_operators: Vec<Result<(&str, u32, &Scheme), &str>> = operators.iter().map(|op| {
+            let resolve_operators: Vec<Result<(&str, u32, Scheme), &str>> = operators.iter().map(|op| {
                 match env.lookup(op) {
-                    Some(tp) => Ok((*op, get_precedence(op), tp)),
+                    Some(tp) => Ok((*op, get_precedence(op), tp.clone())),
                     None => Err(*op)
                 }
             }).collect();
-            let operators: Vec<(&str, u32, &Scheme)> = resolve_operators.iter().map(|r| r.unwrap()).collect();
-            //TODO: Turn into function calls
-            unimplemented!()
+            let operators: Vec<(&str, u32, Scheme)> = resolve_operators.into_iter().map(|r| r.unwrap()).collect();
+            transform_operators(env, ctx, &operators[..], exprs)
         }
         Expr::If { data: _, cond, if_true, if_false } => {
             let tcond = infer_expr(env, ctx, &*cond);
