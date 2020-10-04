@@ -202,7 +202,15 @@ fn function_call<'input>(env: &mut Environment<'input>, ctx: &mut Context, tfunc
 }
 
 fn get_precedence(op: &str) -> u32 {
-    10
+    match op {
+        "|>" => 60,
+        "*" | "/" | ".*" | "./" | "%" => 50,
+        "+" | "-" | ".+" | ".-" => 40,
+        "==" | "!=" | "<" | ">" | "<=" | ">=" | "=>" => 30,
+        "&&" => 25,
+        "||" => 20,
+        _ => 10
+    }
 }
 
 fn transform_operators<'input>(env: &mut Environment<'input>, ctx: &mut Context, ops: &[(&'input str, u32, &Scheme)], exprs: &[Expr<'input, Span>]) -> TExpression<'input> {
@@ -221,7 +229,7 @@ fn transform_operators<'input>(env: &mut Environment<'input>, ctx: &mut Context,
     } else {
         transform_operators(env, ctx, r_ops, r_exprs)
     };
-    let (op_name, op_prec, op_scheme) = op;
+    let (op_name, _, op_scheme) = op;
     let op_type = env.inst(ctx, op_scheme);
     let op_expr = TExpression::new(TExprData::Variable(vec![ op_name ]), op_type);
     function_call(env, ctx, op_expr, vec![ l, r ])
