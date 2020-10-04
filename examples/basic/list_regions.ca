@@ -1,6 +1,6 @@
 import List in
 region @test
-let alloc = fun @a () ->
+let new = fun @a _ ->
     let @a a = Empty in a
 let @test (t1: List Int) = Node (Empty, 2)
 in head t1
