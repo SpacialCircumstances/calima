@@ -192,7 +192,13 @@ impl<'a, Data> Display for Expr<'a, Data> {
             Expr::Lambda { regions, params, body, data: _ } => write!(f, "fun {}{} -> {}", format_iter_end(regions.iter(), " "), format_iter(params.iter(), " "), body),
             Expr::FunctionCall(func, args, _) => write!(f, "{} {}", *func, format_iter(args.iter(), " ")),
             Expr::UnaryOperatorCall(op, expr, _) => write!(f, "{}{}", op, expr),
-            Expr::OperatorCall(exprs, ops, _) => write!(f, "{}", format_iter(exprs.iter(), " ")), //TODO: Operators
+            Expr::OperatorCall(exprs, ops, _) => {
+                for (e, op) in exprs.iter().zip(ops.iter()) {
+                    write!(f, "{} {} ", e, op)?;
+                }
+
+                write!(f, "{}", exprs.last().unwrap())
+            },
             Expr::If { data: _, cond, if_true, if_false } => {
                 writeln!(f, "if {} then", *cond)?;
                 writeln!(f, "{}", *if_true)?;
