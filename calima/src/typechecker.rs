@@ -10,6 +10,7 @@ use crate::ast::{Expr, Statement, TopLevelStatement, Block, TopLevelBlock, TypeA
 use crate::typed_ast::{TBlock, TStatement, TExpression, TExprData, Unit};
 use crate::types::{Type, GenericId, Scheme, TypeDefinition, PrimitiveType, build_function};
 use crate::prelude::prelude;
+use crate::util::all_max;
 
 pub struct TypedModuleData<'input>(Context, TBlock<'input>);
 
@@ -227,6 +228,7 @@ fn get_assoc(prec: u32) -> Associativity {
 }
 
 fn transform_operators<'input>(env: &mut Environment<'input>, ctx: &mut Context, ops: &[(&'input str, u32, Scheme)], exprs: &[Expr<'input, Span>]) -> TExpression<'input> {
+    let highest_ops = all_max(ops.iter().enumerate(), |(_, (_, p, _))| *p);
     let (next_op_idx, op) = ops.iter().enumerate().max_by_key(|(_, op)| op.1).expect("Error finding highest precedence operator");
     let l_ops = &ops[..next_op_idx];
     let l_exprs = &exprs[..next_op_idx + 1];
