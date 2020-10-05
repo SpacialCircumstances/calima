@@ -8,7 +8,10 @@ pub fn all_max<T, K: Ord, I: Iterator<Item=T>, F: Fn(&T) -> K>(mut iter: I, f: F
     while let Some(el) = iter.next() {
         let key = (f)(&el);
         match &curr_max {
-            None => curr_max = Some(key),
+            None => {
+                curr_max = Some(key);
+                max_elements.push(el);
+            },
             Some(x) if &key > x => {
                 curr_max = Some(key);
                 max_elements.clear();
