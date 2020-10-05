@@ -5,7 +5,7 @@ use crate::common::{Module, ModuleIdentifier};
 use crate::token::Span;
 use std::collections::{HashMap, HashSet};
 use std::ops::{Index, Deref};
-use crate::ast_common::{NumberType, Literal, Identifier, MatchPattern, BindPattern};
+use crate::ast_common::{NumberType, Literal, Identifier, MatchPattern, BindPattern, Associativity};
 use crate::ast::{Expr, Statement, TopLevelStatement, Block, TopLevelBlock, TypeAnnotation, Modifier};
 use crate::typed_ast::{TBlock, TStatement, TExpression, TExprData, Unit};
 use crate::types::{Type, GenericId, Scheme, TypeDefinition, PrimitiveType, build_function};
@@ -203,13 +203,23 @@ fn function_call<'input>(env: &mut Environment<'input>, ctx: &mut Context, tfunc
 
 fn get_precedence(op: &str) -> u32 {
     match op {
-        "|>" => 60,
-        "*" | "/" | ".*" | "./" | "%" => 50,
-        "+" | "-" | ".+" | ".-" => 40,
-        "==" | "!=" | "<" | ">" | "<=" | ">=" | "=>" => 30,
-        "&&" => 25,
+        "|>" => 100,
+        "*" | "/" | ".*" | "./" | "%" => 80,
+        "+" | "-" | ".+" | ".-" => 60,
+        "==" | "!=" | "<" | ">" | "<=" | ">=" | "=>" => 59,
+        "&&" => 40,
         "||" => 20,
         _ => 10
+    }
+}
+
+fn get_assoc(prec: u32) -> Associativity {
+    if prec % 10 == 0 {
+        Associativity::Left
+    } else if prec % 5 == 0 {
+        Associativity::Right
+    } else {
+        Associativity::None
     }
 }
 
