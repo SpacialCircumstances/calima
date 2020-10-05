@@ -201,6 +201,9 @@ fn function_call<'input>(env: &mut Environment<'input>, ctx: &mut Context, tfunc
     TExpression::new(TExprData::FunctionCall(tfunc.into(), args), ret)
 }
 
+//Multiples of 10 -> Left assoc
+//Multiples of 5 -> Right assoc
+//Others -> No assoc
 fn get_precedence(op: &str) -> u32 {
     match op {
         "|>" => 100,
