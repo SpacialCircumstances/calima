@@ -228,12 +228,22 @@ fn get_assoc(prec: u32) -> Associativity {
 }
 
 fn transform_operators<'input>(env: &mut Environment<'input>, ctx: &mut Context, ops: &[(&'input str, u32, Scheme)], exprs: &[Expr<'input, Span>]) -> TExpression<'input> {
-    let highest_ops = all_max(ops.iter().enumerate(), |(_, (_, p, _))| *p);
-    let (next_op_idx, op) = ops.iter().enumerate().max_by_key(|(_, op)| op.1).expect("Error finding highest precedence operator");
-    let l_ops = &ops[..next_op_idx];
-    let l_exprs = &exprs[..next_op_idx + 1];
-    let r_ops = &ops[next_op_idx + 1..];
-    let r_exprs = &exprs[next_op_idx + 1..];
+    let (highest_prec, highest_ops) = all_max(ops.iter().enumerate(), |(_, (_, p, _))| *p);
+    let highest_prec = highest_prec.expect("Error finding operator with highest precedence");
+    let assoc = get_assoc(highest_prec);
+    let (op_idx, op) = match assoc {
+        Associativity::Left => highest_ops[0],
+        Associativity::Right => *highest_ops.last().unwrap(), //If we have a highest element, we must have at least one
+        Associativity::None => if highest_ops.len() > 1 {
+            panic!("Multiple operators with same precedence and no associativity")
+        } else {
+            highest_ops[0]
+        }
+    };
+    let l_ops = &ops[..op_idx];
+    let l_exprs = &exprs[..op_idx + 1];
+    let r_ops = &ops[op_idx + 1..];
+    let r_exprs = &exprs[op_idx + 1..];
     let l = if l_ops.is_empty() {
         infer_expr(env, ctx, &l_exprs[0])
     } else {
