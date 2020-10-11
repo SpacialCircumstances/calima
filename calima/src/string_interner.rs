@@ -13,7 +13,7 @@ impl StringInterner {
         }
     }
 
-    pub fn intern<'a, 'b>(&'b self, string: &'a str) -> &'b str {
+    pub fn intern(&self, string: &str) -> &str {
         let mut strings = self.strings.borrow_mut();
         if !strings.contains(string) {
             strings.insert(string.to_string());
