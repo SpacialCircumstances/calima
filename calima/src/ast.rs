@@ -174,6 +174,7 @@ pub enum Operator<'a, Data> {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expr<'a, Data> {
+    OperatorAsFunction(&'a str, Data),
     Variable(Vec<&'a str>, Data),
     FunctionCall(Box<Expr<'a, Data>>, Vec<Expr<'a, Data>>, Data),
     OperatorCall(Vec<Expr<'a, Data>>, Vec<&'a str>, Data),
@@ -191,6 +192,7 @@ impl<'a, Data> Display for Expr<'a, Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Expr::Literal(lit, _) => write!(f, "{}", lit),
+            Expr::OperatorAsFunction(name, _) => write!(f, "`{}`", name),
             Expr::Variable(ident, _) => write!(f, "{}", ident.join(".")),
             Expr::List(exprs, _) => write!(f, "[{}]", format_iter(exprs.iter(), ", ")),
             Expr::Tuple(exprs, _) => write!(f, "({})", format_iter(exprs.iter(), ", ")),
