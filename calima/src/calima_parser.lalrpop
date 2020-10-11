@@ -21,7 +21,6 @@ extern {
         "," => Comma,
         "name" => NameIdentifier(<&'input str>),
         "typename" => TypeIdentifier(<&'input str>),
-        "regionname" => RegionIdentifier(<&'input str>),
         "operator" => OperatorIdentifier(<&'input str>),
         "string" => StringLiteral(<&'input str>),
         "number" => NumberLiteral(<(&'input str, NumberFormat)>),
@@ -46,7 +45,8 @@ extern {
         ":" => Colon,
         "->" => Arrow,
         "and" => And,
-        "backtick" => Backtick
+        "backtick" => Backtick,
+        "@" => At
     }
 }
 
@@ -259,7 +259,7 @@ TypeKind1: TypeKind<'input, Data> = {
     "(" <tk:TypeKind0> ")" => tk,
 };
 
-RegionAnnotation: RegionAnnotation<'input, Data> = <posl:@L> <n:"regionname"> <posr:@R> => RegionAnnotation(n, to_data(posl, posr));
+RegionAnnotation: RegionAnnotation<'input, Data> = <posl:@L> "@" <n:"name"> <posr:@R> => RegionAnnotation(n, to_data(posl, posr));
 
 Literal: Literal<'input> = {
     "(" ")" => Literal::Unit,

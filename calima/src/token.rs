@@ -18,7 +18,6 @@ pub enum Token<'input> {
     Comma,
     NameIdentifier(&'input str),
     TypeIdentifier(&'input str),
-    RegionIdentifier(&'input str),
     OperatorIdentifier(&'input str),
     StringLiteral(&'input str),
     NumberLiteral((&'input str, NumberFormat)),
@@ -43,7 +42,8 @@ pub enum Token<'input> {
     Colon,
     Arrow,
     And,
-    Backtick
+    Backtick,
+    At
 }
 
 impl<'input> Display for Token<'input> {

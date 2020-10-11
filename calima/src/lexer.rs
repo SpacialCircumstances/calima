@@ -62,6 +62,7 @@ fn single_char_token<'input>(c: char) -> Option<Token<'input>> {
         '[' => Some(SquareBracketOpen),
         ']' => Some(SquareBracketClose),
         '`' => Some(Backtick),
+        '@' => Some(At),
         _ => None
     }
 }
@@ -92,7 +93,6 @@ fn handle_identifier(ident: &str) -> Token {
         x => {
             let first = x.chars().next().expect(format!("Fatal Error: Unrecognized identifier '{}'", ident).as_ref());
             match first {
-                '@' => RegionIdentifier(&ident[1..]),
                 c if c.is_alphabetic() && c.is_uppercase() => TypeIdentifier(ident),
                 c if c.is_alphabetic() => NameIdentifier(ident),
                 _ => OperatorIdentifier(ident)
