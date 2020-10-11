@@ -168,12 +168,15 @@ OperatorCall: Expr<'input, Data> = <posl:@L> <r:Sep1Collect<Expression2, "operat
 
 Expression2: Expr<'input, Data> = {
     Variable,
+    OperatorAsFunction,
     LiteralExpr,
     TupleConstruct,
     "(" <Expression0> ")" => <>,
     <posl:@L> "[" <exprs: Sep1<Expression0, ",">> "]" <posr:@R> => Expr::List(exprs, to_data(posl, posr)),
     <posl:@L> "{" <rows: Sep1<RecordExprRow, ",">> "}" <posr:@R> => Expr::Record(rows, to_data(posl, posr)),
 };
+
+OperatorAsFunction: Expr<'input, Data> = <posl:@L> "backtick" <op:"operator"> "backtick" <posr:@R> => Expr::OperatorAsFunction(op, to_data(posl, posr));
 
 TupleConstruct: Expr<'input, Data> = <posl:@L> "(" <exprs:Sep2<Expression1, ",">> ")" <posr:@R> => Expr::Tuple(exprs, to_data(posl, posr));
 
