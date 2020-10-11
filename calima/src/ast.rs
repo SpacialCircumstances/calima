@@ -167,6 +167,12 @@ impl<'a, Data> Display for Block<'a, Data> {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub enum Operator<'a, Data> {
+    Name(&'a str),
+    FunctionAsOperator(Box<Expr<'a, Data>>)
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum Expr<'a, Data> {
     Variable(Vec<&'a str>, Data),
     FunctionCall(Box<Expr<'a, Data>>, Vec<Expr<'a, Data>>, Data),
