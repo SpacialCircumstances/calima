@@ -162,6 +162,7 @@ impl<'source, 'input> Lexer<'source, 'input> {
     }
 
     fn string_literal(&mut self) -> Option<LexerResult<'input>> {
+        //TODO: More escape stuff
         let start = self.token_start_pos();
         let start_idx = self.current_pos.pos;
         let mut escaped = false;
