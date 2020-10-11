@@ -1,4 +1,5 @@
 let v = 2 * 2 + 2 + -1
 let sq = v * v
 let cub = v * v * v
+let sq2 = `*` v v
 in println cub
