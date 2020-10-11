@@ -343,7 +343,7 @@ test #asdf d.
     #[test]
     fn lex10() {
         let code = "a.T.b @reg ++ test";
-        let tokens = vec! [ NameIdentifier("a"), Period, TypeIdentifier("T"), Period, NameIdentifier("b"), RegionIdentifier("reg"), OperatorIdentifier("++"), NameIdentifier("test") ];
+        let tokens = vec! [ NameIdentifier("a"), Period, TypeIdentifier("T"), Period, NameIdentifier("b"), At, NameIdentifier("reg"), OperatorIdentifier("++"), NameIdentifier("test") ];
         lex_equal(code, tokens);
     }
 }
