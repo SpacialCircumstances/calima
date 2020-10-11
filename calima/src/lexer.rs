@@ -44,6 +44,7 @@ fn is_separator(c: char) -> bool {
         '{' => true,
         '}' => true,
         ':' => true,
+        '`' => true,
         c if c.is_whitespace() => true,
         _ => false
     }
@@ -60,6 +61,7 @@ fn single_char_token<'input>(c: char) -> Option<Token<'input>> {
         '}' => Some(CurlyBraceClose),
         '[' => Some(SquareBracketOpen),
         ']' => Some(SquareBracketClose),
+        '`' => Some(Backtick),
         _ => None
     }
 }

@@ -42,7 +42,8 @@ pub enum Token<'input> {
     Import,
     Colon,
     Arrow,
-    And
+    And,
+    Backtick
 }
 
 impl<'input> Display for Token<'input> {
