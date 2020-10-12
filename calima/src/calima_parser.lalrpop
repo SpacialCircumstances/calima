@@ -46,7 +46,7 @@ extern {
         "->" => Arrow,
         "and" => And,
         "backtick" => Backtick,
-        "@" => At
+        "@" => At(<Option<&'input str>>)
     }
 }
 
@@ -262,7 +262,10 @@ TypeKind1: TypeKind<'input, Data> = {
     "(" <tk:TypeKind0> ")" => tk,
 };
 
-RegionAnnotation: RegionAnnotation<'input, Data> = <posl:@L> "@" <n:"name"> <posr:@R> => RegionAnnotation(n, to_data(posl, posr));
+RegionAnnotation: RegionAnnotation<'input, Data> = <posl:@L> <n:"@"> <posr:@R> => match n {
+    None => RegionAnnotation::Anonymous(to_data(posl, posr)),
+    Some(name) => RegionAnnotation::Named(name, to_data(posl, posr))
+};
 
 Literal: Literal<'input> = {
     "(" ")" => Literal::Unit,
