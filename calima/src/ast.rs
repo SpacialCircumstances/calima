@@ -4,10 +4,20 @@ use crate::common::ModuleIdentifier;
 use crate::ast_common::{Identifier, MatchPattern, Literal, BindPattern};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
+pub struct RegionVariable<'a, Data>(pub &'a str, pub Data);
+
+impl<'a, Data> Display for RegionVariable<'a, Data> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "'{}", self.0)
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum RegionAnnotation<'a, Data> {
     Anonymous,
     Stack,
-    Named(&'a str, Data)
+    Named(&'a str, Data),
+    Var(RegionVariable<'a, Data>)
 }
 
 impl<'a, Data> Display for RegionAnnotation<'a, Data> {
@@ -15,7 +25,8 @@ impl<'a, Data> Display for RegionAnnotation<'a, Data> {
         match self {
             RegionAnnotation::Stack => write!(f, "@."),
             RegionAnnotation::Anonymous => write!(f, "@_"),
-            RegionAnnotation::Named(name, _) => write!(f, "@{}", name)
+            RegionAnnotation::Named(name, _) => write!(f, "@{}", name),
+            RegionAnnotation::Var(var) => write!(f, "{}", var)
         }
     }
 
