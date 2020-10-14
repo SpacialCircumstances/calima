@@ -43,7 +43,7 @@ pub enum Token<'input> {
     Arrow,
     And,
     Backtick,
-    At(Option<&'input str>)
+    At
 }
 
 impl<'input> Display for Token<'input> {

@@ -62,6 +62,7 @@ fn single_char_token<'input>(c: char) -> Option<Token<'input>> {
         '[' => Some(SquareBracketOpen),
         ']' => Some(SquareBracketClose),
         '`' => Some(Backtick),
+        '@' => Some(At),
         _ => None
     }
 }
@@ -92,8 +93,6 @@ fn handle_identifier(ident: &str) -> Token {
         x => {
             let first = x.chars().next().expect(format!("Fatal Error: Unrecognized identifier '{}'", ident).as_ref());
             match first {
-                '@' if x.len() > 1 => At(Some(&x[1..])),
-                '@' => At(None),
                 c if c.is_alphabetic() && c.is_uppercase() => TypeIdentifier(ident),
                 c if c.is_alphabetic() => NameIdentifier(ident),
                 _ => OperatorIdentifier(ident)
@@ -344,7 +343,7 @@ test #asdf d.
     #[test]
     fn lex10() {
         let code = "a.T.b @reg ++ test";
-        let tokens = vec! [ NameIdentifier("a"), Period, TypeIdentifier("T"), Period, NameIdentifier("b"), At(Some("reg")),OperatorIdentifier("++"), NameIdentifier("test") ];
+        let tokens = vec! [ NameIdentifier("a"), Period, TypeIdentifier("T"), Period, NameIdentifier("b"), At, NameIdentifier("reg"), OperatorIdentifier("++"), NameIdentifier("test") ];
         lex_equal(code, tokens);
     }
 }
