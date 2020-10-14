@@ -114,8 +114,8 @@ impl<'a, Data> Display for TopLevelStatement<'a, Data> {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement<'a, Data> {
-    Let(Vec<Modifier>, Option<RegionAnnotation<'a, Data>>, BindPattern<'a, TypeAnnotation<'a, Data>, Data>, Expr<'a, Data>, Data),
-    Do(Option<RegionAnnotation<'a, Data>>, Expr<'a, Data>, Data),
+    Let(Vec<Modifier>, BindPattern<'a, TypeAnnotation<'a, Data>, Data>, Expr<'a, Data>, Data),
+    Do(Expr<'a, Data>, Data),
     Region(RegionAnnotation<'a, Data>, Data)
 }
 
@@ -123,14 +123,8 @@ impl<'a, Data> Display for Statement<'a, Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Statement::Region(reg, _) => write!(f, "region {}", reg),
-            Statement::Do(Some(reg), expr, _) => write!(f, "do {} {}", reg, expr),
-            Statement::Do(None, expr, _) => write!(f, "do {}", expr),
-            Statement::Let(mods, reg, pat, expr, _) => {
-                match reg {
-                    None => write!(f, "let {}{} = {}", format_iter_end(mods.iter(), " "), pat, expr),
-                    Some(region) => write!(f, "let {}{} {} = {}", format_iter_end(mods.iter(), " "), region, pat, expr)
-                }
-            }
+            Statement::Do(expr, _) => write!(f, "do {}", expr),
+            Statement::Let(mods, pat, expr, _) => write!(f, "let {}{} = {}", format_iter_end(mods.iter(), " "), pat, expr)
         }
     }
 }

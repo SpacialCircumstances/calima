@@ -117,9 +117,9 @@ Statement: Statement<'input, Data> = {
 
 Region: Statement<'input, Data> = <posl:@L> "region" <n:RegionAnnotation> <posr:@R> => Statement::Region(n, to_data(posl, posr));
 
-Do: Statement<'input, Data> = <posl:@L> "do" <reg:RegionAnnotation?> <e:Expression0> <posr:@R> => Statement::Do(reg, e, to_data(posl, posr));
+Do: Statement<'input, Data> = <posl:@L> "do" <e:Expression0> <posr:@R> => Statement::Do(e, to_data(posl, posr));
 
-Let: Statement<'input, Data> = <posl:@L> "let" <mods:Modifiers> <reg:RegionAnnotation?> <pat:BindPattern0> "=" <expr:Expression0> <posr:@R> => Statement::Let(mods, reg, pat, expr, to_data(posl, posr));
+Let: Statement<'input, Data> = <posl:@L> "let" <mods:Modifiers> <pat:BindPattern0> "=" <expr:Expression0> <posr:@R> => Statement::Let(mods, pat, expr, to_data(posl, posr));
 
 Modifiers: Vec<Modifier> = Modifier*;
 

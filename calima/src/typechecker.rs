@@ -339,8 +339,8 @@ fn get_literal_type(lit: &Literal) -> Type {
 fn infer_statement<'input>(env: &mut Environment<'input>, ctx: &mut Context, statement: &Statement<'input, Span>) -> Option<TStatement<'input>> {
     match statement {
         Statement::Region(_, _) => None,
-        Statement::Do(_, expr, _) => Some(TStatement::Do(infer_expr(env, ctx, expr))),
-        Statement::Let(mods, _, pattern, value, _) => {
+        Statement::Do(expr, _) => Some(TStatement::Do(infer_expr(env, ctx, expr))),
+        Statement::Let(mods, pattern, value, _) => {
             if mods.contains(&Modifier::Rec) {
                 let var = ctx.new_generic();
                 let mut body_env = env.clone();
