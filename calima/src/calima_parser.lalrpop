@@ -46,7 +46,8 @@ extern {
         "->" => Arrow,
         "and" => And,
         "backtick" => Backtick,
-        "@" => At
+        "@" => At,
+        "'" => Apostrophe
     }
 }
 

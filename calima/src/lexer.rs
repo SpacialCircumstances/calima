@@ -63,6 +63,7 @@ fn single_char_token<'input>(c: char) -> Option<Token<'input>> {
         ']' => Some(SquareBracketClose),
         '`' => Some(Backtick),
         '@' => Some(At),
+        '\'' => Some(Apostrophe),
         _ => None
     }
 }
