@@ -206,7 +206,8 @@ pub enum Expr<'a, Data> {
     Lambda { params: Vec<BindPattern<'a, TypeAnnotation<'a, Data>, Data>>, body: Block<'a, Data>, data: Data },
     If { data: Data, cond: Box<Expr<'a, Data>>, if_true: Block<'a, Data>, if_false: Block<'a, Data> },
     Case { data: Data, value: Box<Expr<'a, Data>>, matches: Vec<(MatchPattern<'a, TypeAnnotation<'a, Data>, Data>, Block<'a, Data>)> },
-    List(Vec<Expr<'a, Data>>, Data)
+    List(Vec<Expr<'a, Data>>, Data),
+    Ref(RegionAnnotation<'a, Data>, Box<Expr<'a, Data>>)
 }
 
 impl<'a, Data> Display for Expr<'a, Data> {
@@ -244,7 +245,8 @@ impl<'a, Data> Display for Expr<'a, Data> {
                 }
 
                 write!(f, "end")
-            }
+            },
+            Expr::Ref(reg, expr) => write!(f, "{} {}", reg, expr)
         }
     }
 }
