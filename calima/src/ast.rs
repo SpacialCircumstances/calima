@@ -206,7 +206,7 @@ pub enum Expr<'a, Data> {
     If { data: Data, cond: Box<Expr<'a, Data>>, if_true: Block<'a, Data>, if_false: Block<'a, Data> },
     Case { data: Data, value: Box<Expr<'a, Data>>, matches: Vec<(MatchPattern<'a, TypeAnnotation<'a, Data>, Data>, Block<'a, Data>)> },
     List(Vec<Expr<'a, Data>>, Data),
-    Ref(RegionAnnotation<'a, Data>, Box<Expr<'a, Data>>)
+    Ref(RegionAnnotation<'a, Data>, Box<Expr<'a, Data>>, Data)
 }
 
 impl<'a, Data> Display for Expr<'a, Data> {
@@ -244,7 +244,7 @@ impl<'a, Data> Display for Expr<'a, Data> {
 
                 write!(f, "end")
             },
-            Expr::Ref(reg, expr) => write!(f, "{} {}", reg, expr)
+            Expr::Ref(reg, expr, _) => write!(f, "{} {}", reg, expr)
         }
     }
 }

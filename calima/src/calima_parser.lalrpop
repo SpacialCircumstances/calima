@@ -153,6 +153,7 @@ Expression1: Expr<'input, Data> = {
     FunctionCall,
     OperatorCall,
     Lambda,
+    <posl:@L> <ra:RegionAnnotation> <expr:Expression2> <posr:@R> => Expr::Ref(ra, Box::new(expr), to_data(posl, posr)),
     Expression2
 };
 
