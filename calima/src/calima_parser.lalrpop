@@ -159,7 +159,7 @@ Expression1: Expr<'input, Data> = {
 
 RecordExprRow: (&'input str, Expr<'input, Data>) = <n:"name"> "=" <expr:Expression0> => (n, expr);
 
-Lambda: Expr<'input, Data> = <posl:@L> "fun" <regions:RegionAnnotation*> <params:BindPattern0+>  "->" <block:Block> <posr:@R> => Expr::Lambda { regions, params, body: block, data: to_data(posl, posr) };
+Lambda: Expr<'input, Data> = <posl:@L> "fun" <params:BindPattern0+>  "->" <block:Block> <posr:@R> => Expr::Lambda { params, body: block, data: to_data(posl, posr) };
 
 FunctionCall: Expr<'input, Data> = <posl:@L> <func:Expression2> <args:Expression2+> <posr:@R> => Expr::FunctionCall(Box::new(func), args, to_data(posl, posr));
 

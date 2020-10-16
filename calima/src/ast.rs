@@ -203,7 +203,7 @@ pub enum Expr<'a, Data> {
     Record(Vec<(&'a str, Expr<'a, Data>)>, Data),
     Tuple(Vec<Expr<'a, Data>>, Data),
     Literal(Literal<'a>, Data),
-    Lambda { regions: Vec<RegionAnnotation<'a, Data>>, params: Vec<BindPattern<'a, TypeAnnotation<'a, Data>, Data>>, body: Block<'a, Data>, data: Data },
+    Lambda { params: Vec<BindPattern<'a, TypeAnnotation<'a, Data>, Data>>, body: Block<'a, Data>, data: Data },
     If { data: Data, cond: Box<Expr<'a, Data>>, if_true: Block<'a, Data>, if_false: Block<'a, Data> },
     Case { data: Data, value: Box<Expr<'a, Data>>, matches: Vec<(MatchPattern<'a, TypeAnnotation<'a, Data>, Data>, Block<'a, Data>)> },
     List(Vec<Expr<'a, Data>>, Data)
@@ -218,7 +218,7 @@ impl<'a, Data> Display for Expr<'a, Data> {
             Expr::List(exprs, _) => write!(f, "[{}]", format_iter(exprs.iter(), ", ")),
             Expr::Tuple(exprs, _) => write!(f, "({})", format_iter(exprs.iter(), ", ")),
             Expr::Record(rows, _) => format_record(rows, f, "=", ", "),
-            Expr::Lambda { regions, params, body, data: _ } => write!(f, "fun {}{} -> {}", format_iter_end(regions.iter(), " "), format_iter(params.iter(), " "), body),
+            Expr::Lambda { params, body, data: _ } => write!(f, "fun {} -> {}", format_iter(params.iter(), " "), body),
             Expr::FunctionCall(func, args, _) => write!(f, "{} {}", *func, format_iter(args.iter(), " ")),
             Expr::UnaryOperatorCall(op, expr, _) => write!(f, "{}{}", op, expr),
             Expr::OperatorCall(exprs, ops, _) => {

@@ -268,7 +268,7 @@ fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &E
             let scheme = env.lookup(varname).expect(format!("Variable {} not found", varname).as_str());
             TExpression::new(TExprData::Variable(name.clone()), env.inst(ctx, scheme))
         },
-        Expr::Lambda { regions: _, params, body, data: _ } => {
+        Expr::Lambda { params, body, data: _ } => {
             let mut body_env = env.clone();
             let mut param_types = Vec::with_capacity(params.len());
             for param in params {
