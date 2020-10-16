@@ -289,12 +289,6 @@ fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &E
             let targs = args.iter().map(|e| infer_expr(env, ctx, e)).collect();
             function_call(env, ctx, tfunc, targs)
         },
-        Expr::UnaryOperatorCall(op, expr, _) => {
-            let schem = env.lookup(op).expect(format!("Operator not found: {}", op).as_str());
-            let tp = env.inst(ctx, schem);
-            let texpr = infer_expr(env, ctx, expr.deref());
-            function_call(env, ctx, TExpression::new(TExprData::UnaryOperator(op), tp), vec![ texpr ])
-        }
         Expr::OperatorCall(exprs, operators, _) => {
             //TODO: Figure out precedence and stuff
             //Find precedence and types for operators

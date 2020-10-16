@@ -152,7 +152,6 @@ If: Expr<'input, Data> = <posl:@L> "if" <cond_expr:Expression1> "then" <if_block
 Expression1: Expr<'input, Data> = {
     FunctionCall,
     OperatorCall,
-    UnaryOperatorCall,
     Lambda,
     Expression2
 };
@@ -162,8 +161,6 @@ RecordExprRow: (&'input str, Expr<'input, Data>) = <n:"name"> "=" <expr:Expressi
 Lambda: Expr<'input, Data> = <posl:@L> "fun" <params:BindPattern0+>  "->" <block:Block> <posr:@R> => Expr::Lambda { params, body: block, data: to_data(posl, posr) };
 
 FunctionCall: Expr<'input, Data> = <posl:@L> <func:Expression2> <args:Expression2+> <posr:@R> => Expr::FunctionCall(Box::new(func), args, to_data(posl, posr));
-
-UnaryOperatorCall: Expr<'input, Data> = <posl:@L> <op:"operator"> <expr:Expression2> <posr:@R> => Expr::UnaryOperatorCall(op, Box::new(expr), to_data(posl, posr));
 
 OperatorCall: Expr<'input, Data> = <posl:@L> <r:Sep1Collect<Expression2, "operator">> <posr:@R> => Expr::OperatorCall(r.0, r.1, to_data(posl, posr));
 
