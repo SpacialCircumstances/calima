@@ -1,5 +1,5 @@
 use crate::ast_common::{Literal, NumberType, MatchPattern, BindPattern, Identifier};
-use crate::ast::{Block, Statement, Expr, TypeDefinition, TypeAnnotation, Modifier, RegionAnnotation, RegionVariable, GenericTypeKind, TypeKind, TopLevelBlock, TopLevelStatement};
+use crate::ast::{Block, Statement, Expr, TypeDefinition, TypeAnnotation, Modifier, RegionAnnotation, RegionVariable, GenericTypeKind, TopLevelBlock, TopLevelStatement};
 use crate::token::{Location, Token, NumberFormat};
 use crate::token::Token::*;
 use crate::lexer::Error;
@@ -239,26 +239,16 @@ SumRow: (&'input str, Option<TypeAnnotation<'input, Data>>) = {
 RecordTypeRow: (&'input str, TypeAnnotation<'input, Data>) = <n:"name"> ":" <ta:TypeAnnotation0> => (n, ta);
 
 TypeAnnotation0: TypeAnnotation<'input, Data> = {
-    <posl:@L> <reg:RegionAnnotation> <tk:TypeKind1> <posr:@R> => TypeAnnotation(Some(reg), tk, to_data(posl, posr)),
-    <posl:@L> <tk:TypeKind0> <posr:@R> => TypeAnnotation(None, tk, to_data(posl, posr))
+    <inp:TypeAnnotation1> "->" <out:TypeAnnotation0> => TypeAnnotation::Function(Box::new(inp), Box::new(out)),
+    <n:Sep1<"typename", "and">> <params:TypeAnnotation1+> => TypeAnnotation::Parameterized(n, params),
+    TypeAnnotation1
 };
 
 TypeAnnotation1: TypeAnnotation<'input, Data> = {
-    <posl:@L> <reg:RegionAnnotation> <tk:TypeKind1> <posr:@R> => TypeAnnotation(Some(reg), tk, to_data(posl, posr)),
-    <posl:@L> <tk:TypeKind1> <posr:@R> => TypeAnnotation(None, tk, to_data(posl, posr))
-};
-
-TypeKind0: TypeKind<'input, Data> = {
-    <inp:TypeAnnotation1> "->" <out:TypeAnnotation0> => TypeKind::Function(Box::new(inp), Box::new(out)),
-    <n:Sep1<"typename", "and">> <params:TypeAnnotation1+> => TypeKind::Parameterized(n, params),
-    TypeKind1
-};
-
-TypeKind1: TypeKind<'input, Data> = {
-    <posl:@L> <n:Sep1<"typename", "and">> <posr:@R> => TypeKind::Name(n, to_data(posl, posr)),
-    <GenericTypeKind> => TypeKind::Generic(<>),
-    "(" <Sep2<TypeAnnotation0, ",">> ")" => TypeKind::Tuple(<>),
-    "(" <tk:TypeKind0> ")" => tk,
+    <posl:@L> <n:Sep1<"typename", "and">> <posr:@R> => TypeAnnotation::Name(n, to_data(posl, posr)),
+    <GenericTypeKind> => TypeAnnotation::Generic(<>),
+    "(" <Sep2<TypeAnnotation0, ",">> ")" => TypeAnnotation::Tuple(<>),
+    "(" <tk:TypeAnnotation0> ")" => tk,
 };
 
 GenericTypeKind: GenericTypeKind<'input, Data> = <posl:@L> <n:"name"> <posr:@R> => GenericTypeKind(n, to_data(posl, posr));

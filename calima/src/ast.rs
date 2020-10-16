@@ -32,18 +32,6 @@ impl<'a, Data> Display for RegionAnnotation<'a, Data> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct TypeAnnotation<'a, Data>(pub Option<RegionAnnotation<'a, Data>>, pub TypeKind<'a, Data>, pub Data);
-
-impl<'a, Data> Display for TypeAnnotation<'a, Data> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match &self.0 {
-            None => write!(f, "{}", self.1),
-            Some(r) => write!(f, "{} {}", r, self.1)
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
 pub struct GenericTypeKind<'a, Data>(pub &'a str, pub Data);
 
 impl<'a, Data> Display for GenericTypeKind<'a, Data> {
@@ -53,24 +41,26 @@ impl<'a, Data> Display for GenericTypeKind<'a, Data> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum TypeKind<'a, Data> {
+pub enum TypeAnnotation<'a, Data> {
     Name(Vec<&'a str>, Data),
     Generic(GenericTypeKind<'a, Data>),
     Function(Box<TypeAnnotation<'a, Data>>, Box<TypeAnnotation<'a, Data>>),
     Tuple(Vec<TypeAnnotation<'a, Data>>),
-    Parameterized(Vec<&'a str>, Vec<TypeAnnotation<'a, Data>>)
+    Parameterized(Vec<&'a str>, Vec<TypeAnnotation<'a, Data>>),
+    Reference(RegionAnnotation<'a, Data>, Box<TypeAnnotation<'a, Data>>)
 }
 
-impl<'a, Data> Display for TypeKind<'a, Data> {
+impl<'a, Data> Display for TypeAnnotation<'a, Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            TypeKind::Name(name, _) => write!(f, "{}", format_iter(name.iter(), " and ")),
-            TypeKind::Generic(name) => write!(f, "{}", name),
-            TypeKind::Function(i, o) => write!(f, "({} -> {})", *i, *o),
-            TypeKind::Parameterized(name, params) => {
+            TypeAnnotation::Name(name, _) => write!(f, "{}", format_iter(name.iter(), " and ")),
+            TypeAnnotation::Generic(name) => write!(f, "{}", name),
+            TypeAnnotation::Function(i, o) => write!(f, "({} -> {})", *i, *o),
+            TypeAnnotation::Parameterized(name, params) => {
                 write!(f, "({} {})", format_iter(name.iter(), " and "), format_iter(params.iter(), " "))
             },
-            TypeKind::Tuple(elements) => format_tuple(elements, f)
+            TypeAnnotation::Tuple(elements) => format_tuple(elements, f),
+            TypeAnnotation::Reference(reg, tp) => write!(f, "{} {}", reg, tp)
         }
     }
 }
