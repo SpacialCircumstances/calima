@@ -29,7 +29,6 @@ impl<'a, Data> Display for RegionAnnotation<'a, Data> {
             RegionAnnotation::Var(var) => write!(f, "{}", var)
         }
     }
-
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -45,9 +44,18 @@ impl<'a, Data> Display for TypeAnnotation<'a, Data> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct GenericTypeKind<'a, Data>(pub &'a str, pub Data);
+
+impl<'a, Data> Display for GenericTypeKind<'a, Data> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum TypeKind<'a, Data> {
     Name(Vec<&'a str>, Data),
-    Generic(&'a str, Data),
+    Generic(GenericTypeKind<'a, Data>),
     Function(Box<TypeAnnotation<'a, Data>>, Box<TypeAnnotation<'a, Data>>),
     Tuple(Vec<TypeAnnotation<'a, Data>>),
     Parameterized(Vec<&'a str>, Vec<TypeAnnotation<'a, Data>>)
@@ -57,7 +65,7 @@ impl<'a, Data> Display for TypeKind<'a, Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             TypeKind::Name(name, _) => write!(f, "{}", format_iter(name.iter(), " and ")),
-            TypeKind::Generic(name, _) => write!(f, "{}", name),
+            TypeKind::Generic(name) => write!(f, "{}", name),
             TypeKind::Function(i, o) => write!(f, "({} -> {})", *i, *o),
             TypeKind::Parameterized(name, params) => {
                 write!(f, "({} {})", format_iter(name.iter(), " and "), format_iter(params.iter(), " "))
@@ -106,7 +114,7 @@ impl Display for Modifier {
 #[derive(Debug, PartialEq, Clone)]
 pub enum TopLevelStatement<'a, Data> {
     Import(Vec<&'a str>, Vec<Identifier<'a, Data>>, Data),
-    Type { name: &'a str, regions: Vec<RegionAnnotation<'a, Data>>, params: Vec<TypeAnnotation<'a, Data>>, type_def: TypeDefinition<'a, Data>, data: Data }
+    Type { name: &'a str, regions: Vec<RegionVariable<'a, Data>>, params: Vec<GenericTypeKind<'a, Data>>, type_def: TypeDefinition<'a, Data>, data: Data }
 }
 
 impl<'a, Data> Display for TopLevelStatement<'a, Data> {
