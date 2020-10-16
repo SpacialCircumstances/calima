@@ -42,7 +42,7 @@ impl<'a, Data> Display for GenericTypeKind<'a, Data> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypeAnnotation<'a, Data> {
-    Name(&'a str, Data),
+    Name(Vec<&'a str>, Data),
     Generic(GenericTypeKind<'a, Data>),
     Function(Box<TypeAnnotation<'a, Data>>, Box<TypeAnnotation<'a, Data>>),
     Tuple(Vec<TypeAnnotation<'a, Data>>),
@@ -53,7 +53,7 @@ pub enum TypeAnnotation<'a, Data> {
 impl<'a, Data> Display for TypeAnnotation<'a, Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            TypeAnnotation::Name(name, _) => write!(f, "{}", name),
+            TypeAnnotation::Name(name, _) => write!(f, "{}", format_iter(name.iter(), ".")),
             TypeAnnotation::Generic(name) => write!(f, "{}", name),
             TypeAnnotation::Function(i, o) => write!(f, "({} -> {})", *i, *o),
             TypeAnnotation::Parameterized(name, params) => {

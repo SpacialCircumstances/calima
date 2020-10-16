@@ -240,12 +240,12 @@ RecordTypeRow: (&'input str, TypeAnnotation<'input, Data>) = <n:"name"> ":" <ta:
 
 TypeAnnotation0: TypeAnnotation<'input, Data> = {
     <inp:TypeAnnotation1> "->" <out:TypeAnnotation0> => TypeAnnotation::Function(Box::new(inp), Box::new(out)),
-    <n:Sep1<"typename", "and">> <params:TypeAnnotation1+> => TypeAnnotation::Parameterized(n, params),
+    <elements:Sep1<"typename", ".">> <params:TypeAnnotation1+> => TypeAnnotation::Parameterized(elements, params),
     TypeAnnotation1
 };
 
 TypeAnnotation1: TypeAnnotation<'input, Data> = {
-    <posl:@L> <n:"typename"> <posr:@R> => TypeAnnotation::Name(n, to_data(posl, posr)),
+    <posl:@L> <elements:Sep1<"typename", ".">> <posr:@R> => TypeAnnotation::Name(elements, to_data(posl, posr)),
     <GenericTypeKind> => TypeAnnotation::Generic(<>),
     "(" <Sep2<TypeAnnotation0, ",">> ")" => TypeAnnotation::Tuple(<>),
     "(" <tk:TypeAnnotation0> ")" => tk,
