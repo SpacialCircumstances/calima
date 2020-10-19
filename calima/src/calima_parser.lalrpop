@@ -274,7 +274,7 @@ RegionAnnotation: RegionAnnotation<'input, Data> = {
     "@" "." => RegionAnnotation::Stack,
     "@" "_" => RegionAnnotation::Anonymous,
     <posl:@L> "@" <n:"name"> <posr:@R> => RegionAnnotation::Named(n, to_data(posl, posr)),
-    <RegionVariable> => RegionAnnotation::Var(<>)
+    "@" <RegionVariable> => RegionAnnotation::Var(<>)
 };
 
 RegionVariable: RegionVariable<'input, Data> = <posl:@L> "'" <n:"name"> <posr:@R> => RegionVariable(n, to_data(posl, posr));
