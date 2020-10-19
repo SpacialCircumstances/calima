@@ -26,7 +26,7 @@ impl<'a, Data> Display for RegionAnnotation<'a, Data> {
             RegionAnnotation::Stack => write!(f, "@."),
             RegionAnnotation::Anonymous => write!(f, "@_"),
             RegionAnnotation::Named(name, _) => write!(f, "@{}", name),
-            RegionAnnotation::Var(var) => write!(f, "{}", var)
+            RegionAnnotation::Var(var) => write!(f, "@{}", var)
         }
     }
 }
