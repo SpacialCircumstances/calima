@@ -250,18 +250,23 @@ TypeDefinition: TypeDefinition<'input, Data> = {
 Sum: TypeDefinition<'input, Data> = "|" <Sep1<SumRow, "|">> => TypeDefinition::Sum(<>);
 
 SumRow: (&'input str, Option<TypeAnnotation<'input, Data>>) = {
-    <n:"typename"> <ta:TypeAnnotation1?> => (n, ta)
+    <n:"typename"> <ta:TypeAnnotation2?> => (n, ta)
 };
 
 RecordTypeRow: (&'input str, TypeAnnotation<'input, Data>) = <n:"name"> ":" <ta:TypeAnnotation0> => (n, ta);
 
 TypeAnnotation0: TypeAnnotation<'input, Data> = {
-    <inp:TypeAnnotation1> "->" <out:TypeAnnotation0> => TypeAnnotation::Function(Box::new(inp), Box::new(out)),
-    <elements:Sep1<"typename", ".">> <params:TypeAnnotation1+> => TypeAnnotation::Parameterized(elements, params),
+    <reg:RegionAnnotation> <ta:TypeAnnotation1> => TypeAnnotation::Reference(reg, Box::new(ta)),
     TypeAnnotation1
 };
 
 TypeAnnotation1: TypeAnnotation<'input, Data> = {
+    <inp:TypeAnnotation2> "->" <out:TypeAnnotation1> => TypeAnnotation::Function(Box::new(inp), Box::new(out)),
+    <elements:Sep1<"typename", ".">> <params:TypeAnnotation2+> => TypeAnnotation::Parameterized(elements, params),
+    TypeAnnotation2
+};
+
+TypeAnnotation2: TypeAnnotation<'input, Data> = {
     <posl:@L> <elements:Sep1<"typename", ".">> <posr:@R> => TypeAnnotation::Name(elements, to_data(posl, posr)),
     <GenericTypeKind> => TypeAnnotation::Generic(<>),
     "(" <Sep2<TypeAnnotation0, ",">> ")" => TypeAnnotation::Tuple(<>),
