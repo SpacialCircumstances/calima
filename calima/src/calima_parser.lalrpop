@@ -1,5 +1,5 @@
 use crate::ast_common::{Literal, NumberType, MatchPattern, BindPattern, Identifier};
-use crate::ast::{Block, Statement, Expr, TypeDefinition, TypeAnnotation, Modifier, RegionAnnotation, RegionVariable, GenericTypeKind, TopLevelBlock, TopLevelStatement};
+use crate::ast::{Block, OperatorElement, Statement, Expr, TypeDefinition, TypeAnnotation, Modifier, RegionAnnotation, RegionVariable, GenericTypeKind, TopLevelBlock, TopLevelStatement};
 use crate::token::{Location, Token, NumberFormat};
 use crate::token::Token::*;
 use crate::lexer::Error;
@@ -163,7 +163,24 @@ Lambda: Expr<'input, Data> = <posl:@L> "fun" <params:BindPattern0+>  "->" <block
 
 FunctionCall: Expr<'input, Data> = <posl:@L> <func:Expression2> <args:Expression2+> <posr:@R> => Expr::FunctionCall(Box::new(func), args, to_data(posl, posr));
 
-OperatorCall: Expr<'input, Data> = <posl:@L> <r:Sep1Collect<Expression2, "operator">> <posr:@R> => Expr::OperatorCall(r.0, r.1, to_data(posl, posr));
+//This long definition ensures that this is actually a operator expression so the grammar is not ambiguous
+OperatorCall: Expr<'input, Data> = <posl:@L> <o0: OperatorExpression?> <o1:OperatorOperator> <mut els:OperatorElement+> <posr:@R> => {
+    match o0 {
+        Some(oe) => els.insert(0, oe),
+        None => ()
+    }
+    els.insert(0, o1);
+    Expr::OperatorCall(els, to_data(posl, posr))
+};
+
+OperatorElement: OperatorElement<'input, Data> = {
+    OperatorOperator,
+    OperatorExpression
+};
+
+OperatorExpression: OperatorElement<'input, Data> = <Expression2> => OperatorElement::Expression(<>);
+
+OperatorOperator: OperatorElement<'input, Data> = <posl:@L> <op:"operator"> <posr:@R> => OperatorElement::Operator(op, to_data(posl, posr));
 
 Expression2: Expr<'input, Data> = {
     Variable,

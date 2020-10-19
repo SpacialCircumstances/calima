@@ -178,9 +178,18 @@ impl<'a, Data> Display for Block<'a, Data> {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum Operator<'a, Data> {
-    Name(&'a str),
-    FunctionAsOperator(Box<Expr<'a, Data>>)
+pub enum OperatorElement<'a, Data> {
+    Operator(&'a str, Data),
+    Expression(Expr<'a, Data>)
+}
+
+impl<'a, Data> Display for OperatorElement<'a, Data> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            OperatorElement::Expression(expr) => write!(f, "{}", expr),
+            OperatorElement::Operator(name, _) => write!(f, "{}", name)
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -188,7 +197,7 @@ pub enum Expr<'a, Data> {
     OperatorAsFunction(&'a str, Data),
     Variable(Vec<&'a str>, Data),
     FunctionCall(Box<Expr<'a, Data>>, Vec<Expr<'a, Data>>, Data),
-    OperatorCall(Vec<Expr<'a, Data>>, Vec<&'a str>, Data),
+    OperatorCall(Vec<OperatorElement<'a, Data>>, Data),
     Record(Vec<(&'a str, Expr<'a, Data>)>, Data),
     Tuple(Vec<Expr<'a, Data>>, Data),
     Literal(Literal<'a>, Data),
@@ -210,13 +219,7 @@ impl<'a, Data> Display for Expr<'a, Data> {
             Expr::Record(rows, _) => format_record(rows, f, "=", ", "),
             Expr::Lambda { params, body, data: _ } => write!(f, "fun {} -> {}", format_iter(params.iter(), " "), body),
             Expr::FunctionCall(func, args, _) => write!(f, "{} {}", *func, format_iter(args.iter(), " ")),
-            Expr::OperatorCall(exprs, ops, _) => {
-                for (e, op) in exprs.iter().zip(ops.iter()) {
-                    write!(f, "{} {} ", e, op)?;
-                }
-
-                write!(f, "{}", exprs.last().unwrap())
-            },
+            Expr::OperatorCall(elements, _) => write!(f, "{}", format_iter(elements.iter(), " ")),
             Expr::If { data: _, cond, if_true, if_false } => {
                 writeln!(f, "if {} then", *cond)?;
                 writeln!(f, "{}", *if_true)?;

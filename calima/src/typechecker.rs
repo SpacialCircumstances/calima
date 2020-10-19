@@ -289,17 +289,18 @@ fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &E
             let targs = args.iter().map(|e| infer_expr(env, ctx, e)).collect();
             function_call(env, ctx, tfunc, targs)
         },
-        Expr::OperatorCall(exprs, operators, _) => {
+        Expr::OperatorCall(elements, _) => {
             //TODO: Figure out precedence and stuff
             //Find precedence and types for operators
-            let resolve_operators: Vec<Result<(&str, u32, Scheme), &str>> = operators.iter().map(|op| {
-                match env.lookup(op) {
-                    Some(tp) => Ok((*op, get_precedence(op), tp.clone())),
-                    None => Err(*op)
-                }
-            }).collect();
-            let operators: Vec<(&str, u32, Scheme)> = resolve_operators.into_iter().map(|r| r.unwrap()).collect();
-            transform_operators(env, ctx, &operators[..], exprs)
+            //let resolve_operators: Vec<Result<(&str, u32, Scheme), &str>> = operators.iter().map(|op| {
+            //    match env.lookup(op) {
+            //        Some(tp) => Ok((*op, get_precedence(op), tp.clone())),
+            //        None => Err(*op)
+            //    }
+            //}).collect();
+            //let operators: Vec<(&str, u32, Scheme)> = resolve_operators.into_iter().map(|r| r.unwrap()).collect();
+            //transform_operators(env, ctx, &operators[..], exprs)
+            unimplemented!()
         }
         Expr::If { data: _, cond, if_true, if_false } => {
             let tcond = infer_expr(env, ctx, &*cond);
