@@ -165,11 +165,11 @@ FunctionCall: Expr<'input, Data> = <posl:@L> <func:Expression2> <args:Expression
 
 //This long definition ensures that this is actually a operator expression so the grammar is not ambiguous
 OperatorCall: Expr<'input, Data> = <posl:@L> <o0: OperatorExpression?> <o1:OperatorOperator> <mut els:OperatorElement+> <posr:@R> => {
+    els.insert(0, o1);
     match o0 {
         Some(oe) => els.insert(0, oe),
         None => ()
     }
-    els.insert(0, o1);
     Expr::OperatorCall(els, to_data(posl, posr))
 };
 
