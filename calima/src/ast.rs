@@ -1,7 +1,7 @@
 use std::fmt::{Display, Formatter, Debug};
 use crate::util::*;
 use crate::common::ModuleIdentifier;
-use crate::ast_common::{Identifier, MatchPattern, Literal, BindPattern};
+use crate::ast_common::{MatchPattern, Literal, BindPattern};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct RegionVariable<'a, Data>(pub &'a str, pub Data);
@@ -103,7 +103,7 @@ impl Display for Modifier {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum TopLevelStatement<'a, Data> {
-    Import(Vec<&'a str>, Vec<Identifier<'a, Data>>, Data),
+    Import(Vec<&'a str>, Vec<&'a str>, Data),
     Type { name: &'a str, regions: Vec<RegionVariable<'a, Data>>, params: Vec<GenericTypeKind<'a, Data>>, type_def: TypeDefinition<'a, Data>, data: Data }
 }
 

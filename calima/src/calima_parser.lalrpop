@@ -1,4 +1,4 @@
-use crate::ast_common::{Literal, NumberType, MatchPattern, BindPattern, Identifier};
+use crate::ast_common::{Literal, NumberType, MatchPattern, BindPattern};
 use crate::ast::{Block, OperatorElement, Statement, Expr, TypeDefinition, TypeAnnotation, Modifier, RegionAnnotation, RegionVariable, GenericTypeKind, TopLevelBlock, TopLevelStatement};
 use crate::token::{Location, Token, NumberFormat};
 use crate::token::Token::*;
@@ -107,7 +107,7 @@ TopLevelStatement: TopLevelStatement<'input, Data> = {
 
 Import: TopLevelStatement<'input, Data> = {
     <posl:@L> "import" <m:Sep1<AnyName, ".">> <posr:@R> => TopLevelStatement::Import(m, Vec::new(), to_data(posl, posr)),
-    <posl:@L> "import" <m:Sep1<AnyName, ".">> "{" <f:Sep1<Identifier, ",">> "}" <posr:@R> => TopLevelStatement::Import(m, f, to_data(posl, posr))
+    <posl:@L> "import" <m:Sep1<AnyName, ".">> "{" <f:Sep1<"name", ",">> "}" <posr:@R> => TopLevelStatement::Import(m, f, to_data(posl, posr))
 };
 
 Statement: Statement<'input, Data> = {
@@ -209,7 +209,7 @@ RecordBindPatternRow: (&'input str, BindPattern<'input, TypeAnnotation<'input, D
 
 BindPattern0: BindPattern<'input, TypeAnnotation<'input, Data>, Data> = {
     <posl:@L> "_" <posr:@R> => BindPattern::Any(to_data(posl, posr)),
-    <posl:@L> <id:AnnotatedIdentifier> <posr:@R> => BindPattern::Name(id.0, id.1, to_data(posl, posr)),
+    <posl:@L> <id:AnnotatedName> <posr:@R> => BindPattern::Name(id.0, id.1, to_data(posl, posr)),
     "(" <BindPattern0> ")" => <>,
     <posl:@L> "{" <rows:Sep1<RecordBindPatternRow, ",">> "}" <posr:@R> => BindPattern::Record(rows, to_data(posl, posr)),
     <posl:@L> "(" <elements:Sep2<BindPattern0, ",">> ")" <posr:@R> => BindPattern::Tuple(elements, to_data(posl, posr))
@@ -224,22 +224,17 @@ RecordMatchPatternRow: (&'input str, MatchPattern<'input, TypeAnnotation<'input,
 
 MatchPattern1: MatchPattern<'input, TypeAnnotation<'input, Data>, Data> = {
     <posl:@L> "_" <posr:@R> => MatchPattern::Any(to_data(posl, posr)),
-    <posl:@L> <id:AnnotatedIdentifier> <posr:@R> => MatchPattern::Name(id.0, id.1, to_data(posl, posr)),
+    <posl:@L> <id:AnnotatedName> <posr:@R> => MatchPattern::Name(id.0, id.1, to_data(posl, posr)),
     <posl:@L> <lit:Literal> <posr:@R> => MatchPattern::Literal(lit, to_data(posl, posr)),
     "(" <MatchPattern0> ")" => <>,
     <posl:@L> "{" <rows:Sep1<RecordMatchPatternRow, ",">> "}" <posr:@R> => MatchPattern::Record(rows, to_data(posl, posr)),
     <posl:@L> "(" <elements:Sep2<MatchPattern1, ",">> ")" <posr:@R> => MatchPattern::Tuple(elements, to_data(posl, posr))
 };
 
-AnnotatedIdentifier: (Identifier<'input, Data>, Option<TypeAnnotation<'input, Data>>) = {
-    <Identifier> => (<>, None),
-    "(" <ident:Identifier> ":" <ta:TypeAnnotation0> ")" => (ident, Some(ta))
-};
-
-Identifier: Identifier<'input, Data> = {
-    <posl:@L> <n:"name"> <posr:@R> => Identifier::Simple(n, to_data(posl, posr)),
-    <posl:@L> "(" <n:"operator"> ")" <posr:@R> => Identifier::Operator(n, to_data(posl, posr)),
-};
+AnnotatedName: (&'input str, Option<TypeAnnotation<'input, Data>>) = {
+    <"name"> => (<>, None),
+    "(" <n:"name"> ":" <ta:TypeAnnotation0> ")" => (n, Some(ta))
+}
 
 TypeDefinition: TypeDefinition<'input, Data> = {
     <TypeAnnotation0> => TypeDefinition::Alias(<>),

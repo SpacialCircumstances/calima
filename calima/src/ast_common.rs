@@ -40,33 +40,9 @@ impl<'a> Display for Literal<'a> {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum Identifier<'a, Data> {
-    Simple(&'a str, Data),
-    Operator(&'a str, Data)
-}
-
-impl<'a, Data> Identifier<'a, Data> {
-    pub fn to_name(&self) -> &'a str {
-        match self {
-            Identifier::Simple(name, _) => name,
-            Identifier::Operator(name, _) => name
-        }
-    }
-}
-
-impl<'a, Data> Display for Identifier<'a, Data> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Identifier::Simple(name, _) => write!(f, "{}", name),
-            Identifier::Operator(op, _) => write!(f, "({})", op)
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Clone)]
 pub enum BindPattern<'a, TA: Display, Data> {
     Any(Data),
-    Name(Identifier<'a, Data>, Option<TA>, Data),
+    Name(&'a str, Option<TA>, Data),
     Tuple(Vec<BindPattern<'a, TA, Data>>, Data),
     Record(Vec<(&'a str, BindPattern<'a, TA, Data>)>, Data),
 }
@@ -88,7 +64,7 @@ impl<'a, TA: Display, Data> Display for BindPattern<'a, TA, Data> {
 #[derive(Debug, PartialEq, Clone)]
 pub enum MatchPattern<'a, TA: Display, Data> {
     Any(Data),
-    Name(Identifier<'a, Data>, Option<TA>, Data),
+    Name(&'a str, Option<TA>, Data),
     Tuple(Vec<MatchPattern<'a, TA, Data>>, Data),
     Literal(Literal<'a>, Data),
     Record(Vec<(&'a str, MatchPattern<'a, TA, Data>)>, Data),

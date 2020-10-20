@@ -5,7 +5,7 @@ use crate::common::{Module, ModuleIdentifier};
 use crate::token::Span;
 use std::collections::{HashMap, HashSet};
 use std::ops::{Index, Deref};
-use crate::ast_common::{NumberType, Literal, Identifier, MatchPattern, BindPattern, Associativity};
+use crate::ast_common::{NumberType, Literal, MatchPattern, BindPattern, Associativity};
 use crate::ast::{Expr, Statement, TopLevelStatement, Block, TopLevelBlock, TypeAnnotation, Modifier};
 use crate::typed_ast::{TBlock, TStatement, TExpression, TExprData, Unit};
 use crate::types::{Type, GenericId, Scheme, TypeDefinition, PrimitiveType, build_function};
@@ -357,7 +357,7 @@ fn infer_statement<'input>(env: &mut Environment<'input>, ctx: &mut Context, sta
 fn map_bind_pattern<'input>(pattern: &BindPattern<'input, TypeAnnotation<Span>, Span>) -> BindPattern<'input, Unit, Unit> {
     match pattern {
         BindPattern::Any(_) => BindPattern::Any(Unit::unit()),
-        BindPattern::Name(id, _, _) => BindPattern::Name(map_identifier(id), None, Unit::unit()),
+        BindPattern::Name(id, _, _) => BindPattern::Name(id, None, Unit::unit()),
         _ => unimplemented!()
     }
 }
@@ -366,15 +366,8 @@ fn map_match_pattern<'input>(pattern: &MatchPattern<'input, TypeAnnotation<Span>
     match pattern {
         MatchPattern::Any(_) => MatchPattern::Any(Unit::unit()),
         MatchPattern::Literal(lit, _) => MatchPattern::Literal(lit.clone(), Unit::unit()),
-        MatchPattern::Name(id, _, _) => MatchPattern::Name(map_identifier(id), None, Unit::unit()),
+        MatchPattern::Name(id, _, _) => MatchPattern::Name(id, None, Unit::unit()),
         _ => unimplemented!()
-    }
-}
-
-fn map_identifier<'input>(id: &Identifier<'input, Span>) -> Identifier<'input, Unit> {
-    match id {
-        Identifier::Operator(name, _) => Identifier::Operator(name, Unit::unit()),
-        Identifier::Simple(name, _) => Identifier::Simple(name, Unit::unit())
     }
 }
 
@@ -383,7 +376,7 @@ fn bind_to_pattern<'input>(env: &mut Environment<'input>, pattern: &BindPattern<
         BindPattern::Any(_) => (),
         BindPattern::Name(idt, ta, _) => {
             //TODO: Check type annotation
-            env.add(idt.to_name(), sch.clone());
+            env.add(idt, sch.clone());
         },
         _ => ()
     }
