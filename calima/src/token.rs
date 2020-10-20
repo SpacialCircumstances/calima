@@ -44,7 +44,9 @@ pub enum Token<'input> {
     And,
     Backtick,
     At,
-    Apostrophe
+    Apostrophe,
+    Infix,
+    Prefix
 }
 
 impl<'input> Display for Token<'input> {

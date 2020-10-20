@@ -91,6 +91,8 @@ fn handle_identifier(ident: &str) -> Token {
         "true" => BooleanLiteral(true),
         "false" => BooleanLiteral(false),
         "and" => And,
+        "infix" => Infix,
+        "prefix" => Prefix,
         x => {
             let first = x.chars().next().expect(format!("Fatal Error: Unrecognized identifier '{}'", ident).as_ref());
             match first {
