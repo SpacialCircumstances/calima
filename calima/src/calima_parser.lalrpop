@@ -99,7 +99,8 @@ Import: TopLevelStatement<'input, Data> = {
 Statement: Statement<'input, Data> = {
     Let,
     Do,
-    Region
+    Region,
+    LetOperator
 };
 
 Region: Statement<'input, Data> = <posl:@L> "region" <n:RegionAnnotation> <posr:@R> => Statement::Region(n, to_data(posl, posr));
