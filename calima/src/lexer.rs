@@ -91,7 +91,6 @@ fn handle_identifier(ident: &str) -> Token {
         "_" => Underscore,
         "true" => BooleanLiteral(true),
         "false" => BooleanLiteral(false),
-        "and" => And,
         "infix" => Infix,
         "prefix" => Prefix,
         x => {
