@@ -32,7 +32,7 @@ impl Display for Error {
 
 type LexerResult<'input> = Result<(Location, Token<'input>, Location), Error>;
 
-fn is_separator(c: char) -> bool {
+fn is_separator(c: char, is_op: bool) -> bool {
     match c {
         '.' => true,
         ',' => true,
@@ -47,7 +47,7 @@ fn is_separator(c: char) -> bool {
         ':' => true,
         '`' => true,
         c if c.is_whitespace() => true,
-        _ => false
+        _ => is_op ^ c.is_ascii_punctuation()
     }
 }
 
@@ -213,10 +213,11 @@ impl<'source, 'input> Lexer<'source, 'input> {
     fn identifier(&mut self) -> Option<LexerResult<'input>> {
         let start = self.token_start_pos();
         let start_idx = self.current_pos.pos - 1;
+        let is_operator = &self.input[start_idx..].chars().next().expect("Identifier of length zero?").is_ascii_punctuation();
         let end_idx = loop {
             match self.chars.peek() {
                 None => break(self.current_pos.pos),
-                Some(&c) if is_separator(c) => break(self.current_pos.pos),
+                Some(&c) if is_separator(c, *is_operator) => break(self.current_pos.pos),
                 Some(_) => ()
             }
             self.advance();
@@ -268,6 +269,7 @@ mod tests {
     use crate::token::Token::*;
     use crate::lexer::Lexer;
     use crate::string_interner::StringInterner;
+    use crate::ast::TypeAnnotation::Name;
 
     fn lex_equal(code: &str, tokens: Vec<Token>) {
         let interner = StringInterner::new();
@@ -347,6 +349,13 @@ test #asdf d.
     fn lex10() {
         let code = "a.T.b @reg ++ test";
         let tokens = vec! [ NameIdentifier("a"), Period, TypeIdentifier("T"), Period, NameIdentifier("b"), At, NameIdentifier("reg"), OperatorIdentifier("++"), NameIdentifier("test") ];
+        lex_equal(code, tokens);
+    }
+
+    #[test]
+    fn lex11() {
+        let code = "!a+b";
+        let tokens = vec! [ OperatorIdentifier("!"), NameIdentifier("a"), OperatorIdentifier("+"), NameIdentifier("b") ];
         lex_equal(code, tokens);
     }
 }
