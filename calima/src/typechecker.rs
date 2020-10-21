@@ -4,7 +4,7 @@ use crate::string_interner::StringInterner;
 use crate::common::{Module, ModuleIdentifier};
 use crate::token::Span;
 use std::collections::{HashMap, HashSet};
-use std::ops::{Index, Deref};
+use std::ops::Index;
 use crate::ast_common::{NumberType, Literal, MatchPattern, BindPattern, Associativity};
 use crate::ast::{Expr, Statement, TopLevelStatement, Block, TopLevelBlock, TypeAnnotation, Modifier};
 use crate::typed_ast::{TBlock, TStatement, TExpression, TExprData, Unit};

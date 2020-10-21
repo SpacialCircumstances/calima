@@ -71,23 +71,6 @@ Sep2<T, S>: Vec<T> = {
     }
 };
 
-Combine<S, T>: (S, T) = {
-    <s:S> <t:T> => (s, t)
-};
-
-Sep1Collect<T, S>: (Vec<T>, Vec<S>) = {
-    <t1: T> <r:(Combine<S, T>)+> => {
-        let mut ts = Vec::new();
-        let mut ss = Vec::new();
-        ts.push(t1);
-        for (s, t) in r {
-            ts.push(t);
-            ss.push(s);
-        }
-        (ts, ss)
-    }
-};
-
 pub TopLevelBlock: TopLevelBlock<'input, Data> = {
     <top_levels:TopLevelStatement+> "in" <block:Block> => TopLevelBlock { top_levels, block },
     <Block> => TopLevelBlock { top_levels: Vec::new(), block: <> }

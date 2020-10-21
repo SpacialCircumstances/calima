@@ -21,7 +21,6 @@ impl Display for Unit {
 pub enum TExprData<'input> {
     Variable(Vec<&'input str>),
     FunctionCall(Box<TExpression<'input>>, Vec<TExpression<'input>>),
-    UnaryOperator(&'input str),
     Record(Vec<(&'input str, TExpression<'input>)>),
     Tuple(Vec<TExpression<'input>>),
     List(Vec<TExpression<'input>>),
