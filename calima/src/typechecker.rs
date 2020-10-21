@@ -350,7 +350,8 @@ fn infer_statement<'input>(env: &mut Environment<'input>, ctx: &mut Context, sta
                 bind_to_pattern(env, pattern, &env.generalize(&v.typ()));
                 Some(TStatement::Let(v, map_bind_pattern(pattern)))
             }
-        }
+        },
+        _ => unimplemented!()
     }
 }
 
