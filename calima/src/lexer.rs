@@ -1,5 +1,5 @@
 use std::str::Chars;
-use crate::token::{Token, Location, NumberFormat};
+use crate::token::{Token, Location, NumberFormat, Span};
 use crate::token::Token::*;
 use std::iter::Peekable;
 use std::fmt::{Display, Formatter};
@@ -15,12 +15,13 @@ pub struct Lexer<'source, 'input> {
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum ErrorKind {
+    InvalidNumber
 }
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub struct Error {
-    location: Location,
-    kind: ErrorKind
+    pub location: Span,
+    pub kind: ErrorKind
 }
 
 impl Display for Error {

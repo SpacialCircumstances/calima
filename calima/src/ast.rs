@@ -122,16 +122,16 @@ impl<'a, Data> Display for TopLevelStatement<'a, Data> {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum OperatorDeclaration {
+pub enum OperatorSpecification {
     Infix(u32),
     Prefix(u32)
 }
 
-impl Display for OperatorDeclaration {
+impl Display for OperatorSpecification {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            OperatorDeclaration::Infix(prec) => write!(f, "infix {}", prec),
-            OperatorDeclaration::Prefix(prec) => write!(f, "prefix {}", prec)
+            OperatorSpecification::Infix(prec) => write!(f, "infix {}", prec),
+            OperatorSpecification::Prefix(prec) => write!(f, "prefix {}", prec)
         }
     }
 }
@@ -139,7 +139,7 @@ impl Display for OperatorDeclaration {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement<'a, Data> {
     Let(Vec<Modifier>, BindPattern<'a, TypeAnnotation<'a, Data>, Data>, Expr<'a, Data>, Data),
-    LetOperator(Vec<Modifier>, OperatorDeclaration, &'a str, Option<TypeAnnotation<'a, Data>>, Expr<'a, Data>, Data),
+    LetOperator(Vec<Modifier>, OperatorSpecification, &'a str, Option<TypeAnnotation<'a, Data>>, Expr<'a, Data>, Data),
     Do(Expr<'a, Data>, Data),
     Region(RegionAnnotation<'a, Data>, Data)
 }
