@@ -46,7 +46,6 @@ extern {
         "import" => Import,
         ":" => Colon,
         "->" => Arrow,
-        "and" => And,
         "backtick" => Backtick,
         "@" => At,
         "'" => Apostrophe,

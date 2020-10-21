@@ -41,7 +41,6 @@ pub enum Token<'input> {
     Import,
     Colon,
     Arrow,
-    And,
     Backtick,
     At,
     Apostrophe,
