@@ -126,6 +126,8 @@ Do: Statement<'input, Data> = <posl:@L> "do" <e:Expression0> <posr:@R> => Statem
 
 Let: Statement<'input, Data> = <posl:@L> "let" <mods:Modifiers> <pat:BindPattern0> "=" <expr:Expression0> <posr:@R> => Statement::Let(mods, pat, expr, to_data(posl, posr));
 
+LetOperator: Statement<'input, Data> = <posl:@L> "let" <mods:Modifiers> <op:OperatorSpec> <n:AnnotatedOperator> "=" <expr:Expression0> <posr:@R> => Statement::LetOperator(mods, op, n.0, n.1, expr, to_data(posl, posr));
+
 Modifiers: Vec<Modifier> = Modifier*;
 
 Modifier: Modifier = {
@@ -235,10 +237,15 @@ MatchPattern1: MatchPattern<'input, TypeAnnotation<'input, Data>, Data> = {
     <posl:@L> "(" <elements:Sep2<MatchPattern1, ",">> ")" <posr:@R> => MatchPattern::Tuple(elements, to_data(posl, posr))
 };
 
+AnnotatedOperator: (&'input str, Option<TypeAnnotation<'input, Data>>) = {
+    <"operator"> => (<>, None),
+    "(" <n:"operator"> ":" <ta:TypeAnnotation0> ")" => (n, Some(ta))
+};
+
 AnnotatedName: (&'input str, Option<TypeAnnotation<'input, Data>>) = {
     <"name"> => (<>, None),
     "(" <n:"name"> ":" <ta:TypeAnnotation0> ")" => (n, Some(ta))
-}
+};
 
 TypeDefinition: TypeDefinition<'input, Data> = {
     <TypeAnnotation0> => TypeDefinition::Alias(<>),
