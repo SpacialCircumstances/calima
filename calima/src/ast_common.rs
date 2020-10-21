@@ -1,19 +1,6 @@
 use std::fmt::{Display, Formatter};
 use crate::util::{format_tuple, format_record};
 
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
-pub enum OperatorKind {
-    Unary,
-    Binary
-}
-
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
-pub enum Associativity {
-    Left,
-    Right,
-    None
-}
-
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum NumberType {
     Integer,

@@ -3,6 +3,13 @@ use crate::util::*;
 use crate::common::ModuleIdentifier;
 use crate::ast_common::{MatchPattern, Literal, BindPattern};
 
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+pub enum Associativity {
+    Left,
+    Right,
+    None
+}
+
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct RegionVariable<'a, Data>(pub &'a str, pub Data);
 
