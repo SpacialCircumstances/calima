@@ -2,12 +2,36 @@ use std::fmt::{Display, Formatter, Debug};
 use crate::util::*;
 use crate::common::ModuleIdentifier;
 use crate::ast_common::{MatchPattern, Literal, BindPattern};
+use std::convert::TryFrom;
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum Associativity {
     Left,
     Right,
     None
+}
+
+impl Display for Associativity {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Associativity::Left => write!(f, "left"),
+            Associativity::Right => write!(f, "right"),
+            Associativity::None => write!(f, "none")
+        }
+    }
+}
+
+impl TryFrom<&str> for Associativity {
+    type Error = ();
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "left" => Ok(Associativity::Left),
+            "right" => Ok(Associativity::Right),
+            "none" => Ok(Associativity::None),
+            _ => Err(())
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -130,14 +154,14 @@ impl<'a, Data> Display for TopLevelStatement<'a, Data> {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum OperatorSpecification {
-    Infix(u32),
+    Infix(u32, Associativity),
     Prefix(u32)
 }
 
 impl Display for OperatorSpecification {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            OperatorSpecification::Infix(prec) => write!(f, "infix {}", prec),
+            OperatorSpecification::Infix(prec, assoc) => write!(f, "infix {} {}", prec, assoc),
             OperatorSpecification::Prefix(prec) => write!(f, "prefix {}", prec)
         }
     }

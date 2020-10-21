@@ -15,7 +15,8 @@ pub struct Lexer<'source, 'input> {
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum ErrorKind {
-    InvalidNumber
+    InvalidNumber,
+    InvalidAssociativity
 }
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]

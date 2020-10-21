@@ -1,10 +1,11 @@
 use crate::ast_common::{Literal, NumberType, MatchPattern, BindPattern};
-use crate::ast::{Block, OperatorSpecification, OperatorElement, Statement, Expr, TypeDefinition, TypeAnnotation, Modifier, RegionAnnotation, RegionVariable, GenericTypeKind, TopLevelBlock, TopLevelStatement};
+use crate::ast::*;
 use crate::token::{Location, Token, Span, NumberFormat};
 use crate::token::Token::*;
 use crate::lexer::{Error, ErrorKind};
 use lalrpop_util::ParseError;
 use std::str::FromStr;
+use std::convert::TryFrom;
 
 grammar<'input, Data, F>(to_data: &F) where F: Fn(Location, Location) -> Data;
 
@@ -287,9 +288,9 @@ Literal: Literal<'input> = {
 };
 
 OperatorSpec: OperatorSpecification = {
-    <posl:@L> "infix" <n:"number"> <posr:@R> =>? {
+    <posl:@L> "infix" <assoc:Assoc> <n:"number"> <posr:@R> =>? {
         match u32::from_str(n.0) {
-            Ok(nr) => Ok(OperatorSpecification::Infix(nr)),
+            Ok(nr) => Ok(OperatorSpecification::Infix(nr, assoc)),
             Err(e) => Err(ParseError::User { error: Error {
                 location: Span {
                     left: posl,
@@ -311,4 +312,12 @@ OperatorSpec: OperatorSpecification = {
             }})
         }
     }
-}
+};
+
+Assoc: Associativity = <posl:@L> <n:"name"> <posr:@L> =>? Associativity::try_from(n).map_err(|()| ParseError::User { error: Error {
+    location: Span {
+        left: posl,
+        right: posr
+    },
+    kind: ErrorKind::InvalidNumber
+}});
