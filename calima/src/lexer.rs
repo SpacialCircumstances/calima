@@ -1,5 +1,5 @@
 use std::str::Chars;
-use crate::token::{Token, Location, NumberFormat};
+use crate::token::{Token, Location, NumberFormat, Span};
 use crate::token::Token::*;
 use std::iter::Peekable;
 use std::fmt::{Display, Formatter};
@@ -15,12 +15,14 @@ pub struct Lexer<'source, 'input> {
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum ErrorKind {
+    InvalidNumber,
+    InvalidAssociativity
 }
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub struct Error {
-    location: Location,
-    kind: ErrorKind
+    pub location: Span,
+    pub kind: ErrorKind
 }
 
 impl Display for Error {
@@ -31,7 +33,7 @@ impl Display for Error {
 
 type LexerResult<'input> = Result<(Location, Token<'input>, Location), Error>;
 
-fn is_separator(c: char) -> bool {
+fn is_separator(c: char, is_op: bool) -> bool {
     match c {
         '.' => true,
         ',' => true,
@@ -44,8 +46,9 @@ fn is_separator(c: char) -> bool {
         '{' => true,
         '}' => true,
         ':' => true,
+        '`' => true,
         c if c.is_whitespace() => true,
-        _ => false
+        _ => is_op ^ c.is_ascii_punctuation()
     }
 }
 
@@ -60,6 +63,9 @@ fn single_char_token<'input>(c: char) -> Option<Token<'input>> {
         '}' => Some(CurlyBraceClose),
         '[' => Some(SquareBracketOpen),
         ']' => Some(SquareBracketClose),
+        '`' => Some(Backtick),
+        '@' => Some(At),
+        '\'' => Some(Apostrophe),
         _ => None
     }
 }
@@ -86,11 +92,11 @@ fn handle_identifier(ident: &str) -> Token {
         "_" => Underscore,
         "true" => BooleanLiteral(true),
         "false" => BooleanLiteral(false),
-        "and" => And,
+        "infix" => Infix,
+        "prefix" => Prefix,
         x => {
             let first = x.chars().next().expect(format!("Fatal Error: Unrecognized identifier '{}'", ident).as_ref());
             match first {
-                '@' => RegionIdentifier(&ident[1..]),
                 c if c.is_alphabetic() && c.is_uppercase() => TypeIdentifier(ident),
                 c if c.is_alphabetic() => NameIdentifier(ident),
                 _ => OperatorIdentifier(ident)
@@ -160,6 +166,7 @@ impl<'source, 'input> Lexer<'source, 'input> {
     }
 
     fn string_literal(&mut self) -> Option<LexerResult<'input>> {
+        //TODO: More escape stuff
         let start = self.token_start_pos();
         let start_idx = self.current_pos.pos;
         let mut escaped = false;
@@ -207,10 +214,11 @@ impl<'source, 'input> Lexer<'source, 'input> {
     fn identifier(&mut self) -> Option<LexerResult<'input>> {
         let start = self.token_start_pos();
         let start_idx = self.current_pos.pos - 1;
+        let is_operator = &self.input[start_idx..].chars().next().expect("Identifier of length zero?").is_ascii_punctuation();
         let end_idx = loop {
             match self.chars.peek() {
                 None => break(self.current_pos.pos),
-                Some(&c) if is_separator(c) => break(self.current_pos.pos),
+                Some(&c) if is_separator(c, *is_operator) => break(self.current_pos.pos),
                 Some(_) => ()
             }
             self.advance();
@@ -262,6 +270,7 @@ mod tests {
     use crate::token::Token::*;
     use crate::lexer::Lexer;
     use crate::string_interner::StringInterner;
+    use crate::ast::TypeAnnotation::Name;
 
     fn lex_equal(code: &str, tokens: Vec<Token>) {
         let interner = StringInterner::new();
@@ -340,7 +349,14 @@ test #asdf d.
     #[test]
     fn lex10() {
         let code = "a.T.b @reg ++ test";
-        let tokens = vec! [ NameIdentifier("a"), Period, TypeIdentifier("T"), Period, NameIdentifier("b"), RegionIdentifier("reg"), OperatorIdentifier("++"), NameIdentifier("test") ];
+        let tokens = vec! [ NameIdentifier("a"), Period, TypeIdentifier("T"), Period, NameIdentifier("b"), At, NameIdentifier("reg"), OperatorIdentifier("++"), NameIdentifier("test") ];
+        lex_equal(code, tokens);
+    }
+
+    #[test]
+    fn lex11() {
+        let code = "!a+b";
+        let tokens = vec! [ OperatorIdentifier("!"), NameIdentifier("a"), OperatorIdentifier("+"), NameIdentifier("b") ];
         lex_equal(code, tokens);
     }
 }

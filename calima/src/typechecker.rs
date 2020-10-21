@@ -5,11 +5,12 @@ use crate::common::{Module, ModuleIdentifier};
 use crate::token::Span;
 use std::collections::{HashMap, HashSet};
 use std::ops::Index;
-use crate::ast_common::{NumberType, Literal, Identifier, Pattern};
-use crate::ast::{Expr, Statement, TopLevelStatement, Block, TopLevelBlock, TypeAnnotation, Modifier};
+use crate::ast_common::{NumberType, Literal, MatchPattern, BindPattern};
+use crate::ast::{Expr, Statement, TopLevelStatement, Block, TopLevelBlock, TypeAnnotation, Modifier, Associativity};
 use crate::typed_ast::{TBlock, TStatement, TExpression, TExprData, Unit};
 use crate::types::{Type, GenericId, Scheme, TypeDefinition, PrimitiveType, build_function};
 use crate::prelude::prelude;
+use crate::util::all_max;
 
 pub struct TypedModuleData<'input>(Context, TBlock<'input>);
 
@@ -75,8 +76,9 @@ impl Context {
     }
 
     fn bind(&mut self, gid: GenericId, t2: &Type) {
-        match &self.subst[gid] {
-            Some(t) => self.unify(&t.clone(), t2),
+        let existing = self.subst[gid].clone();
+        match existing {
+            Some(t) => self.unify(&t, t2),
             None => self.subst.add(gid, t2.clone())
         }
     }
@@ -191,14 +193,71 @@ impl<'a> Environment<'a> {
     }
 }
 
-fn function_call<'a, 'input: 'a, I: Iterator<Item=&'a Expr<'input, Span>>>(env: &mut Environment<'input>, ctx: &mut Context, tfunc: TExpression<'input>, args: I) -> TExpression<'input> {
-    let targs: Vec<TExpression> = args.map(|a| infer_expr(env, ctx, a)).collect();
-    let argtypes: Vec<Type> = targs.iter().map(TExpression::typ).cloned().collect();
+fn function_call<'input>(env: &mut Environment<'input>, ctx: &mut Context, tfunc: TExpression<'input>, args: Vec<TExpression<'input>>) -> TExpression<'input> {
+    let argtypes: Vec<Type> = args.iter().map(TExpression::typ).cloned().collect();
     let ret = ctx.new_generic();
     let arg_fun_type = build_function(&argtypes, &ret);
     println!("{}, {}", tfunc.typ(), &arg_fun_type);
     ctx.unify(tfunc.typ(), &arg_fun_type);
-    TExpression::new(TExprData::FunctionCall(tfunc.into(), targs), ret)
+    TExpression::new(TExprData::FunctionCall(tfunc.into(), args), ret)
+}
+
+//Multiples of 10 -> Left assoc
+//Multiples of 5 -> Right assoc
+//Others -> No assoc
+fn get_precedence(op: &str) -> u32 {
+    match op {
+        "|>" => 100,
+        "*" | "/" | ".*" | "./" | "%" => 80,
+        "+" | "-" | ".+" | ".-" => 60,
+        "==" | "!=" | "<" | ">" | "<=" | ">=" | "=>" => 59,
+        "&&" => 40,
+        "||" => 20,
+        _ => 10
+    }
+}
+
+fn get_assoc(prec: u32) -> Associativity {
+    if prec % 10 == 0 {
+        Associativity::Left
+    } else if prec % 5 == 0 {
+        Associativity::Right
+    } else {
+        Associativity::None
+    }
+}
+
+fn transform_operators<'input>(env: &mut Environment<'input>, ctx: &mut Context, ops: &[(&'input str, u32, Scheme)], exprs: &[Expr<'input, Span>]) -> TExpression<'input> {
+    let (highest_prec, highest_ops) = all_max(ops.iter().enumerate(), |(_, (_, p, _))| *p);
+    let highest_prec = highest_prec.expect("Error finding operator with highest precedence");
+    let assoc = get_assoc(highest_prec);
+    let (op_idx, op) = match assoc {
+        Associativity::Left => highest_ops[0],
+        Associativity::Right => *highest_ops.last().unwrap(), //If we have a highest element, we must have at least one
+        Associativity::None => if highest_ops.len() > 1 {
+            panic!("Multiple operators with same precedence and no associativity")
+        } else {
+            highest_ops[0]
+        }
+    };
+    let l_ops = &ops[..op_idx];
+    let l_exprs = &exprs[..op_idx + 1];
+    let r_ops = &ops[op_idx + 1..];
+    let r_exprs = &exprs[op_idx + 1..];
+    let l = if l_ops.is_empty() {
+        infer_expr(env, ctx, &l_exprs[0])
+    } else {
+        transform_operators(env, ctx, l_ops, l_exprs)
+    };
+    let r = if r_ops.is_empty() {
+        infer_expr(env, ctx, &r_exprs[0])
+    } else {
+        transform_operators(env, ctx, r_ops, r_exprs)
+    };
+    let (op_name, _, op_scheme) = op;
+    let op_type = env.inst(ctx, &op_scheme);
+    let op_expr = TExpression::new(TExprData::Variable(vec![ op_name ]), op_type);
+    function_call(env, ctx, op_expr, vec![ l, r ])
 }
 
 fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &Expr<'input, Span>) -> TExpression<'input> {
@@ -209,7 +268,7 @@ fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &E
             let scheme = env.lookup(varname).expect(format!("Variable {} not found", varname).as_str());
             TExpression::new(TExprData::Variable(name.clone()), env.inst(ctx, scheme))
         },
-        Expr::Lambda { regions: _, params, body, data: _ } => {
+        Expr::Lambda { params, body, data: _ } => {
             let mut body_env = env.clone();
             let mut param_types = Vec::with_capacity(params.len());
             for param in params {
@@ -223,17 +282,25 @@ fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &E
 
             let body = infer_block(&mut body_env, ctx, body);
             let scheme = build_function(&param_types, body.res.typ());
-            TExpression::new(TExprData::Lambda(params.iter().map(|p| map_pattern(p)).collect(), body), scheme)
+            TExpression::new(TExprData::Lambda(params.iter().map(|p| map_bind_pattern(p)).collect(), body), scheme)
         },
         Expr::FunctionCall(func, args, _) => {
             let tfunc = infer_expr(env, ctx, func);
-            function_call(env, ctx, tfunc, args.iter())
+            let targs = args.iter().map(|e| infer_expr(env, ctx, e)).collect();
+            function_call(env, ctx, tfunc, targs)
         },
-        Expr::OperatorCall(l, op, r, _) => {
-            //TODO: Generate variable expr for op in ast
-            let tfunc = infer_expr(env, ctx, &Expr::Variable(vec![ op ], Span::default()));
-            let args: Vec<&Expr<Span>> = vec![ &*l, &*r ];
-            function_call(env, ctx, tfunc, args.into_iter())
+        Expr::OperatorCall(elements, _) => {
+            //TODO: Figure out precedence and stuff
+            //Find precedence and types for operators
+            //let resolve_operators: Vec<Result<(&str, u32, Scheme), &str>> = operators.iter().map(|op| {
+            //    match env.lookup(op) {
+            //        Some(tp) => Ok((*op, get_precedence(op), tp.clone())),
+            //        None => Err(*op)
+            //    }
+            //}).collect();
+            //let operators: Vec<(&str, u32, Scheme)> = resolve_operators.into_iter().map(|r| r.unwrap()).collect();
+            //transform_operators(env, ctx, &operators[..], exprs)
+            unimplemented!()
         }
         Expr::If { data: _, cond, if_true, if_false } => {
             let tcond = infer_expr(env, ctx, &*cond);
@@ -245,8 +312,8 @@ fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &E
             ctx.unify(ttrue.res.typ(), tfalse.res.typ());
             let rett = ttrue.res.typ().clone();
             let case = vec![
-                (Pattern::Literal(Literal::Boolean(true), Unit::unit()), ttrue),
-                (Pattern::Literal(Literal::Boolean(false), Unit::unit()), tfalse)
+                (MatchPattern::Literal(Literal::Boolean(true), Unit::unit()), ttrue),
+                (MatchPattern::Literal(Literal::Boolean(false), Unit::unit()), tfalse)
             ];
             TExpression::new(TExprData::Case(tcond.into(), case), rett)
         },
@@ -267,8 +334,8 @@ fn get_literal_type(lit: &Literal) -> Type {
 fn infer_statement<'input>(env: &mut Environment<'input>, ctx: &mut Context, statement: &Statement<'input, Span>) -> Option<TStatement<'input>> {
     match statement {
         Statement::Region(_, _) => None,
-        Statement::Do(_, expr, _) => Some(TStatement::Do(infer_expr(env, ctx, expr))),
-        Statement::Let(mods, _, pattern, value, _) => {
+        Statement::Do(expr, _) => Some(TStatement::Do(infer_expr(env, ctx, expr))),
+        Statement::Let(mods, pattern, value, _) => {
             if mods.contains(&Modifier::Rec) {
                 let var = ctx.new_generic();
                 let mut body_env = env.clone();
@@ -277,38 +344,40 @@ fn infer_statement<'input>(env: &mut Environment<'input>, ctx: &mut Context, sta
                 ctx.unify(&var, &v.typ());
                 let vt = &env.generalize(v.typ());
                 bind_to_pattern(env, pattern, vt);
-                Some(TStatement::Let(v, map_pattern(pattern)))
+                Some(TStatement::Let(v, map_bind_pattern(pattern)))
             } else {
                 let v = infer_expr(env, ctx, value);
                 bind_to_pattern(env, pattern, &env.generalize(&v.typ()));
-                Some(TStatement::Let(v, map_pattern(pattern)))
+                Some(TStatement::Let(v, map_bind_pattern(pattern)))
             }
-        }
-    }
-}
-
-fn map_pattern<'input>(pattern: &Pattern<'input, TypeAnnotation<Span>, Span>) -> Pattern<'input, Unit, Unit> {
-    match pattern {
-        Pattern::Any(_) => Pattern::Any(Unit::unit()),
-        Pattern::Literal(lit, _) => Pattern::Literal(lit.clone(), Unit::unit()),
-        Pattern::Name(id, _, _) => Pattern::Name(map_identifier(id), None, Unit::unit()),
+        },
         _ => unimplemented!()
     }
 }
 
-fn map_identifier<'input>(id: &Identifier<'input, Span>) -> Identifier<'input, Unit> {
-    match id {
-        Identifier::Operator(name, _) => Identifier::Operator(name, Unit::unit()),
-        Identifier::Simple(name, _) => Identifier::Simple(name, Unit::unit())
+fn map_bind_pattern<'input>(pattern: &BindPattern<'input, TypeAnnotation<Span>, Span>) -> BindPattern<'input, Unit, Unit> {
+    match pattern {
+        BindPattern::Any(_) => BindPattern::Any(Unit::unit()),
+        BindPattern::Name(id, _, _) => BindPattern::Name(id, None, Unit::unit()),
+        _ => unimplemented!()
     }
 }
 
-fn bind_to_pattern<'input>(env: &mut Environment<'input>, pattern: &Pattern<'input, TypeAnnotation<Span>, Span>, sch: &Scheme) {
+fn map_match_pattern<'input>(pattern: &MatchPattern<'input, TypeAnnotation<Span>, Span>) -> MatchPattern<'input, Unit, Unit> {
     match pattern {
-        Pattern::Any(_) => (),
-        Pattern::Name(idt, ta, _) => {
+        MatchPattern::Any(_) => MatchPattern::Any(Unit::unit()),
+        MatchPattern::Literal(lit, _) => MatchPattern::Literal(lit.clone(), Unit::unit()),
+        MatchPattern::Name(id, _, _) => MatchPattern::Name(id, None, Unit::unit()),
+        _ => unimplemented!()
+    }
+}
+
+fn bind_to_pattern<'input>(env: &mut Environment<'input>, pattern: &BindPattern<'input, TypeAnnotation<Span>, Span>, sch: &Scheme) {
+    match pattern {
+        BindPattern::Any(_) => (),
+        BindPattern::Name(idt, ta, _) => {
             //TODO: Check type annotation
-            env.add(idt.to_name(), sch.clone());
+            env.add(idt, sch.clone());
         },
         _ => ()
     }
@@ -369,7 +438,9 @@ pub fn typecheck<'input>(string_interner: &StringInterner, errors: &mut ErrorCon
 
     for module in ordered_modules {
         let deps = module.deps.iter().map(|(d, _)| ctx.modules.get(d).expect("Fatal error: Dependent module not found")).collect();
-        ctx.modules.insert(module.name.clone(), typecheck_module(module, deps));
+        let name = module.name.clone();
+        let typed_module = typecheck_module(module, deps);
+        ctx.modules.insert(name, typed_module);
     }
 
     errors.handle_errors().map(|()| ctx)

@@ -1,4 +1,4 @@
-use crate::ast_common::{Pattern, Literal};
+use crate::ast_common::{MatchPattern, Literal, BindPattern};
 use std::fmt::{Display, Formatter};
 use crate::types::Type;
 
@@ -25,8 +25,8 @@ pub enum TExprData<'input> {
     Tuple(Vec<TExpression<'input>>),
     List(Vec<TExpression<'input>>),
     Literal(Literal<'input>),
-    Lambda(Vec<Pattern<'input, Unit, Unit>>, TBlock<'input>),
-    Case(Box<TExpression<'input>>, Vec<(Pattern<'input, Unit, Unit>, TBlock<'input>)>)
+    Lambda(Vec<BindPattern<'input, Unit, Unit>>, TBlock<'input>),
+    Case(Box<TExpression<'input>>, Vec<(MatchPattern<'input, Unit, Unit>, TBlock<'input>)>)
 }
 
 #[derive(Debug, Clone)]
@@ -47,7 +47,7 @@ impl<'input> TExpression<'input> {
 #[derive(Debug, Clone)]
 pub enum TStatement<'input> {
     Do(TExpression<'input>),
-    Let(TExpression<'input>, Pattern<'input, Unit, Unit>)
+    Let(TExpression<'input>, BindPattern<'input, Unit, Unit>)
 }
 
 #[derive(Debug, Clone)]

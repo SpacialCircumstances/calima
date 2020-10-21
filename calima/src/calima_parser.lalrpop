@@ -1,8 +1,11 @@
-use crate::ast_common::{Literal, NumberType, Pattern, Identifier};
-use crate::ast::{Block, Statement, Expr, TypeDefinition, TypeAnnotation, Modifier, RegionAnnotation, TypeKind, TopLevelBlock, TopLevelStatement};
-use crate::token::{Location, Token, NumberFormat};
+use crate::ast_common::{Literal, NumberType, MatchPattern, BindPattern};
+use crate::ast::*;
+use crate::token::{Location, Token, Span, NumberFormat};
 use crate::token::Token::*;
-use crate::lexer::Error;
+use crate::lexer::{Error, ErrorKind};
+use lalrpop_util::ParseError;
+use std::str::FromStr;
+use std::convert::TryFrom;
 
 grammar<'input, Data, F>(to_data: &F) where F: Fn(Location, Location) -> Data;
 
@@ -21,7 +24,6 @@ extern {
         "," => Comma,
         "name" => NameIdentifier(<&'input str>),
         "typename" => TypeIdentifier(<&'input str>),
-        "regionname" => RegionIdentifier(<&'input str>),
         "operator" => OperatorIdentifier(<&'input str>),
         "string" => StringLiteral(<&'input str>),
         "number" => NumberLiteral(<(&'input str, NumberFormat)>),
@@ -45,11 +47,15 @@ extern {
         "import" => Import,
         ":" => Colon,
         "->" => Arrow,
-        "and" => And
+        "backtick" => Backtick,
+        "@" => At,
+        "'" => Apostrophe,
+        "infix" => Infix,
+        "prefix" => Prefix
     }
 }
 
-Sep1<T, S>: Vec<T> = { // (1)
+Sep1<T, S>: Vec<T> = {
     <v:(<T> S)*> <e:T> => {
         let mut v = v;
         v.push(e);
@@ -57,7 +63,7 @@ Sep1<T, S>: Vec<T> = { // (1)
     }
 };
 
-Sep2<T, S>: Vec<T> = { // (1)
+Sep2<T, S>: Vec<T> = {
     <v:(<T> S)+> <e:T> => {
         let mut v = v;
         v.push(e);
@@ -83,25 +89,28 @@ Block: Block<'input, Data> = {
 
 TopLevelStatement: TopLevelStatement<'input, Data> = {
     Import,
-    <posl:@L> "type" <regions:RegionAnnotation*> <n:"typename"> <params:TypeAnnotation1*> "=" <td:TypeDefinition> <posr:@R> => TopLevelStatement::Type { name: n, regions, params, type_def: td, data: to_data(posl, posr) },
+    <posl:@L> "type" <n:"typename"> <regions:RegionVariable*> <params:GenericTypeKind*> "=" <td:TypeDefinition> <posr:@R> => TopLevelStatement::Type { name: n, regions, params, type_def: td, data: to_data(posl, posr) },
 };
 
 Import: TopLevelStatement<'input, Data> = {
     <posl:@L> "import" <m:Sep1<AnyName, ".">> <posr:@R> => TopLevelStatement::Import(m, Vec::new(), to_data(posl, posr)),
-    <posl:@L> "import" <m:Sep1<AnyName, ".">> "{" <f:Sep1<Identifier, ",">> "}" <posr:@R> => TopLevelStatement::Import(m, f, to_data(posl, posr))
+    <posl:@L> "import" <m:Sep1<AnyName, ".">> "{" <f:Sep1<"name", ",">> "}" <posr:@R> => TopLevelStatement::Import(m, f, to_data(posl, posr))
 };
 
 Statement: Statement<'input, Data> = {
     Let,
     Do,
-    Region
+    Region,
+    LetOperator
 };
 
 Region: Statement<'input, Data> = <posl:@L> "region" <n:RegionAnnotation> <posr:@R> => Statement::Region(n, to_data(posl, posr));
 
-Do: Statement<'input, Data> = <posl:@L> "do" <reg:RegionAnnotation?> <e:Expression0> <posr:@R> => Statement::Do(reg, e, to_data(posl, posr));
+Do: Statement<'input, Data> = <posl:@L> "do" <e:Expression0> <posr:@R> => Statement::Do(e, to_data(posl, posr));
 
-Let: Statement<'input, Data> = <posl:@L> "let" <mods:Modifiers> <reg:RegionAnnotation?> <pat:Pattern1> "=" <expr:Expression0> <posr:@R> => Statement::Let(mods, reg, pat, expr, to_data(posl, posr));
+Let: Statement<'input, Data> = <posl:@L> "let" <mods:Modifiers> <pat:BindPattern0> "=" <expr:Expression0> <posr:@R> => Statement::Let(mods, pat, expr, to_data(posl, posr));
+
+LetOperator: Statement<'input, Data> = <posl:@L> "let" <mods:Modifiers> <op:OperatorSpec> <n:AnnotatedOperator> "=" <expr:Expression0> <posr:@R> => Statement::LetOperator(mods, op, n.0, n.1, expr, to_data(posl, posr));
 
 Modifiers: Vec<Modifier> = Modifier*;
 
@@ -121,7 +130,7 @@ Case: Expr<'input, Data> = <posl:@L> "case" <value_expr:Expression1> "of" <rows:
     matches: rows
 };
 
-CaseRow: (Pattern<'input, TypeAnnotation<'input, Data>, Data>, Block<'input, Data>) = "|" <pat:Pattern0> "->" <block:Block> => (pat, block);
+CaseRow: (MatchPattern<'input, TypeAnnotation<'input, Data>, Data>, Block<'input, Data>) = "|" <pat:MatchPattern0> "->" <block:Block> => (pat, block);
 
 If: Expr<'input, Data> = <posl:@L> "if" <cond_expr:Expression1> "then" <if_block:Block> "else" <else_block:Block> "end" <posr:@R> => Expr::If {
     data: to_data(posl, posr),
@@ -134,25 +143,46 @@ Expression1: Expr<'input, Data> = {
     FunctionCall,
     OperatorCall,
     Lambda,
+    <posl:@L> <ra:RegionAnnotation> <expr:Expression2> <posr:@R> => Expr::Ref(ra, Box::new(expr), to_data(posl, posr)),
     Expression2
 };
 
 RecordExprRow: (&'input str, Expr<'input, Data>) = <n:"name"> "=" <expr:Expression0> => (n, expr);
 
-Lambda: Expr<'input, Data> = <posl:@L> "fun" <regions:RegionAnnotation*> <params:Pattern1+>  "->" <block:Block> <posr:@R> => Expr::Lambda { regions, params, body: block, data: to_data(posl, posr) };
+Lambda: Expr<'input, Data> = <posl:@L> "fun" <params:BindPattern0+>  "->" <block:Block> <posr:@R> => Expr::Lambda { params, body: block, data: to_data(posl, posr) };
 
 FunctionCall: Expr<'input, Data> = <posl:@L> <func:Expression2> <args:Expression2+> <posr:@R> => Expr::FunctionCall(Box::new(func), args, to_data(posl, posr));
 
-OperatorCall: Expr<'input, Data> = <posl:@L> <f1:Expression2> <op:"operator"> <f2:Expression2> <posr:@R> => Expr::OperatorCall(Box::new(f1), op, Box::new(f2), to_data(posl, posr));
+//This long definition ensures that this is actually a operator expression so the grammar is not ambiguous
+OperatorCall: Expr<'input, Data> = <posl:@L> <o0: OperatorExpression?> <o1:OperatorOperator> <mut els:OperatorElement+> <posr:@R> => {
+    els.insert(0, o1);
+    match o0 {
+        Some(oe) => els.insert(0, oe),
+        None => ()
+    }
+    Expr::OperatorCall(els, to_data(posl, posr))
+};
+
+OperatorElement: OperatorElement<'input, Data> = {
+    OperatorOperator,
+    OperatorExpression
+};
+
+OperatorExpression: OperatorElement<'input, Data> = <Expression2> => OperatorElement::Expression(<>);
+
+OperatorOperator: OperatorElement<'input, Data> = <posl:@L> <op:"operator"> <posr:@R> => OperatorElement::Operator(op, to_data(posl, posr));
 
 Expression2: Expr<'input, Data> = {
     Variable,
+    OperatorAsFunction,
     LiteralExpr,
     TupleConstruct,
     "(" <Expression0> ")" => <>,
     <posl:@L> "[" <exprs: Sep1<Expression0, ",">> "]" <posr:@R> => Expr::List(exprs, to_data(posl, posr)),
     <posl:@L> "{" <rows: Sep1<RecordExprRow, ",">> "}" <posr:@R> => Expr::Record(rows, to_data(posl, posr)),
 };
+
+OperatorAsFunction: Expr<'input, Data> = <posl:@L> "backtick" <op:"operator"> "backtick" <posr:@R> => Expr::OperatorAsFunction(op, to_data(posl, posr));
 
 TupleConstruct: Expr<'input, Data> = <posl:@L> "(" <exprs:Sep2<Expression1, ",">> ")" <posr:@R> => Expr::Tuple(exprs, to_data(posl, posr));
 
@@ -165,30 +195,40 @@ AnyName: &'input str = {
 
 LiteralExpr: Expr<'input, Data> = <posl:@L> <lit:Literal> <posr:@R> => Expr::Literal(lit, to_data(posl, posr));
 
-Pattern0: Pattern<'input, TypeAnnotation<'input, Data>, Data> = {
-    Pattern1,
-    <posl:@L> <variant:"typename"> <patt:Pattern1?> <posr:@R> => Pattern::SumUnwrap(variant, patt.map(|p| Box::new(p)), to_data(posl, posr)),
+RecordBindPatternRow: (&'input str, BindPattern<'input, TypeAnnotation<'input, Data>, Data>) = <name:"name"> "=" <patt:BindPattern0> => (name, patt);
+
+BindPattern0: BindPattern<'input, TypeAnnotation<'input, Data>, Data> = {
+    <posl:@L> "_" <posr:@R> => BindPattern::Any(to_data(posl, posr)),
+    <posl:@L> <id:AnnotatedName> <posr:@R> => BindPattern::Name(id.0, id.1, to_data(posl, posr)),
+    "(" <BindPattern0> ")" => <>,
+    <posl:@L> "{" <rows:Sep1<RecordBindPatternRow, ",">> "}" <posr:@R> => BindPattern::Record(rows, to_data(posl, posr)),
+    <posl:@L> "(" <elements:Sep2<BindPattern0, ",">> ")" <posr:@R> => BindPattern::Tuple(elements, to_data(posl, posr))
 };
 
-RecordPatternRow: (&'input str, Pattern<'input, TypeAnnotation<'input, Data>, Data>) = <name:"name"> "=" <patt:Pattern1> => (name, patt);
-
-Pattern1: Pattern<'input, TypeAnnotation<'input, Data>, Data> = {
-    <posl:@L> "_" <posr:@R> => Pattern::Any(to_data(posl, posr)),
-    <posl:@L> <id:AnnotatedIdentifier> <posr:@R> => Pattern::Name(id.0, id.1, to_data(posl, posr)),
-    <posl:@L> <lit:Literal> <posr:@R> => Pattern::Literal(lit, to_data(posl, posr)),
-    "(" <Pattern0> ")" => <>,
-    <posl:@L> "{" <rows:Sep1<RecordPatternRow, ",">> "}" <posr:@R> => Pattern::Record(rows, to_data(posl, posr)),
-    <posl:@L> "(" <elements:Sep2<Pattern1, ",">> ")" <posr:@R> => Pattern::Tuple(elements, to_data(posl, posr))
+MatchPattern0: MatchPattern<'input, TypeAnnotation<'input, Data>, Data> = {
+    MatchPattern1,
+    <posl:@L> <variant:"typename"> <patt:MatchPattern1?> <posr:@R> => MatchPattern::SumUnwrap(variant, patt.map(|p| Box::new(p)), to_data(posl, posr)),
 };
 
-AnnotatedIdentifier: (Identifier<'input, Data>, Option<TypeAnnotation<'input, Data>>) = {
-    <Identifier> => (<>, None),
-    "(" <ident:Identifier> ":" <ta:TypeAnnotation0> ")" => (ident, Some(ta))
+RecordMatchPatternRow: (&'input str, MatchPattern<'input, TypeAnnotation<'input, Data>, Data>) = <name:"name"> "=" <patt:MatchPattern1> => (name, patt);
+
+MatchPattern1: MatchPattern<'input, TypeAnnotation<'input, Data>, Data> = {
+    <posl:@L> "_" <posr:@R> => MatchPattern::Any(to_data(posl, posr)),
+    <posl:@L> <id:AnnotatedName> <posr:@R> => MatchPattern::Name(id.0, id.1, to_data(posl, posr)),
+    <posl:@L> <lit:Literal> <posr:@R> => MatchPattern::Literal(lit, to_data(posl, posr)),
+    "(" <MatchPattern0> ")" => <>,
+    <posl:@L> "{" <rows:Sep1<RecordMatchPatternRow, ",">> "}" <posr:@R> => MatchPattern::Record(rows, to_data(posl, posr)),
+    <posl:@L> "(" <elements:Sep2<MatchPattern1, ",">> ")" <posr:@R> => MatchPattern::Tuple(elements, to_data(posl, posr))
 };
 
-Identifier: Identifier<'input, Data> = {
-    <posl:@L> <n:"name"> <posr:@R> => Identifier::Simple(n, to_data(posl, posr)),
-    <posl:@L> "(" <n:"operator"> ")" <posr:@R> => Identifier::Operator(n, to_data(posl, posr)),
+AnnotatedOperator: (&'input str, Option<TypeAnnotation<'input, Data>>) = {
+    <"operator"> => (<>, None),
+    "(" <n:"operator"> ":" <ta:TypeAnnotation0> ")" => (n, Some(ta))
+};
+
+AnnotatedName: (&'input str, Option<TypeAnnotation<'input, Data>>) = {
+    <"name"> => (<>, None),
+    "(" <n:"name"> ":" <ta:TypeAnnotation0> ")" => (n, Some(ta))
 };
 
 TypeDefinition: TypeDefinition<'input, Data> = {
@@ -200,35 +240,39 @@ TypeDefinition: TypeDefinition<'input, Data> = {
 Sum: TypeDefinition<'input, Data> = "|" <Sep1<SumRow, "|">> => TypeDefinition::Sum(<>);
 
 SumRow: (&'input str, Option<TypeAnnotation<'input, Data>>) = {
-    <n:"typename"> <ta:TypeAnnotation1?> => (n, ta)
+    <n:"typename"> <ta:TypeAnnotation2?> => (n, ta)
 };
 
 RecordTypeRow: (&'input str, TypeAnnotation<'input, Data>) = <n:"name"> ":" <ta:TypeAnnotation0> => (n, ta);
 
 TypeAnnotation0: TypeAnnotation<'input, Data> = {
-    <posl:@L> <reg:RegionAnnotation> <tk:TypeKind1> <posr:@R> => TypeAnnotation(Some(reg), tk, to_data(posl, posr)),
-    <posl:@L> <tk:TypeKind0> <posr:@R> => TypeAnnotation(None, tk, to_data(posl, posr))
+    <reg:RegionAnnotation> <ta:TypeAnnotation1> => TypeAnnotation::Reference(reg, Box::new(ta)),
+    TypeAnnotation1
 };
 
 TypeAnnotation1: TypeAnnotation<'input, Data> = {
-    <posl:@L> <reg:RegionAnnotation> <tk:TypeKind1> <posr:@R> => TypeAnnotation(Some(reg), tk, to_data(posl, posr)),
-    <posl:@L> <tk:TypeKind1> <posr:@R> => TypeAnnotation(None, tk, to_data(posl, posr))
+    <inp:TypeAnnotation2> "->" <out:TypeAnnotation1> => TypeAnnotation::Function(Box::new(inp), Box::new(out)),
+    <elements:Sep1<"typename", ".">> <params:TypeAnnotation2+> => TypeAnnotation::Parameterized(elements, params),
+    TypeAnnotation2
 };
 
-TypeKind0: TypeKind<'input, Data> = {
-    <inp:TypeAnnotation1> "->" <out:TypeAnnotation0> => TypeKind::Function(Box::new(inp), Box::new(out)),
-    <n:Sep1<"typename", "and">> <params:TypeAnnotation1+> => TypeKind::Parameterized(n, params),
-    TypeKind1
+TypeAnnotation2: TypeAnnotation<'input, Data> = {
+    <posl:@L> <elements:Sep1<"typename", ".">> <posr:@R> => TypeAnnotation::Name(elements, to_data(posl, posr)),
+    <GenericTypeKind> => TypeAnnotation::Generic(<>),
+    "(" <Sep2<TypeAnnotation0, ",">> ")" => TypeAnnotation::Tuple(<>),
+    "(" <tk:TypeAnnotation0> ")" => tk,
 };
 
-TypeKind1: TypeKind<'input, Data> = {
-    <posl:@L> <n:Sep1<"typename", "and">> <posr:@R> => TypeKind::Name(n, to_data(posl, posr)),
-    <posl:@L> <n:"name"> <posr:@R> => TypeKind::Generic(n, to_data(posl, posr)),
-    "(" <Sep2<TypeAnnotation0, ",">> ")" => TypeKind::Tuple(<>),
-    "(" <tk:TypeKind0> ")" => tk,
+GenericTypeKind: GenericTypeKind<'input, Data> = <posl:@L> <n:"name"> <posr:@R> => GenericTypeKind(n, to_data(posl, posr));
+
+RegionAnnotation: RegionAnnotation<'input, Data> = {
+    "@" "." => RegionAnnotation::Stack,
+    "@" "_" => RegionAnnotation::Anonymous,
+    <posl:@L> "@" <n:"name"> <posr:@R> => RegionAnnotation::Named(n, to_data(posl, posr)),
+    "@" <RegionVariable> => RegionAnnotation::Var(<>)
 };
 
-RegionAnnotation: RegionAnnotation<'input, Data> = <posl:@L> <n:"regionname"> <posr:@R> => RegionAnnotation(n, to_data(posl, posr));
+RegionVariable: RegionVariable<'input, Data> = <posl:@L> "'" <n:"name"> <posr:@R> => RegionVariable(n, to_data(posl, posr));
 
 Literal: Literal<'input> = {
     "(" ")" => Literal::Unit,
@@ -242,3 +286,38 @@ Literal: Literal<'input> = {
     },
     <"string"> => Literal::String(<>)
 };
+
+OperatorSpec: OperatorSpecification = {
+    <posl:@L> "infix" <assoc:Assoc> <n:"number"> <posr:@R> =>? {
+        match u32::from_str(n.0) {
+            Ok(nr) => Ok(OperatorSpecification::Infix(nr, assoc)),
+            Err(e) => Err(ParseError::User { error: Error {
+                location: Span {
+                    left: posl,
+                    right: posr
+                },
+                kind: ErrorKind::InvalidNumber
+            }})
+        }
+    },
+    <posl:@L> "prefix" <n:"number"> <posr:@R> =>? {
+        match u32::from_str(n.0) {
+            Ok(nr) => Ok(OperatorSpecification::Prefix(nr)),
+            Err(e) => Err(ParseError::User { error: Error {
+                location: Span {
+                    left: posl,
+                    right: posr
+                },
+                kind: ErrorKind::InvalidNumber
+            }})
+        }
+    }
+};
+
+Assoc: Associativity = <posl:@L> <n:"name"> <posr:@L> =>? Associativity::try_from(n).map_err(|()| ParseError::User { error: Error {
+    location: Span {
+        left: posl,
+        right: posr
+    },
+    kind: ErrorKind::InvalidNumber
+}});

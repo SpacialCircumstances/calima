@@ -1,49 +1,97 @@
 use std::fmt::{Display, Formatter, Debug};
 use crate::util::*;
 use crate::common::ModuleIdentifier;
-use crate::ast_common::{Identifier, Pattern, Literal};
+use crate::ast_common::{MatchPattern, Literal, BindPattern};
+use std::convert::TryFrom;
+
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+pub enum Associativity {
+    Left,
+    Right,
+    None
+}
+
+impl Display for Associativity {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Associativity::Left => write!(f, "left"),
+            Associativity::Right => write!(f, "right"),
+            Associativity::None => write!(f, "none")
+        }
+    }
+}
+
+impl TryFrom<&str> for Associativity {
+    type Error = ();
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "left" => Ok(Associativity::Left),
+            "right" => Ok(Associativity::Right),
+            "none" => Ok(Associativity::None),
+            _ => Err(())
+        }
+    }
+}
 
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub struct RegionAnnotation<'a, Data>(pub &'a str, pub Data);
+pub struct RegionVariable<'a, Data>(pub &'a str, pub Data);
+
+impl<'a, Data> Display for RegionVariable<'a, Data> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "'{}", self.0)
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum RegionAnnotation<'a, Data> {
+    Anonymous,
+    Stack,
+    Named(&'a str, Data),
+    Var(RegionVariable<'a, Data>)
+}
 
 impl<'a, Data> Display for RegionAnnotation<'a, Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "@{}", self.0)
-    }
-
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct TypeAnnotation<'a, Data>(pub Option<RegionAnnotation<'a, Data>>, pub TypeKind<'a, Data>, pub Data);
-
-impl<'a, Data> Display for TypeAnnotation<'a, Data> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match &self.0 {
-            None => write!(f, "{}", self.1),
-            Some(r) => write!(f, "{} {}", r, self.1)
+        match self {
+            RegionAnnotation::Stack => write!(f, "@."),
+            RegionAnnotation::Anonymous => write!(f, "@_"),
+            RegionAnnotation::Named(name, _) => write!(f, "@{}", name),
+            RegionAnnotation::Var(var) => write!(f, "@{}", var)
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum TypeKind<'a, Data> {
-    Name(Vec<&'a str>, Data),
-    Generic(&'a str, Data),
-    Function(Box<TypeAnnotation<'a, Data>>, Box<TypeAnnotation<'a, Data>>),
-    Tuple(Vec<TypeAnnotation<'a, Data>>),
-    Parameterized(Vec<&'a str>, Vec<TypeAnnotation<'a, Data>>)
+pub struct GenericTypeKind<'a, Data>(pub &'a str, pub Data);
+
+impl<'a, Data> Display for GenericTypeKind<'a, Data> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
 }
 
-impl<'a, Data> Display for TypeKind<'a, Data> {
+#[derive(Debug, Clone, PartialEq)]
+pub enum TypeAnnotation<'a, Data> {
+    Name(Vec<&'a str>, Data),
+    Generic(GenericTypeKind<'a, Data>),
+    Function(Box<TypeAnnotation<'a, Data>>, Box<TypeAnnotation<'a, Data>>),
+    Tuple(Vec<TypeAnnotation<'a, Data>>),
+    Parameterized(Vec<&'a str>, Vec<TypeAnnotation<'a, Data>>),
+    Reference(RegionAnnotation<'a, Data>, Box<TypeAnnotation<'a, Data>>)
+}
+
+impl<'a, Data> Display for TypeAnnotation<'a, Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            TypeKind::Name(name, _) => write!(f, "{}", format_iter(name.iter(), " and ")),
-            TypeKind::Generic(name, _) => write!(f, "{}", name),
-            TypeKind::Function(i, o) => write!(f, "({} -> {})", *i, *o),
-            TypeKind::Parameterized(name, params) => {
+            TypeAnnotation::Name(name, _) => write!(f, "{}", format_iter(name.iter(), ".")),
+            TypeAnnotation::Generic(name) => write!(f, "{}", name),
+            TypeAnnotation::Function(i, o) => write!(f, "({} -> {})", *i, *o),
+            TypeAnnotation::Parameterized(name, params) => {
                 write!(f, "({} {})", format_iter(name.iter(), " and "), format_iter(params.iter(), " "))
             },
-            TypeKind::Tuple(elements) => format_tuple(elements, f)
+            TypeAnnotation::Tuple(elements) => format_tuple(elements, f),
+            TypeAnnotation::Reference(reg, tp) => write!(f, "{} {}", reg, tp)
         }
     }
 }
@@ -86,8 +134,8 @@ impl Display for Modifier {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum TopLevelStatement<'a, Data> {
-    Import(Vec<&'a str>, Vec<Identifier<'a, Data>>, Data),
-    Type { name: &'a str, regions: Vec<RegionAnnotation<'a, Data>>, params: Vec<TypeAnnotation<'a, Data>>, type_def: TypeDefinition<'a, Data>, data: Data }
+    Import(Vec<&'a str>, Vec<&'a str>, Data),
+    Type { name: &'a str, regions: Vec<RegionVariable<'a, Data>>, params: Vec<GenericTypeKind<'a, Data>>, type_def: TypeDefinition<'a, Data>, data: Data }
 }
 
 impl<'a, Data> Display for TopLevelStatement<'a, Data> {
@@ -105,9 +153,25 @@ impl<'a, Data> Display for TopLevelStatement<'a, Data> {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub enum OperatorSpecification {
+    Infix(u32, Associativity),
+    Prefix(u32)
+}
+
+impl Display for OperatorSpecification {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            OperatorSpecification::Infix(prec, assoc) => write!(f, "infix {} {}", prec, assoc),
+            OperatorSpecification::Prefix(prec) => write!(f, "prefix {}", prec)
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum Statement<'a, Data> {
-    Let(Vec<Modifier>, Option<RegionAnnotation<'a, Data>>, Pattern<'a, TypeAnnotation<'a, Data>, Data>, Expr<'a, Data>, Data),
-    Do(Option<RegionAnnotation<'a, Data>>, Expr<'a, Data>, Data),
+    Let(Vec<Modifier>, BindPattern<'a, TypeAnnotation<'a, Data>, Data>, Expr<'a, Data>, Data),
+    LetOperator(Vec<Modifier>, OperatorSpecification, &'a str, Option<TypeAnnotation<'a, Data>>, Expr<'a, Data>, Data),
+    Do(Expr<'a, Data>, Data),
     Region(RegionAnnotation<'a, Data>, Data)
 }
 
@@ -115,14 +179,9 @@ impl<'a, Data> Display for Statement<'a, Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Statement::Region(reg, _) => write!(f, "region {}", reg),
-            Statement::Do(Some(reg), expr, _) => write!(f, "do {} {}", reg, expr),
-            Statement::Do(None, expr, _) => write!(f, "do {}", expr),
-            Statement::Let(mods, reg, pat, expr, _) => {
-                match reg {
-                    None => write!(f, "let {}{} = {}", format_iter_end(mods.iter(), " "), pat, expr),
-                    Some(region) => write!(f, "let {}{} {} = {}", format_iter_end(mods.iter(), " "), region, pat, expr)
-                }
-            }
+            Statement::Do(expr, _) => write!(f, "do {}", expr),
+            Statement::Let(mods, pat, expr, _) => write!(f, "let {}{} = {}", format_iter_end(mods.iter(), " "), pat, expr),
+            Statement::LetOperator(mods, op, name, ta, expr, _) => write!(f, "let {}{} {} = {}", format_iter_end(mods.iter(), " "), op, name, expr)
         }
     }
 }
@@ -167,30 +226,48 @@ impl<'a, Data> Display for Block<'a, Data> {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub enum OperatorElement<'a, Data> {
+    Operator(&'a str, Data),
+    Expression(Expr<'a, Data>)
+}
+
+impl<'a, Data> Display for OperatorElement<'a, Data> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            OperatorElement::Expression(expr) => write!(f, "{}", expr),
+            OperatorElement::Operator(name, _) => write!(f, "{}", name)
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum Expr<'a, Data> {
+    OperatorAsFunction(&'a str, Data),
     Variable(Vec<&'a str>, Data),
     FunctionCall(Box<Expr<'a, Data>>, Vec<Expr<'a, Data>>, Data),
-    OperatorCall(Box<Expr<'a, Data>>, &'a str, Box<Expr<'a, Data>>, Data),
+    OperatorCall(Vec<OperatorElement<'a, Data>>, Data),
     Record(Vec<(&'a str, Expr<'a, Data>)>, Data),
     Tuple(Vec<Expr<'a, Data>>, Data),
     Literal(Literal<'a>, Data),
-    Lambda { regions: Vec<RegionAnnotation<'a, Data>>, params: Vec<Pattern<'a, TypeAnnotation<'a, Data>, Data>>, body: Block<'a, Data>, data: Data },
+    Lambda { params: Vec<BindPattern<'a, TypeAnnotation<'a, Data>, Data>>, body: Block<'a, Data>, data: Data },
     If { data: Data, cond: Box<Expr<'a, Data>>, if_true: Block<'a, Data>, if_false: Block<'a, Data> },
-    Case { data: Data, value: Box<Expr<'a, Data>>, matches: Vec<(Pattern<'a, TypeAnnotation<'a, Data>, Data>, Block<'a, Data>)> },
-    List(Vec<Expr<'a, Data>>, Data)
+    Case { data: Data, value: Box<Expr<'a, Data>>, matches: Vec<(MatchPattern<'a, TypeAnnotation<'a, Data>, Data>, Block<'a, Data>)> },
+    List(Vec<Expr<'a, Data>>, Data),
+    Ref(RegionAnnotation<'a, Data>, Box<Expr<'a, Data>>, Data)
 }
 
 impl<'a, Data> Display for Expr<'a, Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Expr::Literal(lit, _) => write!(f, "{}", lit),
+            Expr::OperatorAsFunction(name, _) => write!(f, "`{}`", name),
             Expr::Variable(ident, _) => write!(f, "{}", ident.join(".")),
             Expr::List(exprs, _) => write!(f, "[{}]", format_iter(exprs.iter(), ", ")),
             Expr::Tuple(exprs, _) => write!(f, "({})", format_iter(exprs.iter(), ", ")),
             Expr::Record(rows, _) => format_record(rows, f, "=", ", "),
-            Expr::Lambda { regions, params, body, data: _ } => write!(f, "fun {}{} -> {}", format_iter_end(regions.iter(), " "), format_iter(params.iter(), " "), body),
+            Expr::Lambda { params, body, data: _ } => write!(f, "fun {} -> {}", format_iter(params.iter(), " "), body),
             Expr::FunctionCall(func, args, _) => write!(f, "{} {}", *func, format_iter(args.iter(), " ")),
-            Expr::OperatorCall(l, op, r, _) => write!(f, "{} {} {}", *l, op, *r),
+            Expr::OperatorCall(elements, _) => write!(f, "{}", format_iter(elements.iter(), " ")),
             Expr::If { data: _, cond, if_true, if_false } => {
                 writeln!(f, "if {} then", *cond)?;
                 writeln!(f, "{}", *if_true)?;
@@ -207,7 +284,8 @@ impl<'a, Data> Display for Expr<'a, Data> {
                 }
 
                 write!(f, "end")
-            }
+            },
+            Expr::Ref(reg, expr, _) => write!(f, "{} {}", reg, expr)
         }
     }
 }
