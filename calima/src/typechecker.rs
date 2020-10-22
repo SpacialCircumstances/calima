@@ -6,7 +6,7 @@ use crate::token::Span;
 use std::collections::{HashMap, HashSet};
 use std::ops::Index;
 use crate::ast_common::{NumberType, Literal, MatchPattern, BindPattern};
-use crate::ast::{Expr, Statement, TopLevelStatement, Block, TopLevelBlock, TypeAnnotation, Modifier, Associativity};
+use crate::ast::{Expr, Statement, TopLevelStatement, Block, TopLevelBlock, TypeAnnotation, Modifier, Associativity, OperatorSpecification};
 use crate::typed_ast::{TBlock, TStatement, TExpression, TExprData, Unit};
 use crate::types::{Type, GenericId, Scheme, TypeDefinition, PrimitiveType, build_function};
 use crate::prelude::prelude;
@@ -129,6 +129,7 @@ impl Context {
 #[derive(Clone)]
 struct Environment<'a> {
     values: HashMap<&'a str, Scheme>,
+    operators: HashMap<&'a str, OperatorSpecification>,
     mono_vars: HashSet<GenericId>
 }
 
@@ -136,8 +137,14 @@ impl<'a> Environment<'a> {
     fn new() -> Self {
         Environment {
             values: HashMap::new(),
+            operators: HashMap::new(),
             mono_vars: HashSet::new()
         }
+    }
+
+    fn add_operator(&mut self, name: &'a str, sch: Scheme, op: OperatorSpecification) {
+        self.values.insert(name, sch);
+        self.operators.insert(name, op);
     }
 
     fn add(&mut self, name: &'a str, sch: Scheme) {
@@ -146,6 +153,10 @@ impl<'a> Environment<'a> {
 
     fn lookup(&self, name: &'a str) -> Option<&Scheme> {
         self.values.get(name)
+    }
+
+    fn lookup_operator(&self, name: &'a str) -> Option<(&Scheme, &OperatorSpecification)> {
+        self.values.get(name).and_then(|sch| self.operators.get(name).map(|op| (sch, op)))
     }
 
     fn add_monomorphic_var(&mut self, id: GenericId) {
