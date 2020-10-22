@@ -347,22 +347,35 @@ fn infer_statement<'input>(env: &mut Environment<'input>, ctx: &mut Context, sta
         Statement::Region(_, _) => None,
         Statement::Do(expr, _) => Some(TStatement::Do(infer_expr(env, ctx, expr))),
         Statement::Let(mods, pattern, value, _) => {
-            if mods.contains(&Modifier::Rec) {
+            let v = if mods.contains(&Modifier::Rec) {
                 let var = ctx.new_generic();
                 let mut body_env = env.clone();
                 bind_to_pattern(&mut body_env, pattern, &Scheme::simple(var.clone()));
                 let v = infer_expr(&mut body_env, ctx, value);
                 ctx.unify(&var, &v.typ());
-                let vt = &env.generalize(v.typ());
-                bind_to_pattern(env, pattern, vt);
-                Some(TStatement::Let(v, map_bind_pattern(pattern)))
+                v
             } else {
-                let v = infer_expr(env, ctx, value);
-                bind_to_pattern(env, pattern, &env.generalize(&v.typ()));
-                Some(TStatement::Let(v, map_bind_pattern(pattern)))
-            }
+                infer_expr(env, ctx, value)
+            };
+            bind_to_pattern(env, pattern, &env.generalize(&v.typ()));
+            Some(TStatement::Let(v, map_bind_pattern(pattern)))
         },
-        _ => unimplemented!()
+        Statement::LetOperator(mods, op, name, ta, expr, _) => {
+            //TODO: Type annotations
+            //TODO: Check for unary/binary
+            let v = if mods.contains(&Modifier::Rec) {
+                let var = ctx.new_generic();
+                let mut body_env = env.clone();
+                body_env.add_operator(name, Scheme::simple(var.clone()), op.clone());
+                let v = infer_expr(&mut body_env, ctx, expr);
+                ctx.unify(&var, &v.typ());
+                v
+            } else {
+                infer_expr(env, ctx, expr)
+            };
+            env.add_operator(name, env.generalize(v.typ()), op.clone());
+            Some(TStatement::Let(v, BindPattern::Name(name, None, Unit::unit())))
+        }
     }
 }
 
