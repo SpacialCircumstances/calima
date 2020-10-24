@@ -8,7 +8,7 @@ use std::ops::Index;
 use crate::ast_common::{NumberType, Literal, MatchPattern, BindPattern};
 use crate::ast::{Expr, Statement, TopLevelStatement, Block, TopLevelBlock, TypeAnnotation, Modifier};
 use crate::typed_ast::{TBlock, TStatement, TExpression, TExprData, Unit};
-use crate::types::{Type, GenericId, Scheme, TypeDefinition, PrimitiveType, build_function};
+use crate::types::{Type, GenericId, Scheme, TypeDefinition, PrimitiveType, build_function, ExportValue};
 use crate::prelude::prelude;
 use crate::util::all_max;
 
@@ -195,12 +195,22 @@ impl<'a> Environment<'a> {
         Scheme(scheme_vars, tp.clone())
     }
 
-    fn import<'b: 'a>(&mut self, ctx: &mut Context, name: &'b str, tp: &Scheme) {
+    fn import_scheme(ctx: &mut Context, tp: &Scheme) -> Scheme {
         let mapping: HashMap<GenericId, GenericId> = tp.0.iter().map(|v| (*v, ctx.next_id())).collect();
         let tp = Self::replace(&tp.1, &|gid| mapping.get(&gid).copied().map(Type::Var));
         let vars = mapping.values().copied().collect();
-        let scheme = Scheme(vars, tp);
-        self.add(name, scheme)
+        Scheme(vars, tp)
+    }
+
+    fn import<'b: 'a>(&mut self, ctx: &mut Context, name: &'b str, exv: &ExportValue) {
+        match exv {
+            ExportValue::Value(tp) => {
+                self.add(name, Self::import_scheme(ctx, tp))
+            },
+            ExportValue::Operator(op, tp) => {
+                self.add_operator(name, Self::import_scheme(ctx, tp), op.clone())
+            }
+        }
     }
 }
 

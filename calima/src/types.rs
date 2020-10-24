@@ -1,6 +1,7 @@
 use std::collections::{HashSet, HashMap};
 use std::fmt::{Display, Formatter};
 use crate::util::format_iter;
+use crate::common::OperatorSpecification;
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct GenericId(pub usize);
@@ -130,20 +131,34 @@ pub fn build_function(params: &[Type], ret: &Type) -> Type {
     }
 }
 
+#[derive(Debug, Clone)]
+pub enum ExportValue {
+    Value(Scheme),
+    Operator(OperatorSpecification, Scheme)
+}
+
 //All variables in an Exports map shall be fully substituted to not leave any free variables
-#[derive(Debug)]
-pub struct Exports<'input>(HashMap<&'input str, Scheme>);
+#[derive(Debug, Clone)]
+pub struct Exports<'input>(HashMap<&'input str, ExportValue>);
 
 impl<'input> Exports<'input> {
     pub fn new() -> Self {
         Exports(HashMap::new())
     }
 
-    pub fn add_variable(&mut self, name: &'input str, sch: Scheme) {
-        self.0.insert(name, sch);
+    pub fn add_operator(&mut self, name: &'input str, sch: Scheme, op: OperatorSpecification) {
+        self.add(name, ExportValue::Operator(op, sch))
     }
 
-    pub fn iter_vars(&self) -> impl Iterator<Item=(&'input str, &Scheme)> {
+    pub fn add_value(&mut self, name: &'input str, sch: Scheme) {
+        self.add(name, ExportValue::Value(sch));
+    }
+
+    pub fn add(&mut self, name: &'input str, exp: ExportValue) {
+        self.0.insert(name, exp);
+    }
+
+    pub fn iter_vars(&self) -> impl Iterator<Item=(&'input str, &ExportValue)> {
         self.0.iter().map(|(a, b)| (*a, b))
     }
 }
