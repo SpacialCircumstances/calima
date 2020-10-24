@@ -1,12 +1,12 @@
 use crate::compiler::{ModuleTreeContext, UntypedModuleData};
 use crate::errors::ErrorContext;
 use crate::string_interner::StringInterner;
-use crate::common::{Module, ModuleIdentifier};
+use crate::common::{Module, ModuleIdentifier, Associativity, OperatorSpecification};
 use crate::token::Span;
 use std::collections::{HashMap, HashSet};
 use std::ops::Index;
 use crate::ast_common::{NumberType, Literal, MatchPattern, BindPattern};
-use crate::ast::{Expr, Statement, TopLevelStatement, Block, TopLevelBlock, TypeAnnotation, Modifier, Associativity, OperatorSpecification};
+use crate::ast::{Expr, Statement, TopLevelStatement, Block, TopLevelBlock, TypeAnnotation, Modifier};
 use crate::typed_ast::{TBlock, TStatement, TExpression, TExprData, Unit};
 use crate::types::{Type, GenericId, Scheme, TypeDefinition, PrimitiveType, build_function};
 use crate::prelude::prelude;
