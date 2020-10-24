@@ -270,6 +270,11 @@ fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &E
             ];
             TExpression::new(TExprData::Case(tcond.into(), case), rett)
         },
+        Expr::OperatorAsFunction(name, _) => {
+            let (op_sch, _) = env.lookup_operator(name).unwrap();
+            let op_tp = env.inst(ctx, op_sch);
+            TExpression::new(TExprData::Variable(vec![ name ]), op_tp)
+        }
         _ => unimplemented!()
     }
 }
