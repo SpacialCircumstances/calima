@@ -6,7 +6,7 @@ use crate::token::Span;
 use std::collections::{HashMap, HashSet};
 use std::ops::Index;
 use crate::ast_common::{NumberType, Literal, MatchPattern, BindPattern};
-use crate::ast::{Expr, Statement, TopLevelStatement, Block, TopLevelBlock, TypeAnnotation, Modifier};
+use crate::ast::{Expr, Statement, TopLevelStatement, Block, TopLevelBlock, TypeAnnotation, Modifier, OperatorElement};
 use crate::typed_ast::{TBlock, TStatement, TExpression, TExprData, Unit};
 use crate::types::{Type, GenericId, Scheme, TypeDefinition, PrimitiveType, build_function, ExportValue};
 use crate::prelude::prelude;
@@ -214,7 +214,7 @@ impl<'a> Environment<'a> {
     }
 }
 
-fn function_call<'input>(env: &mut Environment<'input>, ctx: &mut Context, tfunc: TExpression<'input>, args: Vec<TExpression<'input>>) -> TExpression<'input> {
+fn function_call<'input>(ctx: &mut Context, tfunc: TExpression<'input>, args: Vec<TExpression<'input>>) -> TExpression<'input> {
     let argtypes: Vec<Type> = args.iter().map(TExpression::typ).cloned().collect();
     let ret = ctx.new_generic();
     let arg_fun_type = build_function(&argtypes, &ret);
@@ -250,10 +250,10 @@ fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &E
         Expr::FunctionCall(func, args, _) => {
             let tfunc = infer_expr(env, ctx, func);
             let targs = args.iter().map(|e| infer_expr(env, ctx, e)).collect();
-            function_call(env, ctx, tfunc, targs)
+            function_call(ctx, tfunc, targs)
         },
         Expr::OperatorCall(elements, _) => {
-            unimplemented!()
+            transform_operators(env, ctx, elements)
         }
         Expr::If { data: _, cond, if_true, if_false } => {
             let tcond = infer_expr(env, ctx, &*cond);
@@ -272,6 +272,53 @@ fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &E
         },
         _ => unimplemented!()
     }
+}
+
+fn get_precedence(opspec: &OperatorSpecification) -> u32 {
+    *match opspec {
+        OperatorSpecification::Infix(prec, _) => prec,
+        OperatorSpecification::Prefix(prec) => prec
+    }
+}
+
+fn transform_operators<'input>(env: &mut Environment<'input>, ctx: &mut Context, elements: &Vec<OperatorElement<'input, Span>>) -> TExpression<'input> {
+    let mut ops: Vec<(&str, Type, OperatorSpecification)> = Vec::new();
+    let mut exprs = Vec::new();
+
+    for el in elements {
+        match el {
+            OperatorElement::Operator(name, _) => {
+                let (op_tp, op_spec) = env.lookup_operator(name).expect("Operator not found");
+                //TODO: Assoc
+                match op_spec {
+                    OperatorSpecification::Infix(op_prec, assoc) => {
+                        let op_tp = env.inst(ctx, op_tp);
+                        match ops.last() {
+                            None => ops.push((*name, op_tp, op_spec.clone())),
+                            Some((last_name, last_type, last_spec)) => {
+                                let last_prec = get_precedence(last_spec);
+                                if last_prec > *op_prec {
+                                    let r = exprs.pop().unwrap();
+                                    let l = exprs.pop().unwrap();
+                                    let last_expr = TExpression::new(TExprData::Variable(vec![ last_name ]), last_type.clone());
+                                    let fc = function_call(ctx, last_expr, vec![l, r ]);
+                                    exprs.push(fc);
+                                } else {
+                                    ops.push((*name, op_tp, op_spec.clone()))
+                                }
+                            }
+                        }
+                    }
+                    OperatorSpecification::Prefix(op_prec) => {
+                        unimplemented!()
+                    }
+                }
+            },
+            OperatorElement::Expression(expr) => exprs.push(infer_expr(env, ctx, expr))
+        }
+    }
+
+    exprs.pop().unwrap()
 }
 
 fn get_literal_type(lit: &Literal) -> Type {
