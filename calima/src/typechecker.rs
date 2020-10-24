@@ -223,64 +223,6 @@ fn function_call<'input>(env: &mut Environment<'input>, ctx: &mut Context, tfunc
     TExpression::new(TExprData::FunctionCall(tfunc.into(), args), ret)
 }
 
-//Multiples of 10 -> Left assoc
-//Multiples of 5 -> Right assoc
-//Others -> No assoc
-fn get_precedence(op: &str) -> u32 {
-    match op {
-        "|>" => 100,
-        "*" | "/" | ".*" | "./" | "%" => 80,
-        "+" | "-" | ".+" | ".-" => 60,
-        "==" | "!=" | "<" | ">" | "<=" | ">=" | "=>" => 59,
-        "&&" => 40,
-        "||" => 20,
-        _ => 10
-    }
-}
-
-fn get_assoc(prec: u32) -> Associativity {
-    if prec % 10 == 0 {
-        Associativity::Left
-    } else if prec % 5 == 0 {
-        Associativity::Right
-    } else {
-        Associativity::None
-    }
-}
-
-fn transform_operators<'input>(env: &mut Environment<'input>, ctx: &mut Context, ops: &[(&'input str, u32, Scheme)], exprs: &[Expr<'input, Span>]) -> TExpression<'input> {
-    let (highest_prec, highest_ops) = all_max(ops.iter().enumerate(), |(_, (_, p, _))| *p);
-    let highest_prec = highest_prec.expect("Error finding operator with highest precedence");
-    let assoc = get_assoc(highest_prec);
-    let (op_idx, op) = match assoc {
-        Associativity::Left => highest_ops[0],
-        Associativity::Right => *highest_ops.last().unwrap(), //If we have a highest element, we must have at least one
-        Associativity::None => if highest_ops.len() > 1 {
-            panic!("Multiple operators with same precedence and no associativity")
-        } else {
-            highest_ops[0]
-        }
-    };
-    let l_ops = &ops[..op_idx];
-    let l_exprs = &exprs[..op_idx + 1];
-    let r_ops = &ops[op_idx + 1..];
-    let r_exprs = &exprs[op_idx + 1..];
-    let l = if l_ops.is_empty() {
-        infer_expr(env, ctx, &l_exprs[0])
-    } else {
-        transform_operators(env, ctx, l_ops, l_exprs)
-    };
-    let r = if r_ops.is_empty() {
-        infer_expr(env, ctx, &r_exprs[0])
-    } else {
-        transform_operators(env, ctx, r_ops, r_exprs)
-    };
-    let (op_name, _, op_scheme) = op;
-    let op_type = env.inst(ctx, &op_scheme);
-    let op_expr = TExpression::new(TExprData::Variable(vec![ op_name ]), op_type);
-    function_call(env, ctx, op_expr, vec![ l, r ])
-}
-
 fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &Expr<'input, Span>) -> TExpression<'input> {
     match expr {
         Expr::Literal(lit, _) => TExpression::new(TExprData::Literal(lit.clone()), get_literal_type(lit)),
@@ -311,16 +253,6 @@ fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &E
             function_call(env, ctx, tfunc, targs)
         },
         Expr::OperatorCall(elements, _) => {
-            //TODO: Figure out precedence and stuff
-            //Find precedence and types for operators
-            //let resolve_operators: Vec<Result<(&str, u32, Scheme), &str>> = operators.iter().map(|op| {
-            //    match env.lookup(op) {
-            //        Some(tp) => Ok((*op, get_precedence(op), tp.clone())),
-            //        None => Err(*op)
-            //    }
-            //}).collect();
-            //let operators: Vec<(&str, u32, Scheme)> = resolve_operators.into_iter().map(|r| r.unwrap()).collect();
-            //transform_operators(env, ctx, &operators[..], exprs)
             unimplemented!()
         }
         Expr::If { data: _, cond, if_true, if_false } => {
