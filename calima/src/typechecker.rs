@@ -8,7 +8,7 @@ use std::ops::Index;
 use crate::ast_common::{NumberType, Literal, MatchPattern, BindPattern};
 use crate::ast::{Expr, Statement, TopLevelStatement, Block, TopLevelBlock, TypeAnnotation, Modifier, OperatorElement};
 use crate::typed_ast::{TBlock, TStatement, TExpression, TExprData, Unit};
-use crate::types::{Type, GenericId, Scheme, TypeDefinition, PrimitiveType, build_function, ExportValue};
+use crate::types::{Type, GenericId, Scheme, TypeDefinition, PrimitiveType, build_function, ExportValue, Exports};
 use crate::prelude::prelude;
 use crate::util::all_max;
 
@@ -200,6 +200,10 @@ impl<'a> Environment<'a> {
         let tp = Self::replace(&tp.1, &|gid| mapping.get(&gid).copied().map(Type::Var));
         let vars = mapping.values().copied().collect();
         Scheme(vars, tp)
+    }
+
+    fn import_module(&mut self, ctx: &mut Context, exports: &Exports<'a>) {
+        exports.iter_vars().for_each(|(name, tp)| self.import(ctx, name, tp));
     }
 
     fn import<'b: 'a>(&mut self, ctx: &mut Context, name: &'b str, exv: &ExportValue) {
@@ -428,7 +432,7 @@ fn typecheck_module<'input>(unchecked: Module<UntypedModuleData<'input>>, deps: 
     let mut context = Context::new();
     let mut env = Environment::new();
     let prelude = prelude();
-    prelude.iter_vars().for_each(|(name, tp)| env.import(&mut context, name, tp));
+    env.import_module(&mut context, &prelude);
 
     let infered_ast = infer_top_level_block(&mut env, &mut context, &unchecked.data.0);
     //TODO
