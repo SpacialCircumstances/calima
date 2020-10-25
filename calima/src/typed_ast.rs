@@ -2,7 +2,7 @@ use crate::ast_common::{MatchPattern, Literal, BindPattern};
 use std::fmt::{Display, Formatter};
 use crate::types::Type;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct Unit(());
 
 impl Unit {
@@ -17,7 +17,7 @@ impl Display for Unit {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum TExprData<'input> {
     Variable(Vec<&'input str>),
     FunctionCall(Box<TExpression<'input>>, Vec<TExpression<'input>>),
@@ -44,13 +44,19 @@ impl<'input> TExpression<'input> {
     pub fn typ(&self) -> &Type { &self.1 }
 }
 
-#[derive(Debug, Clone)]
+impl<'a> PartialEq for TExpression<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum TStatement<'input> {
     Do(TExpression<'input>),
     Let(TExpression<'input>, BindPattern<'input, Unit, Unit>)
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TBlock<'input> {
     pub statements: Vec<TStatement<'input>>,
     pub res: Box<TExpression<'input>>

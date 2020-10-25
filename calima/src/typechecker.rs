@@ -227,7 +227,7 @@ fn function_call<'input>(ctx: &mut Context, tfunc: TExpression<'input>, args: Ve
     TExpression::new(TExprData::FunctionCall(tfunc.into(), args), ret)
 }
 
-fn infer_expr<'input>(env: &mut Environment<'input>, ctx: &mut Context, expr: &Expr<'input, Span>) -> TExpression<'input> {
+fn infer_expr<'input, Data>(env: &mut Environment<'input>, ctx: &mut Context, expr: &Expr<'input, Data>) -> TExpression<'input> {
     match expr {
         Expr::Literal(lit, _) => TExpression::new(TExprData::Literal(lit.clone()), get_literal_type(lit)),
         Expr::Variable(name, _) => {
@@ -290,7 +290,7 @@ fn get_precedence(opspec: &OperatorSpecification) -> u32 {
     }
 }
 
-fn transform_operators<'input>(env: &mut Environment<'input>, ctx: &mut Context, elements: &Vec<OperatorElement<'input, Span>>) -> TExpression<'input> {
+fn transform_operators<'input, Data>(env: &mut Environment<'input>, ctx: &mut Context, elements: &Vec<OperatorElement<'input, Data>>) -> TExpression<'input> {
     let mut ops: Vec<(&str, Type, OperatorSpecification)> = Vec::new();
     let mut exprs = Vec::new();
 
@@ -340,7 +340,7 @@ fn get_literal_type(lit: &Literal) -> Type {
     }))
 }
 
-fn infer_statement<'input>(env: &mut Environment<'input>, ctx: &mut Context, statement: &Statement<'input, Span>) -> Option<TStatement<'input>> {
+fn infer_statement<'input, Data>(env: &mut Environment<'input>, ctx: &mut Context, statement: &Statement<'input, Data>) -> Option<TStatement<'input>> {
     match statement {
         Statement::Region(_, _) => None,
         Statement::Do(expr, _) => Some(TStatement::Do(infer_expr(env, ctx, expr))),
@@ -377,7 +377,7 @@ fn infer_statement<'input>(env: &mut Environment<'input>, ctx: &mut Context, sta
     }
 }
 
-fn map_bind_pattern<'input>(pattern: &BindPattern<'input, TypeAnnotation<Span>, Span>) -> BindPattern<'input, Unit, Unit> {
+fn map_bind_pattern<'input, Data>(pattern: &BindPattern<'input, TypeAnnotation<Data>, Data>) -> BindPattern<'input, Unit, Unit> {
     match pattern {
         BindPattern::Any(_) => BindPattern::Any(Unit::unit()),
         BindPattern::Name(id, _, _) => BindPattern::Name(id, None, Unit::unit()),
@@ -385,7 +385,7 @@ fn map_bind_pattern<'input>(pattern: &BindPattern<'input, TypeAnnotation<Span>, 
     }
 }
 
-fn map_match_pattern<'input>(pattern: &MatchPattern<'input, TypeAnnotation<Span>, Span>) -> MatchPattern<'input, Unit, Unit> {
+fn map_match_pattern<'input, Data>(pattern: &MatchPattern<'input, TypeAnnotation<Data>, Data>) -> MatchPattern<'input, Unit, Unit> {
     match pattern {
         MatchPattern::Any(_) => MatchPattern::Any(Unit::unit()),
         MatchPattern::Literal(lit, _) => MatchPattern::Literal(lit.clone(), Unit::unit()),
@@ -394,7 +394,7 @@ fn map_match_pattern<'input>(pattern: &MatchPattern<'input, TypeAnnotation<Span>
     }
 }
 
-fn bind_to_pattern<'input>(env: &mut Environment<'input>, pattern: &BindPattern<'input, TypeAnnotation<Span>, Span>, sch: &Scheme) {
+fn bind_to_pattern<'input, Data>(env: &mut Environment<'input>, pattern: &BindPattern<'input, TypeAnnotation<Data>, Data>, sch: &Scheme) {
     match pattern {
         BindPattern::Any(_) => (),
         BindPattern::Name(idt, ta, _) => {
@@ -405,7 +405,7 @@ fn bind_to_pattern<'input>(env: &mut Environment<'input>, pattern: &BindPattern<
     }
 }
 
-fn infer_block<'input>(env: &mut Environment<'input>, ctx: &mut Context, block: &Block<'input, Span>) -> TBlock<'input> {
+fn infer_block<'input, Data>(env: &mut Environment<'input>, ctx: &mut Context, block: &Block<'input, Data>) -> TBlock<'input> {
     let mut block_env = env.clone();
     let tstatements = block.statements.iter().filter_map(|st| infer_statement(&mut block_env, ctx, st)).collect();
     let result = infer_expr(&mut block_env, ctx, &block.result);
@@ -415,11 +415,11 @@ fn infer_block<'input>(env: &mut Environment<'input>, ctx: &mut Context, block: 
     }
 }
 
-fn process_top_level<'input>(env: &mut Environment<'input>, ctx: &mut Context, tls: &TopLevelStatement<'input, Span>) {
+fn process_top_level<'input, Data>(env: &mut Environment<'input>, ctx: &mut Context, tls: &TopLevelStatement<'input, Data>) {
 
 }
 
-fn infer_top_level_block<'input>(env: &mut Environment<'input>, ctx: &mut Context,tlb: &TopLevelBlock<'input, Span>) -> TBlock<'input> {
+fn infer_top_level_block<'input, Data>(env: &mut Environment<'input>, ctx: &mut Context,tlb: &TopLevelBlock<'input, Data>) -> TBlock<'input> {
     tlb.top_levels.iter().for_each(|st| process_top_level(env, ctx, st));
     TBlock {
         statements: tlb.block.statements.iter().filter_map(|st| infer_statement(env, ctx, st)).collect(),
@@ -466,4 +466,50 @@ pub fn typecheck<'input>(string_interner: &StringInterner, errors: &mut ErrorCon
     }
 
     errors.handle_errors().map(|()| ctx)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::typechecker::{Environment, Context, transform_operators};
+    use crate::prelude::prelude;
+    use crate::ast::OperatorElement::*;
+    use crate::ast::{Expr, OperatorElement};
+    use crate::ast_common::{Literal, NumberType};
+    use crate::typed_ast::{TExpression, TExprData};
+    use crate::types::{Type, int};
+
+    fn int_lit(lit: &str) -> OperatorElement<()> {
+        Expression(Expr::Literal(Literal::Number(lit, NumberType::Integer), ()))
+    }
+
+    fn int_lit_typed(lit: &str) -> TExpression {
+        TExpression::new(TExprData::Literal(Literal::Number(lit, NumberType::Integer)), int())
+    }
+
+    fn lookup(env: &Environment, ctx: &mut Context, name: &str) -> Type {
+        let sch = env.lookup(name).unwrap();
+        env.inst(ctx, sch)
+    }
+
+    fn add_op<'a>(env: &Environment<'a>, ctx: &mut Context) -> TExpression<'a> {
+        TExpression::new(TExprData::Variable(vec![ "+" ]), lookup(env, ctx, "+"))
+    }
+
+    #[test]
+    fn op_transform_1() {
+        let mut ctx = Context::new();
+        let mut env = Environment::new();
+        env.import_module(&mut ctx, &prelude());
+        let ops = vec![
+            int_lit("1"),
+            Operator("+", ()),
+            int_lit("2")
+        ];
+        let exprs = TExpression::new(TExprData::FunctionCall(add_op(&env, &mut ctx).into(), vec![
+            int_lit_typed("1"),
+            int_lit_typed("2")
+        ]), int());
+        let res = transform_operators(&mut env, &mut ctx, &ops);
+        assert_eq!(exprs, res)
+    }
 }
