@@ -290,6 +290,14 @@ fn get_precedence(opspec: &OperatorSpecification) -> u32 {
     }
 }
 
+fn call_operator<'input>(ctx: &mut Context, exprs: &mut Vec<TExpression<'input>>, last_name: &'input str, last_type: &Type) {
+    let r = exprs.pop().unwrap();
+    let l = exprs.pop().unwrap();
+    let last_expr = TExpression::new(TExprData::Variable(vec![ last_name ]), last_type.clone());
+    let fc = function_call(ctx, last_expr, vec![l, r ]);
+    exprs.push(fc);
+}
+
 fn transform_operators<'input, Data>(env: &mut Environment<'input>, ctx: &mut Context, elements: &Vec<OperatorElement<'input, Data>>) -> TExpression<'input> {
     let mut ops: Vec<(&str, Type, OperatorSpecification)> = Vec::new();
     let mut exprs = Vec::new();
@@ -307,11 +315,7 @@ fn transform_operators<'input, Data>(env: &mut Environment<'input>, ctx: &mut Co
                             Some((last_name, last_type, last_spec)) => {
                                 let last_prec = get_precedence(last_spec);
                                 if last_prec > *op_prec {
-                                    let r = exprs.pop().unwrap();
-                                    let l = exprs.pop().unwrap();
-                                    let last_expr = TExpression::new(TExprData::Variable(vec![ last_name ]), last_type.clone());
-                                    let fc = function_call(ctx, last_expr, vec![l, r ]);
-                                    exprs.push(fc);
+                                    call_operator(ctx, &mut exprs, last_name, last_type);
                                 } else {
                                     ops.push((*name, op_tp, op_spec.clone()))
                                 }
@@ -325,6 +329,11 @@ fn transform_operators<'input, Data>(env: &mut Environment<'input>, ctx: &mut Co
             },
             OperatorElement::Expression(expr) => exprs.push(infer_expr(env, ctx, expr))
         }
+    }
+
+    while !ops.is_empty() {
+        let (op_name, op_type, _) = ops.pop().unwrap();
+        call_operator(ctx, &mut exprs, op_name, &op_type);
     }
 
     exprs.pop().unwrap()
