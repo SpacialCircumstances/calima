@@ -519,6 +519,7 @@ mod tests {
             int_lit_typed("2")
         ]), int());
         let res = transform_operators(&mut env, &mut ctx, &ops);
+        ctx.unify(exprs.typ(), res.typ());
         assert_eq!(exprs, res)
     }
 }
