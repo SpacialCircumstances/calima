@@ -504,8 +504,12 @@ mod tests {
         TExpression::new(TExprData::Variable(vec![ "+" ]), lookup(env, ctx, "+"))
     }
 
+    fn mul_op<'a>(env: &Environment<'a>, ctx: &mut Context) -> TExpression<'a> {
+        TExpression::new(TExprData::Variable(vec![ "*" ]), lookup(env, ctx, "*"))
+    }
+
     #[test]
-    fn op_transform_1() {
+    fn op_transform_simple_binary() {
         let mut ctx = Context::new();
         let mut env = Environment::new();
         env.import_module(&mut ctx, &prelude());
@@ -517,6 +521,30 @@ mod tests {
         let exprs = TExpression::new(TExprData::FunctionCall(add_op(&env, &mut ctx).into(), vec![
             int_lit_typed("1"),
             int_lit_typed("2")
+        ]), int());
+        let res = transform_operators(&mut env, &mut ctx, &ops);
+        ctx.unify(exprs.typ(), res.typ());
+        assert_eq!(exprs, res)
+    }
+
+    #[test]
+    fn op_transform_binary_precedence() {
+        let mut ctx = Context::new();
+        let mut env = Environment::new();
+        env.import_module(&mut ctx, &prelude());
+        let ops = vec![
+            int_lit("2"),
+            Operator("+", ()),
+            int_lit("2"),
+            Operator("*", ()),
+            int_lit("3")
+        ];
+        let exprs = TExpression::new(TExprData::FunctionCall(add_op(&env, &mut ctx).into(), vec![
+            int_lit_typed("2"),
+            TExpression::new(TExprData::FunctionCall(mul_op(&env, &mut ctx).into(), vec![
+                int_lit_typed("2"),
+                int_lit_typed("3")
+            ]), int())
         ]), int());
         let res = transform_operators(&mut env, &mut ctx, &ops);
         ctx.unify(exprs.typ(), res.typ());
