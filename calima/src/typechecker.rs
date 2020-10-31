@@ -306,12 +306,12 @@ fn transform_operators<'input, Data>(env: &mut Environment<'input>, ctx: &mut Co
                     OperatorSpecification::Infix(op_prec, assoc) => {
                         match bin_ops.last() {
                             None => bin_ops.push((*name, op_tp, *op_prec, *assoc)),
-                            Some((last_name, last_type, last_prec, _)) => {
+                            Some((_, _, last_prec, _)) => {
                                 if last_prec > op_prec {
-                                    call_operator(ctx, &mut exprs, last_name, last_type);
-                                } else {
-                                    bin_ops.push((*name, op_tp, *op_prec, *assoc))
+                                    let (last_name, last_type, _, _) = bin_ops.pop().unwrap();
+                                    call_operator(ctx, &mut exprs, last_name, &last_type);
                                 }
+                                bin_ops.push((*name, op_tp, *op_prec, *assoc))
                             }
                         }
                     }
@@ -335,8 +335,7 @@ fn transform_operators<'input, Data>(env: &mut Environment<'input>, ctx: &mut Co
 
     //TODO: If unary ops remain, error
 
-    while !bin_ops.is_empty() {
-        let (op_name, op_type, _, _) = bin_ops.pop().unwrap();
+    while let Some((op_name, op_type, _, _)) = bin_ops.pop() {
         call_operator(ctx, &mut exprs, op_name, &op_type);
     }
 
