@@ -630,4 +630,28 @@ mod tests {
         ctx.unify(exprs.typ(), res.typ());
         assert_eq!(exprs.data(), res.data())
     }
+
+    #[test]
+    fn op_transform_bin_assoc() {
+        let mut ctx = Context::new();
+        let mut env = Environment::new();
+        env.import_module(&mut ctx, &prelude());
+        let ops = vec![
+            int_lit("4"),
+            Operator("+", ()),
+            int_lit("5"),
+            Operator("+", ()),
+            int_lit("6")
+        ];
+        let exprs = TExpression::new(TExprData::FunctionCall(add_op(&env, &mut ctx).into(), vec![
+            TExpression::new(TExprData::FunctionCall(add_op(&env, &mut ctx).into(), vec![
+                int_lit_typed("4"),
+                int_lit_typed("5")
+            ]), int()),
+            int_lit_typed("6")
+        ]), int());
+        let res = transform_operators(&mut env, &mut ctx, &ops);
+        ctx.unify(exprs.typ(), res.typ());
+        assert_eq!(exprs.data(), res.data())
+    }
 }
