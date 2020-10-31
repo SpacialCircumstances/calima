@@ -292,39 +292,51 @@ fn call_operator<'input>(ctx: &mut Context, exprs: &mut Vec<TExpression<'input>>
 }
 
 fn transform_operators<'input, Data>(env: &mut Environment<'input>, ctx: &mut Context, elements: &Vec<OperatorElement<'input, Data>>) -> TExpression<'input> {
-    let mut ops: Vec<(&str, Type, u32, Associativity)> = Vec::new();
+    let mut bin_ops: Vec<(&str, Type, u32, Associativity)> = Vec::new();
+    let mut un_ops: Vec<(&str, Type)> = Vec::new();
     let mut exprs = Vec::new();
 
     for el in elements {
         match el {
             OperatorElement::Operator(name, _) => {
                 let (op_tp, op_spec) = env.lookup_operator(name).expect("Operator not found");
+                let op_tp = env.inst(ctx, op_tp);
                 //TODO: Assoc
                 match op_spec {
                     OperatorSpecification::Infix(op_prec, assoc) => {
-                        let op_tp = env.inst(ctx, op_tp);
-                        match ops.last() {
-                            None => ops.push((*name, op_tp, *op_prec, *assoc)),
+                        match bin_ops.last() {
+                            None => bin_ops.push((*name, op_tp, *op_prec, *assoc)),
                             Some((last_name, last_type, last_prec, _)) => {
                                 if last_prec > op_prec {
                                     call_operator(ctx, &mut exprs, last_name, last_type);
                                 } else {
-                                    ops.push((*name, op_tp, *op_prec, *assoc))
+                                    bin_ops.push((*name, op_tp, *op_prec, *assoc))
                                 }
                             }
                         }
                     }
                     OperatorSpecification::Prefix => {
-                        unimplemented!()
+                        un_ops.push((*name, op_tp))
                     }
                 }
             },
-            OperatorElement::Expression(expr) => exprs.push(infer_expr(env, ctx, expr))
+            OperatorElement::Expression(expr) => {
+                let mut expr = infer_expr(env, ctx, expr);
+
+                while let Some((op_name, op_tp)) = un_ops.pop() {
+                    let op_expr = TExpression::new(TExprData::Variable(vec![ op_name ]), op_tp.clone());
+                    expr = function_call(ctx, op_expr, vec![ expr ]);
+                }
+
+                exprs.push(expr);
+            }
         }
     }
 
-    while !ops.is_empty() {
-        let (op_name, op_type, _, _) = ops.pop().unwrap();
+    //TODO: If unary ops remain, error
+
+    while !bin_ops.is_empty() {
+        let (op_name, op_type, _, _) = bin_ops.pop().unwrap();
         call_operator(ctx, &mut exprs, op_name, &op_type);
     }
 
