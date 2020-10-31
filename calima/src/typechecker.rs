@@ -516,6 +516,12 @@ mod tests {
         TExpression::new(TExprData::Variable(vec![ "~" ]), lookup(env, ctx, "~"))
     }
 
+    fn neg_expr<'a>(env: &Environment<'a>, ctx: &mut Context, expr: TExpression<'a>) -> TExpression<'a> {
+        TExpression::new(TExprData::FunctionCall(neg_op(env, ctx).into(), vec![
+            expr
+        ]), int())
+    }
+
     #[test]
     fn op_transform_simple_binary() {
         let mut ctx = Context::new();
@@ -569,10 +575,30 @@ mod tests {
             Operator("~", ()),
             int_lit("1")
         ];
-        let exprs = TExpression::new(TExprData::FunctionCall(neg_op(&env, &mut ctx).into(), vec![
-            TExpression::new(TExprData::FunctionCall(neg_op(&env, &mut ctx).into(), vec![
-                int_lit_typed("1")
-            ]), int())
+        let e1 = neg_expr(&env, &mut ctx, int_lit_typed("1"));
+        let exprs = neg_expr(&env, &mut ctx, e1);
+        let res = transform_operators(&mut env, &mut ctx, &ops);
+        ctx.unify(exprs.typ(), res.typ());
+        assert_eq!(exprs, res)
+    }
+
+    #[test]
+    fn op_transform_unary_binary() {
+        let mut ctx = Context::new();
+        let mut env = Environment::new();
+        env.import_module(&mut ctx, &prelude());
+        let ops = vec![
+            Operator("~", ()),
+            int_lit("1"),
+            Operator("+", ()),
+            Operator("~", ()),
+            Operator("~", ()),
+            int_lit("2")
+        ];
+        let e2 = neg_expr(&env, &mut ctx, int_lit_typed("2"));
+        let exprs = TExpression::new(TExprData::FunctionCall(add_op(&env, &mut ctx).into(), vec![
+            neg_expr(&env, &mut ctx, int_lit_typed("1")),
+            neg_expr(&env, &mut ctx, e2)
         ]), int());
         let res = transform_operators(&mut env, &mut ctx, &ops);
         ctx.unify(exprs.typ(), res.typ());
