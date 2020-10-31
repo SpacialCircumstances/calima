@@ -283,13 +283,6 @@ fn infer_expr<'input, Data>(env: &mut Environment<'input>, ctx: &mut Context, ex
     }
 }
 
-fn get_precedence(opspec: &OperatorSpecification) -> u32 {
-    *match opspec {
-        OperatorSpecification::Infix(prec, _) => prec,
-        OperatorSpecification::Prefix(prec) => prec
-    }
-}
-
 fn call_operator<'input>(ctx: &mut Context, exprs: &mut Vec<TExpression<'input>>, last_name: &'input str, last_type: &Type) {
     let r = exprs.pop().unwrap();
     let l = exprs.pop().unwrap();
@@ -299,7 +292,7 @@ fn call_operator<'input>(ctx: &mut Context, exprs: &mut Vec<TExpression<'input>>
 }
 
 fn transform_operators<'input, Data>(env: &mut Environment<'input>, ctx: &mut Context, elements: &Vec<OperatorElement<'input, Data>>) -> TExpression<'input> {
-    let mut ops: Vec<(&str, Type, OperatorSpecification)> = Vec::new();
+    let mut ops: Vec<(&str, Type, u32, Associativity)> = Vec::new();
     let mut exprs = Vec::new();
 
     for el in elements {
@@ -311,18 +304,17 @@ fn transform_operators<'input, Data>(env: &mut Environment<'input>, ctx: &mut Co
                     OperatorSpecification::Infix(op_prec, assoc) => {
                         let op_tp = env.inst(ctx, op_tp);
                         match ops.last() {
-                            None => ops.push((*name, op_tp, op_spec.clone())),
-                            Some((last_name, last_type, last_spec)) => {
-                                let last_prec = get_precedence(last_spec);
-                                if last_prec > *op_prec {
+                            None => ops.push((*name, op_tp, *op_prec, *assoc)),
+                            Some((last_name, last_type, last_prec, _)) => {
+                                if last_prec > op_prec {
                                     call_operator(ctx, &mut exprs, last_name, last_type);
                                 } else {
-                                    ops.push((*name, op_tp, op_spec.clone()))
+                                    ops.push((*name, op_tp, *op_prec, *assoc))
                                 }
                             }
                         }
                     }
-                    OperatorSpecification::Prefix(op_prec) => {
+                    OperatorSpecification::Prefix => {
                         unimplemented!()
                     }
                 }
@@ -332,7 +324,7 @@ fn transform_operators<'input, Data>(env: &mut Environment<'input>, ctx: &mut Co
     }
 
     while !ops.is_empty() {
-        let (op_name, op_type, _) = ops.pop().unwrap();
+        let (op_name, op_type, _, _) = ops.pop().unwrap();
         call_operator(ctx, &mut exprs, op_name, &op_type);
     }
 

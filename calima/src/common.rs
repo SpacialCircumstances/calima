@@ -83,14 +83,14 @@ impl TryFrom<&str> for Associativity {
 #[derive(Debug, PartialEq, Clone)]
 pub enum OperatorSpecification {
     Infix(u32, Associativity),
-    Prefix(u32)
+    Prefix
 }
 
 impl Display for OperatorSpecification {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             OperatorSpecification::Infix(prec, assoc) => write!(f, "infix {} {}", prec, assoc),
-            OperatorSpecification::Prefix(prec) => write!(f, "prefix {}", prec)
+            OperatorSpecification::Prefix => write!(f, "prefix")
         }
     }
 }

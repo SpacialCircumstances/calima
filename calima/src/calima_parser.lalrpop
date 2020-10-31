@@ -301,18 +301,7 @@ OperatorSpec: OperatorSpecification = {
             }})
         }
     },
-    <posl:@L> "prefix" <n:"number"> <posr:@R> =>? {
-        match u32::from_str(n.0) {
-            Ok(nr) => Ok(OperatorSpecification::Prefix(nr)),
-            Err(e) => Err(ParseError::User { error: Error {
-                location: Span {
-                    left: posl,
-                    right: posr
-                },
-                kind: ErrorKind::InvalidNumber
-            }})
-        }
-    }
+    <posl:@L> "prefix" <posr:@R> => OperatorSpecification::Prefix
 };
 
 Assoc: Associativity = <posl:@L> <n:"name"> <posr:@L> =>? Associativity::try_from(n).map_err(|()| ParseError::User { error: Error {
