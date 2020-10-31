@@ -301,13 +301,19 @@ fn transform_operators<'input, Data>(env: &mut Environment<'input>, ctx: &mut Co
             OperatorElement::Operator(name, _) => {
                 let (op_tp, op_spec) = env.lookup_operator(name).expect("Operator not found");
                 let op_tp = env.inst(ctx, op_tp);
-                //TODO: Assoc
                 match op_spec {
                     OperatorSpecification::Infix(op_prec, assoc) => {
                         match bin_ops.last() {
                             None => bin_ops.push((*name, op_tp, *op_prec, *assoc)),
-                            Some((_, _, last_prec, _)) => {
-                                if last_prec > op_prec {
+                            Some((_, _, last_prec, last_assoc)) => {
+                                if last_prec == op_prec {
+                                    if assoc == &Associativity::None || last_assoc == &Associativity::None {
+                                        panic!("Encountered repeated operator without associativity")
+                                    } else if assoc == &Associativity::Left {
+                                        let (last_name, last_type, _, _) = bin_ops.pop().unwrap();
+                                        call_operator(ctx, &mut exprs, last_name, &last_type);
+                                    }
+                                } else if last_prec > op_prec {
                                     let (last_name, last_type, _, _) = bin_ops.pop().unwrap();
                                     call_operator(ctx, &mut exprs, last_name, &last_type);
                                 }
