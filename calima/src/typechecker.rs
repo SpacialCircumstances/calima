@@ -538,7 +538,7 @@ mod tests {
         ]), int());
         let res = transform_operators(&mut env, &mut ctx, &ops);
         ctx.unify(exprs.typ(), res.typ());
-        assert_eq!(exprs, res)
+        assert_eq!(exprs.data(), res.data())
     }
 
     #[test]
@@ -562,7 +562,7 @@ mod tests {
         ]), int());
         let res = transform_operators(&mut env, &mut ctx, &ops);
         ctx.unify(exprs.typ(), res.typ());
-        assert_eq!(exprs, res)
+        assert_eq!(exprs.data(), res.data())
     }
 
     #[test]
@@ -579,7 +579,7 @@ mod tests {
         let exprs = neg_expr(&env, &mut ctx, e1);
         let res = transform_operators(&mut env, &mut ctx, &ops);
         ctx.unify(exprs.typ(), res.typ());
-        assert_eq!(exprs, res)
+        assert_eq!(exprs.data(), res.data())
     }
 
     #[test]
@@ -602,6 +602,33 @@ mod tests {
         ]), int());
         let res = transform_operators(&mut env, &mut ctx, &ops);
         ctx.unify(exprs.typ(), res.typ());
-        assert_eq!(exprs, res)
+        assert_eq!(exprs.data(), res.data())
+    }
+
+    #[test]
+    fn op_transform_complex() {
+        let mut ctx = Context::new();
+        let mut env = Environment::new();
+        env.import_module(&mut ctx, &prelude());
+        let ops = vec![
+            Operator("~", ()),
+            int_lit("1"),
+            Operator("*", ()),
+            int_lit("2"),
+            Operator("+", ()),
+            Operator("~", ()),
+            int_lit("3")
+        ];
+        let e2 = neg_expr(&env, &mut ctx, int_lit_typed("2"));
+        let exprs = TExpression::new(TExprData::FunctionCall(add_op(&env, &mut ctx).into(), vec![
+            TExpression::new(TExprData::FunctionCall(mul_op(&env, &mut ctx).into(), vec![
+                neg_expr(&env, &mut ctx, int_lit_typed("1")),
+                int_lit_typed("2")
+            ]), int()),
+            neg_expr(&env, &mut ctx, int_lit_typed("3"))
+        ]), int());
+        let res = transform_operators(&mut env, &mut ctx, &ops);
+        ctx.unify(exprs.typ(), res.typ());
+        assert_eq!(exprs.data(), res.data())
     }
 }
