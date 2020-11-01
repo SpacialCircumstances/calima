@@ -35,7 +35,6 @@ type LexerResult<'input> = Result<(Location, Token<'input>, Location), Error>;
 
 fn is_separator(c: char, is_op: bool) -> bool {
     match c {
-        '.' => true,
         ',' => true,
         '#' => true,
         '"' => true,
@@ -47,6 +46,7 @@ fn is_separator(c: char, is_op: bool) -> bool {
         '}' => true,
         ':' => true,
         '`' => true,
+        '.' => false,
         c if c.is_whitespace() => true,
         _ => is_op ^ c.is_ascii_punctuation()
     }
@@ -55,7 +55,6 @@ fn is_separator(c: char, is_op: bool) -> bool {
 fn single_char_token<'input>(c: char) -> Option<Token<'input>> {
     match c {
         ':' => Some(Colon),
-        '.' => Some(Period),
         ',' => Some(Comma),
         '(' => Some(ParenOpen),
         ')' => Some(ParenClose),
@@ -281,8 +280,8 @@ mod tests {
 
     #[test]
     fn lex1() {
-        let code = "ab cd, .: ->";
-        let tokens = vec![ NameIdentifier("ab"), NameIdentifier("cd"), Comma, Period, Colon, Arrow ];
+        let code = "ab cd, : ->";
+        let tokens = vec![ NameIdentifier("ab"), NameIdentifier("cd"), Comma, Colon, Arrow ];
         lex_equal(code, tokens)
     }
 
@@ -349,7 +348,7 @@ test #asdf d.
     #[test]
     fn lex10() {
         let code = "a.T.b @reg ++ test";
-        let tokens = vec! [ NameIdentifier("a"), Period, TypeIdentifier("T"), Period, NameIdentifier("b"), At, NameIdentifier("reg"), OperatorIdentifier("++"), NameIdentifier("test") ];
+        let tokens = vec! [ NameIdentifier("a.T.b"), At, NameIdentifier("reg"), OperatorIdentifier("++"), NameIdentifier("test") ];
         lex_equal(code, tokens);
     }
 

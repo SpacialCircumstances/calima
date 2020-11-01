@@ -43,22 +43,22 @@ impl<'a, Data> Display for GenericTypeKind<'a, Data> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypeAnnotation<'a, Data> {
-    Name(Vec<&'a str>, Data),
+    Name(&'a str, Data),
     Generic(GenericTypeKind<'a, Data>),
     Function(Box<TypeAnnotation<'a, Data>>, Box<TypeAnnotation<'a, Data>>),
     Tuple(Vec<TypeAnnotation<'a, Data>>),
-    Parameterized(Vec<&'a str>, Vec<TypeAnnotation<'a, Data>>),
+    Parameterized(&'a str, Vec<TypeAnnotation<'a, Data>>),
     Reference(RegionAnnotation<'a, Data>, Box<TypeAnnotation<'a, Data>>)
 }
 
 impl<'a, Data> Display for TypeAnnotation<'a, Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            TypeAnnotation::Name(name, _) => write!(f, "{}", format_iter(name.iter(), ".")),
+            TypeAnnotation::Name(name, _) => write!(f, "{}", name),
             TypeAnnotation::Generic(name) => write!(f, "{}", name),
             TypeAnnotation::Function(i, o) => write!(f, "({} -> {})", *i, *o),
             TypeAnnotation::Parameterized(name, params) => {
-                write!(f, "({} {})", format_iter(name.iter(), " and "), format_iter(params.iter(), " "))
+                write!(f, "({} {})", name, format_iter(params.iter(), " "))
             },
             TypeAnnotation::Tuple(elements) => format_tuple(elements, f),
             TypeAnnotation::Reference(reg, tp) => write!(f, "{} {}", reg, tp)
@@ -104,7 +104,7 @@ impl Display for Modifier {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum TopLevelStatement<'a, Data> {
-    Import(Vec<&'a str>, Vec<&'a str>, Data),
+    Import(&'a str, Vec<&'a str>, Data),
     Type { name: &'a str, regions: Vec<RegionVariable<'a, Data>>, params: Vec<GenericTypeKind<'a, Data>>, type_def: TypeDefinition<'a, Data>, data: Data }
 }
 
@@ -113,8 +113,8 @@ impl<'a, Data> Display for TopLevelStatement<'a, Data> {
         match self {
             TopLevelStatement::Import(module, fields, _) => {
                 match fields.is_empty() {
-                    true => write!(f, "import {}", format_iter(module.iter(), ".")),
-                    false => write!(f, "import {}{{{}}}", format_iter(module.iter(), "."), format_iter(fields.iter(), ", "))
+                    true => write!(f, "import {}", module),
+                    false => write!(f, "import {}{{{}}}", module, format_iter(fields.iter(), ", "))
                 }
             },
             TopLevelStatement::Type { name, regions, params, type_def: typedef, data: _ } => write!(f, "type {} {}{} = {}", name, format_iter_end(regions.iter(), " "), format_iter(params.iter(), " "), typedef)
@@ -198,7 +198,7 @@ impl<'a, Data> Display for OperatorElement<'a, Data> {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expr<'a, Data> {
     OperatorAsFunction(&'a str, Data),
-    Variable(Vec<&'a str>, Data),
+    Variable(&'a str, Data),
     FunctionCall(Box<Expr<'a, Data>>, Vec<Expr<'a, Data>>, Data),
     OperatorCall(Vec<OperatorElement<'a, Data>>, Data),
     Record(Vec<(&'a str, Expr<'a, Data>)>, Data),
@@ -216,7 +216,7 @@ impl<'a, Data> Display for Expr<'a, Data> {
         match self {
             Expr::Literal(lit, _) => write!(f, "{}", lit),
             Expr::OperatorAsFunction(name, _) => write!(f, "`{}`", name),
-            Expr::Variable(ident, _) => write!(f, "{}", ident.join(".")),
+            Expr::Variable(ident, _) => write!(f, "{}", ident),
             Expr::List(exprs, _) => write!(f, "[{}]", format_iter(exprs.iter(), ", ")),
             Expr::Tuple(exprs, _) => write!(f, "({})", format_iter(exprs.iter(), ", ")),
             Expr::Record(rows, _) => format_record(rows, f, "=", ", "),
@@ -249,7 +249,7 @@ pub fn find_imported_modules<D: Copy>(ast: &TopLevelBlock<D>) -> Vec<(ModuleIden
     ast.top_levels.iter().fold(Vec::new(), |mut imports, statement| {
         match statement {
             TopLevelStatement::Import(module_id, _, data) => {
-                imports.push((ModuleIdentifier::from_name(module_id), *data));
+                imports.push((ModuleIdentifier::from_name(&[module_id]), *data));
             },
             _ => ()
         }

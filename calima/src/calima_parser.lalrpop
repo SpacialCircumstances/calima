@@ -21,7 +21,6 @@ extern {
         ")" => ParenClose,
         "[" => SquareBracketOpen,
         "]" => SquareBracketClose,
-        "." => Period,
         "," => Comma,
         "name" => NameIdentifier(<&'input str>),
         "typename" => TypeIdentifier(<&'input str>),
@@ -94,8 +93,8 @@ TopLevelStatement: TopLevelStatement<'input, Data> = {
 };
 
 Import: TopLevelStatement<'input, Data> = {
-    <posl:@L> "import" <m:Sep1<AnyName, ".">> <posr:@R> => TopLevelStatement::Import(m, Vec::new(), to_data(posl, posr)),
-    <posl:@L> "import" <m:Sep1<AnyName, ".">> "{" <f:Sep1<"name", ",">> "}" <posr:@R> => TopLevelStatement::Import(m, f, to_data(posl, posr))
+    <posl:@L> "import" <m:AnyName> <posr:@R> => TopLevelStatement::Import(m, Vec::new(), to_data(posl, posr)),
+    <posl:@L> "import" <m:AnyName> "{" <f:Sep1<"name", ",">> "}" <posr:@R> => TopLevelStatement::Import(m, f, to_data(posl, posr))
 };
 
 Statement: Statement<'input, Data> = {
@@ -187,7 +186,7 @@ OperatorAsFunction: Expr<'input, Data> = <posl:@L> "backtick" <op:"operator"> "b
 
 TupleConstruct: Expr<'input, Data> = <posl:@L> "(" <exprs:Sep2<Expression1, ",">> ")" <posr:@R> => Expr::Tuple(exprs, to_data(posl, posr));
 
-Variable: Expr<'input, Data> = <posl:@L> <elements:Sep1<AnyName, ".">> <posr:@R> => Expr::Variable(elements, to_data(posl, posr));
+Variable: Expr<'input, Data> = <posl:@L> <elements:AnyName> <posr:@R> => Expr::Variable(elements, to_data(posl, posr));
 
 AnyName: &'input str = {
     <"name"> => <>,
@@ -253,12 +252,12 @@ TypeAnnotation0: TypeAnnotation<'input, Data> = {
 
 TypeAnnotation1: TypeAnnotation<'input, Data> = {
     <inp:TypeAnnotation2> "->" <out:TypeAnnotation1> => TypeAnnotation::Function(Box::new(inp), Box::new(out)),
-    <elements:Sep1<"typename", ".">> <params:TypeAnnotation2+> => TypeAnnotation::Parameterized(elements, params),
+    <elements:"typename"> <params:TypeAnnotation2+> => TypeAnnotation::Parameterized(elements, params),
     TypeAnnotation2
 };
 
 TypeAnnotation2: TypeAnnotation<'input, Data> = {
-    <posl:@L> <elements:Sep1<"typename", ".">> <posr:@R> => TypeAnnotation::Name(elements, to_data(posl, posr)),
+    <posl:@L> <elements:"typename"> <posr:@R> => TypeAnnotation::Name(elements, to_data(posl, posr)),
     <GenericTypeKind> => TypeAnnotation::Generic(<>),
     "(" <Sep2<TypeAnnotation0, ",">> ")" => TypeAnnotation::Tuple(<>),
     "(" <tk:TypeAnnotation0> ")" => tk,
@@ -267,9 +266,13 @@ TypeAnnotation2: TypeAnnotation<'input, Data> = {
 GenericTypeKind: GenericTypeKind<'input, Data> = <posl:@L> <n:"name"> <posr:@R> => GenericTypeKind(n, to_data(posl, posr));
 
 RegionAnnotation: RegionAnnotation<'input, Data> = {
-    "@" "." => RegionAnnotation::Stack,
     "@" "_" => RegionAnnotation::Anonymous,
-    <posl:@L> "@" <n:"name"> <posr:@R> => RegionAnnotation::Named(n, to_data(posl, posr)),
+    <posl:@L> "@" <n:"name"> <posr:@R> => {
+        match n {
+            "." => RegionAnnotation::Stack,
+            _ => RegionAnnotation::Named(n, to_data(posl, posr))
+        }
+    },
     "@" <RegionVariable> => RegionAnnotation::Var(<>)
 };
 

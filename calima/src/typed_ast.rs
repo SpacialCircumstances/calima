@@ -19,7 +19,7 @@ impl Display for Unit {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TExprData<'input> {
-    Variable(Vec<&'input str>),
+    Variable(&'input str),
     FunctionCall(Box<TExpression<'input>>, Vec<TExpression<'input>>),
     Record(Vec<(&'input str, TExpression<'input>)>),
     Tuple(Vec<TExpression<'input>>),

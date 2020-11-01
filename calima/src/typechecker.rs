@@ -230,10 +230,9 @@ fn function_call<'input>(ctx: &mut Context, tfunc: TExpression<'input>, args: Ve
 fn infer_expr<'input, Data>(env: &mut Environment<'input>, ctx: &mut Context, expr: &Expr<'input, Data>) -> TExpression<'input> {
     match expr {
         Expr::Literal(lit, _) => TExpression::new(TExprData::Literal(lit.clone()), get_literal_type(lit)),
-        Expr::Variable(name, _) => {
-            let varname = *name.first().expect("Variable names must have at least one element");
+        Expr::Variable(varname, _) => {
             let scheme = env.lookup(varname).expect(format!("Variable {} not found", varname).as_str());
-            TExpression::new(TExprData::Variable(name.clone()), env.inst(ctx, scheme))
+            TExpression::new(TExprData::Variable(varname), env.inst(ctx, scheme))
         },
         Expr::Lambda { params, body, data: _ } => {
             let mut body_env = env.clone();
@@ -277,7 +276,7 @@ fn infer_expr<'input, Data>(env: &mut Environment<'input>, ctx: &mut Context, ex
         Expr::OperatorAsFunction(name, _) => {
             let (op_sch, _) = env.lookup_operator(name).unwrap();
             let op_tp = env.inst(ctx, op_sch);
-            TExpression::new(TExprData::Variable(vec![ name ]), op_tp)
+            TExpression::new(TExprData::Variable(name), op_tp)
         }
         _ => unimplemented!()
     }
@@ -286,7 +285,7 @@ fn infer_expr<'input, Data>(env: &mut Environment<'input>, ctx: &mut Context, ex
 fn call_operator<'input>(ctx: &mut Context, exprs: &mut Vec<TExpression<'input>>, last_name: &'input str, last_type: &Type) {
     let r = exprs.pop().unwrap();
     let l = exprs.pop().unwrap();
-    let last_expr = TExpression::new(TExprData::Variable(vec![ last_name ]), last_type.clone());
+    let last_expr = TExpression::new(TExprData::Variable(last_name), last_type.clone());
     let fc = function_call(ctx, last_expr, vec![l, r ]);
     exprs.push(fc);
 }
@@ -330,7 +329,7 @@ fn transform_operators<'input, Data>(env: &mut Environment<'input>, ctx: &mut Co
                 let mut expr = infer_expr(env, ctx, expr);
 
                 while let Some((op_name, op_tp)) = un_ops.pop() {
-                    let op_expr = TExpression::new(TExprData::Variable(vec![ op_name ]), op_tp.clone());
+                    let op_expr = TExpression::new(TExprData::Variable(op_name), op_tp.clone());
                     expr = function_call(ctx, op_expr, vec![ expr ]);
                 }
 
@@ -510,15 +509,15 @@ mod tests {
     }
 
     fn add_op<'a>(env: &Environment<'a>, ctx: &mut Context) -> TExpression<'a> {
-        TExpression::new(TExprData::Variable(vec![ "+" ]), lookup(env, ctx, "+"))
+        TExpression::new(TExprData::Variable("+"), lookup(env, ctx, "+"))
     }
 
     fn mul_op<'a>(env: &Environment<'a>, ctx: &mut Context) -> TExpression<'a> {
-        TExpression::new(TExprData::Variable(vec![ "*" ]), lookup(env, ctx, "*"))
+        TExpression::new(TExprData::Variable("*"), lookup(env, ctx, "*"))
     }
 
     fn neg_op<'a>(env: &Environment<'a>, ctx: &mut Context) -> TExpression<'a> {
-        TExpression::new(TExprData::Variable(vec![ "~" ]), lookup(env, ctx, "~"))
+        TExpression::new(TExprData::Variable("~"), lookup(env, ctx, "~"))
     }
 
     fn neg_expr<'a>(env: &Environment<'a>, ctx: &mut Context, expr: TExpression<'a>) -> TExpression<'a> {

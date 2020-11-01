@@ -47,7 +47,7 @@ mod tests {
             top_levels: Vec::new(),
             block: Block {
                 statements: Vec::new(),
-                result: Box::new(FunctionCall(Box::new(Variable(vec!["println"], loc1)), vec![
+                result: Box::new(FunctionCall(Box::new(Variable("println", loc1)), vec![
                     Literal(Literal::String("Hello World!"), loc2)
                 ], loc3))
             }
