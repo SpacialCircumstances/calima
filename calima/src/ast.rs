@@ -2,7 +2,6 @@ use std::fmt::{Display, Formatter, Debug};
 use crate::util::*;
 use crate::common::{ModuleIdentifier, OperatorSpecification};
 use crate::ast_common::{MatchPattern, Literal, BindPattern};
-use std::convert::TryFrom;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct RegionVariable<'a, Data>(pub &'a str, pub Data);

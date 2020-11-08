@@ -2,7 +2,6 @@ use crate::compiler::{ModuleTreeContext, UntypedModuleData};
 use crate::errors::ErrorContext;
 use crate::string_interner::StringInterner;
 use crate::common::{Module, ModuleIdentifier, Associativity, OperatorSpecification};
-use crate::token::Span;
 use std::collections::{HashMap, HashSet};
 use std::ops::Index;
 use crate::ast_common::{NumberType, Literal, MatchPattern, BindPattern};
@@ -10,7 +9,6 @@ use crate::ast::{Expr, Statement, TopLevelStatement, Block, TopLevelBlock, TypeA
 use crate::typed_ast::{TBlock, TStatement, TExpression, TExprData, Unit};
 use crate::types::{Type, GenericId, Scheme, TypeDefinition, PrimitiveType, build_function, ExportValue, Exports, ComplexType, Region};
 use crate::prelude::prelude;
-use crate::util::all_max;
 use std::convert::TryFrom;
 
 pub struct TypedModuleData<'input>(Context, TBlock<'input>);

@@ -1,6 +1,6 @@
 use crate::types::{Exports, Scheme, build_function, int, float, bool, string, unit, GenericId, Type};
 use std::collections::HashSet;
-use crate::common::{OperatorSpecification, Associativity};
+use crate::common::Associativity;
 use crate::common::Associativity::Left;
 use crate::common::OperatorSpecification::{Infix, Prefix};
 
