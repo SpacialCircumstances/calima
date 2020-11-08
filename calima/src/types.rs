@@ -5,6 +5,21 @@ use crate::common::OperatorSpecification;
 use std::convert::TryFrom;
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+pub struct Region {
+    id: usize,
+    depth: usize
+}
+
+impl Region {
+    pub fn new(id: usize, depth: usize) -> Self {
+        Region {
+            id,
+            depth
+        }
+    }
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct GenericId(pub usize);
 
 impl Display for GenericId {
