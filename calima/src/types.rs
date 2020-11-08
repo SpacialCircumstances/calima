@@ -2,6 +2,7 @@ use std::collections::{HashSet, HashMap};
 use std::fmt::{Display, Formatter};
 use crate::util::format_iter;
 use crate::common::OperatorSpecification;
+use std::convert::TryFrom;
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct GenericId(pub usize);
@@ -20,6 +21,22 @@ pub enum PrimitiveType {
     String,
     Unit,
     Char
+}
+
+impl TryFrom<&str> for PrimitiveType {
+    type Error = ();
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "Unit" => Ok(PrimitiveType::Unit),
+            "Float" => Ok(PrimitiveType::Float),
+            "Int" => Ok(PrimitiveType::Int),
+            "Char" => Ok(PrimitiveType::Char),
+            "Bool" => Ok(PrimitiveType::Bool),
+            "String" => Ok(PrimitiveType::String),
+            _ => Err(())
+        }
+    }
 }
 
 impl Display for PrimitiveType {

@@ -8,9 +8,10 @@ use std::ops::Index;
 use crate::ast_common::{NumberType, Literal, MatchPattern, BindPattern};
 use crate::ast::{Expr, Statement, TopLevelStatement, Block, TopLevelBlock, TypeAnnotation, Modifier, OperatorElement};
 use crate::typed_ast::{TBlock, TStatement, TExpression, TExprData, Unit};
-use crate::types::{Type, GenericId, Scheme, TypeDefinition, PrimitiveType, build_function, ExportValue, Exports};
+use crate::types::{Type, GenericId, Scheme, TypeDefinition, PrimitiveType, build_function, ExportValue, Exports, ComplexType};
 use crate::prelude::prelude;
 use crate::util::all_max;
+use std::convert::TryFrom;
 
 pub struct TypedModuleData<'input>(Context, TBlock<'input>);
 
@@ -123,6 +124,19 @@ impl Context {
                 _ => panic!(format!("Cannot unify {} with {}", t1, t2))
             }
         }
+    }
+}
+
+fn to_type<Data>(ctx: &mut Context, env: &Environment, ta: &TypeAnnotation<Data>) -> Result<Type, String> {
+    match ta {
+        TypeAnnotation::Name(name, _) => match PrimitiveType::try_from(*name) {
+            Ok(pt) => Ok(Type::Basic(TypeDefinition::Primitive(pt))),
+            Err(()) => Err(format!("{} is not a recognized type", name))
+        },
+        TypeAnnotation::Function(ta1, ta2) => {
+            to_type(ctx, env, &*ta1).and_then(|t1| to_type(ctx, env, &*ta2).map(|t2| (t1, t2))).map(|(t1, t2)| Type::Parameterized(ComplexType::Function, vec![ t1, t2 ]))
+        },
+        _ => unimplemented!()
     }
 }
 
