@@ -104,7 +104,7 @@ Statement: Statement<'input, Data> = {
     LetOperator
 };
 
-Region: Statement<'input, Data> = <posl:@L> "region" <n:RegionAnnotation> <posr:@R> => Statement::Region(n, to_data(posl, posr));
+Region: Statement<'input, Data> = <posl:@L> "region" <n:"name"> <posr:@R> => Statement::Region(n, to_data(posl, posr));
 
 Do: Statement<'input, Data> = <posl:@L> "do" <e:Expression0> <posr:@R> => Statement::Do(e, to_data(posl, posr));
 
