@@ -1,5 +1,5 @@
 import List in
-region @test
+region test
 let new = fun _ ->
     let a = @a Empty in a
 let (t1: @test List Int) = Node (Empty, 2)
