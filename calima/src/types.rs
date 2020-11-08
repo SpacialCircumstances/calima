@@ -101,7 +101,8 @@ impl Display for TypeDefinition {
 pub enum Type {
     Basic(TypeDefinition),
     Parameterized(ComplexType, Vec<Type>),
-    Var(GenericId)
+    Var(GenericId),
+    Reference(Region, Box<Type>)
 }
 
 impl Display for Type {
@@ -109,7 +110,8 @@ impl Display for Type {
         match self {
             Type::Basic(td) => write!(f, "{}", td),
             Type::Var(id) => write!(f, "{}", id),
-            Type::Parameterized(p, params) => write!(f, "({} {})", p, format_iter(params.iter(), " "))
+            Type::Parameterized(p, params) => write!(f, "({} {})", p, format_iter(params.iter(), " ")),
+            Type::Reference(reg, tp) => write!(f, "@{} {}", reg.id, tp)
         }
     }
 }

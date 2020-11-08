@@ -34,11 +34,12 @@ impl Substitution {
         self.subst[idx] = Some(value);
     }
 
-    fn subst(&self, typ: Type) -> Type {
+    fn subst(&self, typ: &Type) -> Type {
         match typ {
-            Type::Basic(_) => typ,
-            Type::Var(v) => self[v].as_ref().map(|t| t.clone()).unwrap_or(typ),
-            Type::Parameterized(t, params) => Type::Parameterized(t, params.into_iter().map(|t| self.subst(t)).collect())
+            Type::Basic(_) => typ.clone(),
+            Type::Var(v) => self[*v].as_ref().map(|t| t.clone()).unwrap_or_else(|| typ.clone()),
+            Type::Parameterized(t, params) => Type::Parameterized(t.clone(), params.into_iter().map(|t| self.subst(t)).collect()),
+            Type::Reference(reg, t) => Type::Reference(*reg, Box::new(self.subst(&*t)))
         }
     }
 }
@@ -108,7 +109,8 @@ impl Context {
                     self.check_occurs(gid, p);
                 }
             }
-            Type::Basic(_) => ()
+            Type::Basic(_) => (),
+            Type::Reference(_, t) => self.check_occurs(gid, &*t)
         }
     }
 
@@ -191,7 +193,8 @@ impl<'a> Environment<'a> {
         match tp {
             Type::Basic(_) => tp.clone(),
             Type::Parameterized(p, ps) => Type::Parameterized(*p, ps.iter().map(|p| Self::replace(p, mapper)).collect()),
-            Type::Var(id) => (mapper)(*id).unwrap_or_else(|| tp.clone())
+            Type::Var(id) => (mapper)(*id).unwrap_or_else(|| tp.clone()),
+            Type::Reference(reg, t) => Type::Reference(*reg, Box::new(Self::replace(&*t, mapper)))
         }
     }
 
@@ -482,7 +485,7 @@ fn typecheck_module<'input>(unchecked: Module<UntypedModuleData<'input>>, deps: 
 
     let infered_ast = infer_top_level_block(&mut env, &mut context, &unchecked.data.0);
     //TODO
-    let rettype = context.subst.subst(infered_ast.res.typ().clone());
+    let rettype = context.subst.subst(infered_ast.res.typ());
     println!("Return type of program: {}", rettype);
     Module {
         data: TypedModuleData(context, infered_ast),
