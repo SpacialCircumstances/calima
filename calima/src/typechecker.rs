@@ -153,6 +153,7 @@ struct Environment<'a> {
     values: HashMap<&'a str, Scheme>,
     operators: HashMap<&'a str, OperatorSpecification>,
     mono_vars: HashSet<GenericId>,
+    regions: HashMap<&'a str, Region>,
     depth: usize
 }
 
@@ -162,6 +163,7 @@ impl<'a> Environment<'a> {
             values: HashMap::new(),
             operators: HashMap::new(),
             mono_vars: HashSet::new(),
+            regions: HashMap::new(),
             depth: 0
         }
     }
@@ -173,6 +175,10 @@ impl<'a> Environment<'a> {
 
     fn add(&mut self, name: &'a str, sch: Scheme) {
         self.values.insert(name, sch);
+    }
+
+    fn add_region(&mut self, name: &'a str, reg: Region) {
+        self.regions.insert(name, reg);
     }
 
     fn lookup(&self, name: &'a str) -> Option<&Scheme> {
@@ -389,7 +395,11 @@ fn get_literal_type(lit: &Literal) -> Type {
 
 fn infer_statement<'input, Data>(env: &mut Environment<'input>, ctx: &mut Context, statement: &Statement<'input, Data>) -> Option<TStatement<'input>> {
     match statement {
-        Statement::Region(_, _) => None,
+        Statement::Region(name, _) => {
+            let reg = env.new_region(ctx);
+            env.add_region(name, reg);
+            None
+        },
         Statement::Do(expr, _) => Some(TStatement::Do(infer_expr(env, ctx, expr))),
         Statement::Let(mods, pattern, value, _) => {
             let v = if mods.contains(&Modifier::Rec) {
