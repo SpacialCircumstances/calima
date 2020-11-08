@@ -8,7 +8,7 @@ use std::ops::Index;
 use crate::ast_common::{NumberType, Literal, MatchPattern, BindPattern};
 use crate::ast::{Expr, Statement, TopLevelStatement, Block, TopLevelBlock, TypeAnnotation, Modifier, OperatorElement};
 use crate::typed_ast::{TBlock, TStatement, TExpression, TExprData, Unit};
-use crate::types::{Type, GenericId, Scheme, TypeDefinition, PrimitiveType, build_function, ExportValue, Exports, ComplexType};
+use crate::types::{Type, GenericId, Scheme, TypeDefinition, PrimitiveType, build_function, ExportValue, Exports, ComplexType, Region};
 use crate::prelude::prelude;
 use crate::util::all_max;
 use std::convert::TryFrom;
@@ -54,14 +54,16 @@ impl Index<GenericId> for Substitution {
 
 pub struct Context {
     generic_id: usize,
-    subst: Substitution
+    subst: Substitution,
+    region_id: usize
 }
 
 impl Context {
     pub fn new() -> Self {
         Context {
             generic_id: 0,
-            subst: Substitution::new()
+            subst: Substitution::new(),
+            region_id: 0
         }
     }
 
@@ -69,6 +71,12 @@ impl Context {
         let id = self.generic_id;
         self.generic_id += 1;
         GenericId(id)
+    }
+
+    fn next_region_id(&mut self) -> usize {
+        let id = self.region_id;
+        self.region_id += 1;
+        id
     }
 
     fn new_generic(&mut self) -> Type {
@@ -144,7 +152,8 @@ fn to_type<Data>(ctx: &mut Context, env: &Environment, ta: &TypeAnnotation<Data>
 struct Environment<'a> {
     values: HashMap<&'a str, Scheme>,
     operators: HashMap<&'a str, OperatorSpecification>,
-    mono_vars: HashSet<GenericId>
+    mono_vars: HashSet<GenericId>,
+    depth: usize
 }
 
 impl<'a> Environment<'a> {
@@ -152,7 +161,8 @@ impl<'a> Environment<'a> {
         Environment {
             values: HashMap::new(),
             operators: HashMap::new(),
-            mono_vars: HashSet::new()
+            mono_vars: HashSet::new(),
+            depth: 0
         }
     }
 
@@ -229,6 +239,11 @@ impl<'a> Environment<'a> {
                 self.add_operator(name, Self::import_scheme(ctx, tp), op.clone())
             }
         }
+    }
+
+    fn new_region(&mut self, ctx: &mut Context) -> Region {
+        let rid = ctx.next_region_id();
+        Region::new(rid, self.depth)
     }
 }
 
