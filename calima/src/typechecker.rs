@@ -152,6 +152,7 @@ struct Environment<'a> {
     operators: HashMap<&'a str, OperatorSpecification>,
     mono_vars: HashSet<GenericId>,
     regions: HashMap<&'a str, Region>,
+    named_generics: HashMap<&'a str, GenericId>,
     depth: usize
 }
 
@@ -162,8 +163,17 @@ impl<'a> Environment<'a> {
             operators: HashMap::new(),
             mono_vars: HashSet::new(),
             regions: HashMap::new(),
+            named_generics: HashMap::new(),
             depth: 0
         }
+    }
+
+    fn lookup_generic(&self, name: &'a str) -> Option<GenericId> {
+        self.named_generics.get(name).copied()
+    }
+
+    fn get_or_create_generic(&mut self, ctx: &mut Context, name: &'a str) -> GenericId {
+        *self.named_generics.entry(name).or_insert_with(|| ctx.next_id())
     }
 
     fn add_operator(&mut self, name: &'a str, sch: Scheme, op: OperatorSpecification) {
