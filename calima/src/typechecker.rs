@@ -13,47 +13,45 @@ use std::convert::TryFrom;
 
 pub struct TypedModuleData<'input>(Context, TBlock<'input>);
 
-pub struct Substitution {
-    subst: Vec<Option<Type>>
+pub struct Substitution<T: Clone> {
+    subst: Vec<Option<T>>
 }
 
-impl Substitution {
+impl<T: Clone> Substitution<T> {
     fn new() -> Self {
         Substitution {
             subst: (1..10).map(|_| None).collect()
         }
     }
 
-    fn add(&mut self, key: GenericId, value: Type) {
-        let idx = key.0;
+    fn add(&mut self, idx: usize, value: T) {
         if idx >= self.subst.len() {
             self.subst.resize(idx + 1, Option::None);
         }
         self.subst[idx] = Some(value);
     }
+}
 
-    fn subst(&self, typ: &Type) -> Type {
-        match typ {
-            Type::Basic(_) => typ.clone(),
-            Type::Var(v) => self[*v].as_ref().map(|t| t.clone()).unwrap_or_else(|| typ.clone()),
-            Type::Parameterized(t, params) => Type::Parameterized(t.clone(), params.into_iter().map(|t| self.subst(t)).collect()),
-            Type::Reference(reg, t) => Type::Reference(*reg, Box::new(self.subst(&*t)))
-        }
+fn substitute(subst: &Substitution<Type>, typ: &Type) -> Type {
+    match typ {
+        Type::Basic(_) => typ.clone(),
+        Type::Var(v) => subst[(*v).0].as_ref().map(|t| t.clone()).unwrap_or_else(|| typ.clone()),
+        Type::Parameterized(t, params) => Type::Parameterized(t.clone(), params.into_iter().map(|t| substitute(subst, t)).collect()),
+        Type::Reference(reg, t) => Type::Reference(*reg, Box::new(substitute(subst, &*t)))
     }
 }
 
-impl Index<GenericId> for Substitution {
-    type Output = Option<Type>;
+impl<T: Clone> Index<usize> for Substitution<T> {
+    type Output = Option<T>;
 
-    fn index(&self, index: GenericId) -> &Self::Output {
-        let idx = index.0;
-        self.subst.get(idx).unwrap_or(&Option::None)
+    fn index(&self, index: usize) -> &Self::Output {
+        self.subst.get(index).unwrap_or(&Option::None)
     }
 }
 
 pub struct Context {
     generic_id: usize,
-    subst: Substitution,
+    subst: Substitution<Type>,
     region_id: usize
 }
 
@@ -84,10 +82,10 @@ impl Context {
     }
 
     fn bind(&mut self, gid: GenericId, t2: &Type) {
-        let existing = self.subst[gid].clone();
+        let existing = self.subst[gid.0].clone();
         match existing {
             Some(t) => self.unify(&t, t2),
-            None => self.subst.add(gid, t2.clone())
+            None => self.subst.add(gid.0, t2.clone())
         }
     }
 
@@ -98,7 +96,7 @@ impl Context {
                     panic!("Recursive type")
                 }
 
-                if let Some(next) = &self.subst[*i] {
+                if let Some(next) = &self.subst[(*i).0] {
                     self.check_occurs(gid, next)
                 }
             }
@@ -493,7 +491,7 @@ fn typecheck_module<'input>(unchecked: Module<UntypedModuleData<'input>>, deps: 
 
     let infered_ast = infer_top_level_block(&mut env, &mut context, &unchecked.data.0);
     //TODO
-    let rettype = context.subst.subst(infered_ast.res.typ());
+    let rettype = substitute(&context.subst, infered_ast.res.typ());
     println!("Return type of program: {}", rettype);
     Module {
         data: TypedModuleData(context, infered_ast),
