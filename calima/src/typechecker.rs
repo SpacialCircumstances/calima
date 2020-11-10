@@ -7,7 +7,7 @@ use std::ops::Index;
 use crate::ast_common::{NumberType, Literal, MatchPattern, BindPattern};
 use crate::ast::{Expr, Statement, TopLevelStatement, Block, TopLevelBlock, TypeAnnotation, Modifier, OperatorElement, GenericTypeKind};
 use crate::typed_ast::{TBlock, TStatement, TExpression, TExprData, Unit};
-use crate::types::{Type, GenericId, Scheme, TypeDefinition, PrimitiveType, build_function, ExportValue, Exports, ComplexType, Region};
+use crate::types::{Type, GenericId, Scheme, TypeDefinition, PrimitiveType, build_function, ExportValue, Exports, ComplexType, Region, RegionId};
 use crate::prelude::prelude;
 use std::convert::TryFrom;
 
@@ -260,7 +260,7 @@ impl<'a> Environment<'a> {
 
     fn new_region(&mut self, ctx: &mut Context) -> Region {
         let rid = ctx.next_region_id();
-        Region::new(rid, self.depth)
+        Region::Var(RegionId(rid))
     }
 }
 

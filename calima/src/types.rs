@@ -5,16 +5,34 @@ use crate::common::OperatorSpecification;
 use std::convert::TryFrom;
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
-pub struct Region {
+pub struct RegionId(pub usize);
+
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+pub struct RegionInstance {
     id: usize,
     depth: usize
 }
 
-impl Region {
+impl RegionInstance {
     pub fn new(id: usize, depth: usize) -> Self {
-        Region {
+        RegionInstance {
             id,
             depth
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum Region {
+    Var(RegionId),
+    Instance(RegionInstance)
+}
+
+impl Display for Region {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Region::Var(rid) => write!(f, "'{}", rid.0),
+            Region::Instance(ri) => write!(f, "@{}", ri.id)
         }
     }
 }
@@ -111,7 +129,7 @@ impl Display for Type {
             Type::Basic(td) => write!(f, "{}", td),
             Type::Var(id) => write!(f, "{}", id),
             Type::Parameterized(p, params) => write!(f, "({} {})", p, format_iter(params.iter(), " ")),
-            Type::Reference(reg, tp) => write!(f, "@{} {}", reg.id, tp)
+            Type::Reference(reg, tp) => write!(f, "@{} {}", reg, tp)
         }
     }
 }
