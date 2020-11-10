@@ -133,7 +133,7 @@ impl Context {
     }
 }
 
-fn to_type<Data>(ctx: &mut Context, env: &mut Environment, ta: &TypeAnnotation<Data>) -> Result<Type, String> {
+fn to_type<'input, Data>(ctx: &mut Context, env: &mut Environment<'input>, ta: &TypeAnnotation<'input, Data>) -> Result<Type, String> {
     match ta {
         TypeAnnotation::Name(name, _) => match PrimitiveType::try_from(*name) {
             Ok(pt) => Ok(Type::Basic(TypeDefinition::Primitive(pt))),
@@ -143,6 +143,7 @@ fn to_type<Data>(ctx: &mut Context, env: &mut Environment, ta: &TypeAnnotation<D
             to_type(ctx, env, &*ta1).and_then(|t1| to_type(ctx, env, &*ta2).map(|t2| (t1, t2))).map(|(t1, t2)| Type::Parameterized(ComplexType::Function, vec![ t1, t2 ]))
         },
         TypeAnnotation::Generic(gname) => Ok(Type::Var(env.get_or_create_generic(ctx, gname.0))),
+        TypeAnnotation::Tuple(params) => params.iter().map(|p| to_type(ctx, env, p)).collect::<Result<Vec<Type>, String>>().map(|ps| Type::Parameterized(ComplexType::Tuple(ps.len()), ps)),
         _ => unimplemented!()
     }
 }
@@ -302,7 +303,7 @@ fn infer_expr<'input, Data>(env: &mut Environment<'input>, ctx: &mut Context, ex
         },
         Expr::OperatorCall(elements, _) => {
             transform_operators(env, ctx, elements)
-        }
+        },
         Expr::If { data: _, cond, if_true, if_false } => {
             let tcond = infer_expr(env, ctx, &*cond);
             ctx.unify(tcond.typ(), &Type::Basic(TypeDefinition::Primitive(PrimitiveType::Bool)));
@@ -322,6 +323,12 @@ fn infer_expr<'input, Data>(env: &mut Environment<'input>, ctx: &mut Context, ex
             let (op_sch, _) = env.lookup_operator(name).unwrap();
             let op_tp = env.inst(ctx, op_sch);
             TExpression::new(TExprData::Variable(name), op_tp)
+        },
+        Expr::Tuple(exprs, _) => {
+            let texprs: Vec<TExpression> = exprs.iter().map(|e| infer_expr(env, ctx, e)).collect();
+            let types = texprs.iter().map(|t| t.typ().clone()).collect();
+            let tp = Type::Parameterized(ComplexType::Tuple(texprs.len()), types);
+            TExpression::new(TExprData::Tuple(texprs), tp)
         }
         _ => unimplemented!()
     }

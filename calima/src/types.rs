@@ -70,7 +70,7 @@ impl Display for PrimitiveType {
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum ComplexType {
     Function,
-    Tuple(u32) //TODO: User-defined
+    Tuple(usize) //TODO: User-defined
 }
 
 impl Display for ComplexType {
