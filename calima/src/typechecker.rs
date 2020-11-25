@@ -51,7 +51,8 @@ impl<T: Clone> Index<usize> for Substitution<T> {
 
 pub struct Context {
     generic_id: usize,
-    subst: Substitution<Type>,
+    type_subst: Substitution<Type>,
+    region_subst: Substitution<Region>,
     region_id: usize
 }
 
@@ -59,7 +60,8 @@ impl Context {
     pub fn new() -> Self {
         Context {
             generic_id: 0,
-            subst: Substitution::new(),
+            type_subst: Substitution::new(),
+            region_subst: Substitution::new(),
             region_id: 0
         }
     }
@@ -82,10 +84,10 @@ impl Context {
     }
 
     fn bind(&mut self, gid: GenericId, t2: &Type) {
-        let existing = self.subst[gid.0].clone();
+        let existing = self.type_subst[gid.0].clone();
         match existing {
             Some(t) => self.unify(&t, t2),
-            None => self.subst.add(gid.0, t2.clone())
+            None => self.type_subst.add(gid.0, t2.clone())
         }
     }
 
@@ -96,7 +98,7 @@ impl Context {
                     panic!("Recursive type")
                 }
 
-                if let Some(next) = &self.subst[(*i).0] {
+                if let Some(next) = &self.type_subst[(*i).0] {
                     self.check_occurs(gid, next)
                 }
             }
@@ -523,7 +525,7 @@ fn typecheck_module<'input>(unchecked: Module<UntypedModuleData<'input>>, deps: 
 
     let infered_ast = infer_top_level_block(&mut env, &mut context, &unchecked.data.0);
     //TODO
-    let rettype = substitute(&context.subst, infered_ast.res.typ());
+    let rettype = substitute(&context.type_subst, infered_ast.res.typ());
     println!("Return type of program: {}", rettype);
     Module {
         data: TypedModuleData(context, infered_ast),
