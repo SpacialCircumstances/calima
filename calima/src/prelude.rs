@@ -23,14 +23,14 @@ fn float_unary_op() -> Scheme {
 fn scheme(gen: &[GenericId], tp: Type) -> Scheme {
     let mut gens = HashSet::new();
     gens.extend(gen.iter());
-    Scheme(gens, tp)
+    Scheme(HashSet::new(), gens, tp)
 }
 
 fn eq_type() -> Scheme {
     let mut eq_set = HashSet::new();
     let id = GenericId(1);
     eq_set.insert(id);
-    Scheme(eq_set, build_function(& [ Type::Var(id), Type::Var(id) ], &bool()))
+    Scheme(HashSet::new(), eq_set, build_function(& [ Type::Var(id), Type::Var(id) ], &bool()))
 }
 
 pub fn prelude() -> Exports<'static> {

@@ -217,8 +217,8 @@ impl<'a> Environment<'a> {
     }
 
     fn inst(&self, ctx: &mut Context, sch: &Scheme) -> Type {
-        let mapping: HashMap<GenericId, Type> = sch.0.iter().map(|v| (*v, ctx.new_generic())).collect();
-        Self::replace(&sch.1, &|id| mapping.get(&id).cloned())
+        let mapping: HashMap<GenericId, Type> = sch.1.iter().map(|v| (*v, ctx.new_generic())).collect();
+        Self::replace(&sch.2, &|id| mapping.get(&id).cloned())
     }
 
     fn generalize(&self, tp: &Type) -> Scheme {
@@ -237,14 +237,14 @@ impl<'a> Environment<'a> {
         }
         let mut scheme_vars = HashSet::new();
         gen_rec(tp, &self.mono_vars, &mut scheme_vars);
-        Scheme(scheme_vars, tp.clone())
+        Scheme(HashSet::new(), scheme_vars, tp.clone())
     }
 
     fn import_scheme(ctx: &mut Context, tp: &Scheme) -> Scheme {
-        let mapping: HashMap<GenericId, GenericId> = tp.0.iter().map(|v| (*v, ctx.next_id())).collect();
-        let tp = Self::replace(&tp.1, &|gid| mapping.get(&gid).copied().map(Type::Var));
+        let mapping: HashMap<GenericId, GenericId> = tp.1.iter().map(|v| (*v, ctx.next_id())).collect();
+        let tp = Self::replace(&tp.2, &|gid| mapping.get(&gid).copied().map(Type::Var));
         let vars = mapping.values().copied().collect();
-        Scheme(vars, tp)
+        Scheme(HashSet::new(), vars, tp)
     }
 
     fn import_module(&mut self, ctx: &mut Context, exports: &Exports<'a>) {

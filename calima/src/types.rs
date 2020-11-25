@@ -1,11 +1,17 @@
 use std::collections::{HashSet, HashMap};
 use std::fmt::{Display, Formatter};
-use crate::util::format_iter;
+use crate::util::{format_iter, format_iter_end};
 use crate::common::OperatorSpecification;
 use std::convert::TryFrom;
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct RegionId(pub usize);
+
+impl Display for RegionId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "'{}", self.0)
+    }
+}
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct RegionInstance {
@@ -31,7 +37,7 @@ pub enum Region {
 impl Display for Region {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Region::Var(rid) => write!(f, "'{}", rid.0),
+            Region::Var(rid) => write!(f, "{}", rid),
             Region::Instance(ri) => write!(f, "@{}", ri.id)
         }
     }
@@ -135,20 +141,20 @@ impl Display for Type {
 }
 
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub struct Scheme(pub HashSet<GenericId>, pub Type);
+pub struct Scheme(pub HashSet<RegionId>, pub HashSet<GenericId>, pub Type);
 
 impl Scheme {
     pub fn simple(tp: Type) -> Self {
-        Scheme(HashSet::new(), tp)
+        Scheme(HashSet::new(), HashSet::new(), tp)
     }
 }
 
 impl Display for Scheme {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         if self.0.is_empty() {
-            write!(f, "{}", self.1)
+            write!(f, "{}", self.2)
         } else {
-            write!(f, "forall {}. {}", format_iter(self.0.iter(), " "), self.1)
+            write!(f, "forall {}{}. {}", format_iter_end(self.0.iter(), " "), format_iter(self.1.iter(), " "), self.2)
         }
     }
 }
