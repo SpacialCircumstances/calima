@@ -5,8 +5,8 @@ use crate::common::{Module, ModuleIdentifier, Associativity, OperatorSpecificati
 use std::collections::{HashMap, HashSet};
 use std::ops::Index;
 use crate::ast_common::{NumberType, Literal, MatchPattern, BindPattern};
-use crate::ast::{Expr, Statement, TopLevelStatement, Block, TopLevelBlock, TypeAnnotation, Modifier, OperatorElement, GenericTypeKind};
-use crate::typed_ast::{TBlock, TStatement, TExpression, TExprData, Unit};
+use crate::ast::*;
+use crate::typed_ast::*;
 use crate::types::{Type, GenericId, Scheme, TypeDefinition, PrimitiveType, build_function, ExportValue, Exports, ComplexType, Region, RegionId};
 use crate::prelude::prelude;
 use std::convert::TryFrom;
@@ -199,6 +199,10 @@ impl<'a> Environment<'a> {
         self.values.get(name).and_then(|sch| self.operators.get(name).map(|op| (sch, op)))
     }
 
+    fn lookup_region(&self, name: &'a str) -> Option<Region> {
+        self.regions.get(name).copied()
+    }
+
     fn add_monomorphic_var(&mut self, id: GenericId) {
         self.mono_vars.insert(id);
     }
@@ -330,6 +334,16 @@ fn infer_expr<'input, Data>(env: &mut Environment<'input>, ctx: &mut Context, ex
             let tp = Type::Parameterized(ComplexType::Tuple(texprs.len()), types);
             TExpression::new(TExprData::Tuple(texprs), tp)
         }
+        Expr::Ref(ra, expr, _) => {
+            let texpr = infer_expr(env, ctx, &*expr);
+            let region = match ra {
+                RegionAnnotation::Named(name, _) => env.lookup_region(name).expect("Region not defined"),
+                RegionAnnotation::Anonymous => env.new_region(ctx),
+                _ => unimplemented!()
+            };
+            let tp = Type::Reference(region, Box::new(texpr.typ().clone()));
+            TExpression::new(TExprData::Ref(region, Box::new(texpr)), tp)
+        },
         _ => unimplemented!()
     }
 }
