@@ -83,6 +83,14 @@ impl Context {
         Type::Var(tr)
     }
 
+    fn bind_region(&mut self, rid: RegionId, t2: Region) {
+        let existing = self.region_subst[rid.0];
+        match existing {
+            Some(r) => self.unify_regions(r, t2),
+            None => self.region_subst.add(rid.0, t2)
+        }
+    }
+
     fn bind(&mut self, gid: GenericId, t2: &Type) {
         let existing = self.type_subst[gid.0].clone();
         match existing {
@@ -112,6 +120,26 @@ impl Context {
         }
     }
 
+    fn unify_regions(&mut self, r1: Region, r2: Region) {
+        if r1 != r2 {
+            match (r1, r2) {
+                (Region::Instance(ri1), Region::Instance(ri2)) => {
+                    //What does this actually mean? How does this stuff work?
+                    if ri1.id != ri2.id {
+                        panic!("Regions are incompatible")
+                    }
+                }
+                (Region::Var(rv1), _) => {
+                    //TODO: Occurs check? Can this even happen?
+                    self.bind_region(rv1, r2);
+                }
+                (_, Region::Var(rv2)) => {
+                    self.bind_region(rv2, r1);
+                }
+            }
+        }
+    }
+
     fn unify(&mut self, t1: &Type, t2: &Type) {
         if t1 != t2 {
             match (t1, t2) {
@@ -129,6 +157,10 @@ impl Context {
                     }
                     params1.iter().zip(params2.iter()).for_each(|(p1, p2)| self.unify(p1, p2));
                 },
+                (Type::Reference(r1, tp1), Type::Reference(r2, tp2)) => {
+                    self.unify_regions(*r1, *r2);
+                    self.unify(&*tp1, &*tp2);
+                }
                 _ => panic!(format!("Cannot unify {} with {}", t1, t2))
             }
         }

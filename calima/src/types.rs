@@ -15,8 +15,8 @@ impl Display for RegionId {
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct RegionInstance {
-    id: usize,
-    depth: usize
+    pub id: usize,
+    pub depth: usize
 }
 
 impl RegionInstance {
