@@ -13,6 +13,11 @@ use std::convert::TryFrom;
 
 pub struct TypedModuleData<'input>(Context, TBlock<'input>);
 
+enum UnificationError {
+    UnificationError,
+    RecursiveType
+}
+
 pub struct Substitution<T: Clone> {
     subst: Vec<Option<T>>
 }
@@ -73,54 +78,58 @@ impl Context {
         Type::Var(tr)
     }
 
-    fn bind(&mut self, gid: GenericId, t2: &Type) {
+    fn bind(&mut self, gid: GenericId, t2: &Type) -> Result<(), UnificationError> {
         let existing = self.type_subst[gid.0].clone();
         match existing {
             Some(t) => self.unify(&t, t2),
-            None => self.type_subst.add(gid.0, t2.clone())
+            None => Ok(self.type_subst.add(gid.0, t2.clone()))
         }
     }
 
-    fn check_occurs(&self, gid: GenericId, t: &Type) {
+    fn check_occurs(&self, gid: GenericId, t: &Type) -> Result<(), ()> {
         match t {
             Type::Var(i) => {
                 if gid == *i {
-                    panic!("Recursive type")
-                }
-
-                if let Some(next) = &self.type_subst[(*i).0] {
+                    Err(())
+                } else if let Some(next) = &self.type_subst[(*i).0] {
                     self.check_occurs(gid, next)
+                } else {
+                    Ok(())
                 }
             }
             Type::Parameterized(_, params) => {
                 for p in params {
-                    self.check_occurs(gid, p);
+                    self.check_occurs(gid, p)?;
                 }
+                Ok(())
             }
-            Type::Basic(_) => (),
+            Type::Basic(_) => Ok(()),
             Type::Reference(_, t) => self.check_occurs(gid, &*t)
         }
     }
 
-    fn unify(&mut self, t1: &Type, t2: &Type) {
+    fn unify(&mut self, t1: &Type, t2: &Type) -> Result<(), UnificationError> {
         if t1 != t2 {
             match (t1, t2) {
-                (Type::Basic(td1), Type::Basic(td2)) => if td1 != td2 {
-                    panic!(format!("Cannot unify {} with {}", td1, td2))
+                (Type::Basic(td1), Type::Basic(td2)) if td1 != td2 => {
+                    Err(UnificationError::UnificationError)
                 },
                 (Type::Var(gid), _) => {
-                    self.check_occurs(*gid, t2);
+                    self.check_occurs(*gid, t2).map_err(|()| UnificationError::RecursiveType)?;
                     self.bind(*gid, t2)
                 },
                 (_, Type::Var(gid)) => self.bind(*gid, t1),
                 (Type::Parameterized(p1, params1), Type::Parameterized(p2, params2)) => {
                     if p1 != p2 || params1.len() != params2.len() {
-                        panic!(format!("Cannot unify {} with {}", t1, t2))
+                        Err(UnificationError::UnificationError)
+                    } else {
+                        params1.iter().zip(params2.iter()).map(|(p1, p2)| self.unify(p1, p2)).collect()
                     }
-                    params1.iter().zip(params2.iter()).for_each(|(p1, p2)| self.unify(p1, p2));
                 },
-                _ => panic!(format!("Cannot unify {} with {}", t1, t2))
+                _ => unimplemented!()
             }
+        } else {
+            Ok(())
         }
     }
 }
