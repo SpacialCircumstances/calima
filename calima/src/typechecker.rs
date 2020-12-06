@@ -37,7 +37,7 @@ fn substitute(subst: &Substitution<Type>, typ: &Type) -> Type {
         Type::Basic(_) => typ.clone(),
         Type::Var(v) => subst[(*v).0].as_ref().map(|t| t.clone()).unwrap_or_else(|| typ.clone()),
         Type::Parameterized(t, params) => Type::Parameterized(t.clone(), params.into_iter().map(|t| substitute(subst, t)).collect()),
-        Type::Reference(reg, t) => Type::Reference(*reg, Box::new(substitute(subst, &*t)))
+        _ => unimplemented!()
     }
 }
 
@@ -51,9 +51,7 @@ impl<T: Clone> Index<usize> for Substitution<T> {
 
 pub struct Context {
     generic_id: usize,
-    type_subst: Substitution<Type>,
-    region_subst: Substitution<Region>,
-    region_id: usize
+    type_subst: Substitution<Type>
 }
 
 impl Context {
@@ -61,8 +59,6 @@ impl Context {
         Context {
             generic_id: 0,
             type_subst: Substitution::new(),
-            region_subst: Substitution::new(),
-            region_id: 0
         }
     }
 
@@ -72,23 +68,9 @@ impl Context {
         GenericId(id)
     }
 
-    fn next_region_id(&mut self) -> usize {
-        let id = self.region_id;
-        self.region_id += 1;
-        id
-    }
-
     fn new_generic(&mut self) -> Type {
         let tr = self.next_id();
         Type::Var(tr)
-    }
-
-    fn bind_region(&mut self, rid: RegionId, t2: Region) {
-        let existing = self.region_subst[rid.0];
-        match existing {
-            Some(r) => self.unify_regions(r, t2),
-            None => self.region_subst.add(rid.0, t2)
-        }
     }
 
     fn bind(&mut self, gid: GenericId, t2: &Type) {
@@ -120,26 +102,6 @@ impl Context {
         }
     }
 
-    fn unify_regions(&mut self, r1: Region, r2: Region) {
-        if r1 != r2 {
-            match (r1, r2) {
-                (Region::Instance(ri1), Region::Instance(ri2)) => {
-                    //What does this actually mean? How does this stuff work?
-                    if ri1.id != ri2.id {
-                        panic!("Regions are incompatible")
-                    }
-                }
-                (Region::Var(rv1), _) => {
-                    //TODO: Occurs check? Can this even happen?
-                    self.bind_region(rv1, r2);
-                }
-                (_, Region::Var(rv2)) => {
-                    self.bind_region(rv2, r1);
-                }
-            }
-        }
-    }
-
     fn unify(&mut self, t1: &Type, t2: &Type) {
         if t1 != t2 {
             match (t1, t2) {
@@ -157,10 +119,6 @@ impl Context {
                     }
                     params1.iter().zip(params2.iter()).for_each(|(p1, p2)| self.unify(p1, p2));
                 },
-                (Type::Reference(r1, tp1), Type::Reference(r2, tp2)) => {
-                    self.unify_regions(*r1, *r2);
-                    self.unify(&*tp1, &*tp2);
-                }
                 _ => panic!(format!("Cannot unify {} with {}", t1, t2))
             }
         }
@@ -187,7 +145,6 @@ struct Environment<'a> {
     values: HashMap<&'a str, Scheme>,
     operators: HashMap<&'a str, OperatorSpecification>,
     mono_vars: HashSet<GenericId>,
-    regions: HashMap<&'a str, Region>,
     named_generics: HashMap<&'a str, GenericId>,
     depth: usize
 }
@@ -198,7 +155,6 @@ impl<'a> Environment<'a> {
             values: HashMap::new(),
             operators: HashMap::new(),
             mono_vars: HashSet::new(),
-            regions: HashMap::new(),
             named_generics: HashMap::new(),
             depth: 0
         }
@@ -221,20 +177,12 @@ impl<'a> Environment<'a> {
         self.values.insert(name, sch);
     }
 
-    fn add_region(&mut self, name: &'a str, reg: Region) {
-        self.regions.insert(name, reg);
-    }
-
     fn lookup(&self, name: &'a str) -> Option<&Scheme> {
         self.values.get(name)
     }
 
     fn lookup_operator(&self, name: &'a str) -> Option<(&Scheme, &OperatorSpecification)> {
         self.values.get(name).and_then(|sch| self.operators.get(name).map(|op| (sch, op)))
-    }
-
-    fn lookup_region(&self, name: &'a str) -> Option<Region> {
-        self.regions.get(name).copied()
     }
 
     fn add_monomorphic_var(&mut self, id: GenericId) {
@@ -246,7 +194,7 @@ impl<'a> Environment<'a> {
             Type::Basic(_) => tp.clone(),
             Type::Parameterized(p, ps) => Type::Parameterized(*p, ps.iter().map(|p| Self::replace(p, mapper)).collect()),
             Type::Var(id) => (mapper)(*id).unwrap_or_else(|| tp.clone()),
-            Type::Reference(reg, t) => Type::Reference(*reg, Box::new(Self::replace(&*t, mapper)))
+            _ => tp.clone()
         }
     }
 
@@ -294,11 +242,6 @@ impl<'a> Environment<'a> {
                 self.add_operator(name, Self::import_scheme(ctx, tp), op.clone())
             }
         }
-    }
-
-    fn new_region(&mut self, ctx: &mut Context) -> Region {
-        let rid = ctx.next_region_id();
-        Region::Var(RegionId(rid))
     }
 }
 
@@ -368,16 +311,6 @@ fn infer_expr<'input, Data>(env: &mut Environment<'input>, ctx: &mut Context, ex
             let tp = Type::Parameterized(ComplexType::Tuple(texprs.len()), types);
             TExpression::new(TExprData::Tuple(texprs), tp)
         }
-        Expr::Ref(ra, expr, _) => {
-            let texpr = infer_expr(env, ctx, &*expr);
-            let region = match ra {
-                RegionAnnotation::Named(name, _) => env.lookup_region(name).expect("Region not defined"),
-                RegionAnnotation::Anonymous => env.new_region(ctx),
-                _ => unimplemented!()
-            };
-            let tp = Type::Reference(region, Box::new(texpr.typ().clone()));
-            TExpression::new(TExprData::Ref(region, Box::new(texpr)), tp)
-        },
         _ => unimplemented!()
     }
 }
@@ -459,11 +392,7 @@ fn get_literal_type(lit: &Literal) -> Type {
 
 fn infer_statement<'input, Data>(env: &mut Environment<'input>, ctx: &mut Context, statement: &Statement<'input, Data>) -> Option<TStatement<'input>> {
     match statement {
-        Statement::Region(name, _) => {
-            let reg = env.new_region(ctx);
-            env.add_region(name, reg);
-            None
-        },
+        Statement::Region(name, _) => None,
         Statement::Do(expr, _) => Some(TStatement::Do(infer_expr(env, ctx, expr))),
         Statement::Let(mods, pattern, value, _) => {
             let v = if mods.contains(&Modifier::Rec) {
