@@ -4,10 +4,10 @@ use crate::string_interner::StringInterner;
 use crate::common::{Module, ModuleIdentifier, Associativity, OperatorSpecification};
 use std::collections::{HashMap, HashSet};
 use std::ops::Index;
-use crate::ast_common::{NumberType, Literal, MatchPattern, BindPattern};
+use crate::ast_common::*;
 use crate::ast::*;
 use crate::typed_ast::*;
-use crate::types::{Type, GenericId, Scheme, TypeDefinition, PrimitiveType, build_function, ExportValue, Exports, ComplexType, Region, RegionId};
+use crate::types::*;
 use crate::prelude::prelude;
 use std::convert::TryFrom;
 
@@ -170,7 +170,7 @@ impl Context {
 fn to_type<'input, Data>(ctx: &mut Context, env: &mut Environment<'input>, ta: &TypeAnnotation<'input, Data>) -> Result<Type, String> {
     match ta {
         TypeAnnotation::Name(name, _) => match PrimitiveType::try_from(*name) {
-            Ok(pt) => Ok(Type::Basic(TypeDefinition::Primitive(pt))),
+            Ok(pt) => Ok(Type::Basic(TypeDef::Primitive(pt))),
             Err(()) => Err(format!("{} is not a recognized type", name))
         },
         TypeAnnotation::Function(ta1, ta2) => {
@@ -344,7 +344,7 @@ fn infer_expr<'input, Data>(env: &mut Environment<'input>, ctx: &mut Context, ex
         },
         Expr::If { data: _, cond, if_true, if_false } => {
             let tcond = infer_expr(env, ctx, &*cond);
-            ctx.unify(tcond.typ(), &Type::Basic(TypeDefinition::Primitive(PrimitiveType::Bool)));
+            ctx.unify(tcond.typ(), &Type::Basic(TypeDef::Primitive(PrimitiveType::Bool)));
             let mut true_env = env.clone();
             let mut false_env = env.clone();
             let ttrue = infer_block(&mut true_env, ctx, if_true);
@@ -448,7 +448,7 @@ fn transform_operators<'input, Data>(env: &mut Environment<'input>, ctx: &mut Co
 }
 
 fn get_literal_type(lit: &Literal) -> Type {
-    Type::Basic(TypeDefinition::Primitive(match lit {
+    Type::Basic(TypeDef::Primitive(match lit {
         Literal::Boolean(_) => PrimitiveType::Bool,
         Literal::Unit => PrimitiveType::Unit,
         Literal::String(_) => PrimitiveType::String,

@@ -107,23 +107,23 @@ impl Display for ComplexType {
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
-pub enum TypeDefinition {
+pub enum TypeDef {
     Primitive(PrimitiveType),
     Complex(ComplexType)
 }
 
-impl Display for TypeDefinition {
+impl Display for TypeDef {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            TypeDefinition::Primitive(pt) => write!(f, "{}", pt),
-            TypeDefinition::Complex(pt) => write!(f, "{}", pt)
+            TypeDef::Primitive(pt) => write!(f, "{}", pt),
+            TypeDef::Complex(pt) => write!(f, "{}", pt)
         }
     }
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Type {
-    Basic(TypeDefinition),
+    Basic(TypeDef),
     Parameterized(ComplexType, Vec<Type>),
     Var(GenericId),
     Reference(Region, Box<Type>)
@@ -160,23 +160,23 @@ impl Display for Scheme {
 }
 
 pub fn bool() -> Type {
-    Type::Basic(TypeDefinition::Primitive(PrimitiveType::Bool))
+    Type::Basic(TypeDef::Primitive(PrimitiveType::Bool))
 }
 
 pub fn string() -> Type {
-    Type::Basic(TypeDefinition::Primitive(PrimitiveType::String))
+    Type::Basic(TypeDef::Primitive(PrimitiveType::String))
 }
 
 pub fn int() -> Type {
-    Type::Basic(TypeDefinition::Primitive(PrimitiveType::Int))
+    Type::Basic(TypeDef::Primitive(PrimitiveType::Int))
 }
 
 pub fn float() -> Type {
-    Type::Basic(TypeDefinition::Primitive(PrimitiveType::Float))
+    Type::Basic(TypeDef::Primitive(PrimitiveType::Float))
 }
 
 pub fn unit() -> Type {
-    Type::Basic(TypeDefinition::Primitive(PrimitiveType::Unit))
+    Type::Basic(TypeDef::Primitive(PrimitiveType::Unit))
 }
 
 pub fn build_function(params: &[Type], ret: &Type) -> Type {
