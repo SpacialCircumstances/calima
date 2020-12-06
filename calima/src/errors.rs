@@ -143,9 +143,12 @@ impl<'a> ErrorContext<'a> {
                     let file_id = self.files.add_or_get(path).expect("Error loading file");
                     match parser_err {
                         ParseError::User { error } => {
-                            //TODO: Location  info etc.
+                            let message = format!("{}", error.kind);
                             let e = Diagnostic::new(Severity::Error)
-                                .with_message(format!("Parser Error: {}", error));
+                                .with_labels(vec![
+                                    Label::primary(file_id, error.location.left.pos..error.location.right.pos).with_message(&message)
+                                ])
+                                .with_message(&message);
                             diagnostics.push(e);
                         },
                         ParseError::ExtraToken { token: (s, token, e) } => {
