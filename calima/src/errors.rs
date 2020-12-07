@@ -11,12 +11,14 @@ use std::fs::read_to_string;
 use std::iter::once;
 use lalrpop_util::ParseError;
 use codespan_reporting::term::emit;
+use crate::typechecker::TypeError;
 
 #[derive(Debug)]
 pub enum CompilerError<'a> {
     GeneralError(Option<Box<dyn Error>>, String),
     ParserError(lalrpop_util::ParseError<Location, Token<'a>, crate::lexer::Error>, ModuleIdentifier, PathBuf),
     ImportError { importing_mod: ModuleIdentifier, importing_mod_path: PathBuf, location: Span, imported: ModuleIdentifier, search_dirs: Vec<PathBuf> },
+    TypeError(TypeError<Span>, String, PathBuf)
 }
 
 struct CompilerFile {
@@ -37,6 +39,7 @@ impl CompilerFile {
     }
 }
 
+//TODO: Do not load files twice
 struct CompilerFiles {
     file_map: HashMap<u32, CompilerFile>,
     path_map: HashMap<PathBuf, u32>,
@@ -206,9 +209,18 @@ impl<'a> ErrorContext<'a> {
                     let e = Diagnostic::new(Severity::Error)
                         .with_message(format!("Error importing module {}", imported))
                         .with_labels(vec![
-                            Label::primary(file_id, location.left.pos..location.right.pos).with_message(format!("Module {} not found", imported))
+                            Label::primary(file_id, location.to_range()).with_message(format!("Module {} not found", imported))
                         ])
                         .with_notes(notes);
+                    diagnostics.push(e);
+                },
+                CompilerError::TypeError(te, modname, path) => {
+                    let file_id = self.files.add_or_get(path).expect("Error loading file");
+                    let e = Diagnostic::new(Severity::Error)
+                        .with_message(format!("Type error in module {}", modname))
+                        .with_labels(vec![
+                            Label::primary(file_id, te.location.to_range()).with_message(te.message.clone())
+                        ]);
                     diagnostics.push(e);
                 }
             }
