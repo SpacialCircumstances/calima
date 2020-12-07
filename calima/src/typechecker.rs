@@ -367,32 +367,34 @@ fn call_operator<'input>(ctx: &mut Context, exprs: &mut Vec<TExpression<'input>>
 }
 
 fn transform_operators<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut Context, elements: &Vec<OperatorElement<'input, Data>>) -> Result<TExpression<'input>, TypeError<Data>> {
-    let mut bin_ops: Vec<(&str, Type, u32, Associativity)> = Vec::new();
+    let mut bin_ops: Vec<(&str, Type, u32, Associativity, Data)> = Vec::new();
     let mut un_ops: Vec<(&str, Type)> = Vec::new();
     let mut exprs = Vec::new();
 
     for el in elements {
         match el {
-            OperatorElement::Operator(name, _) => {
+            OperatorElement::Operator(name, data) => {
+                let data = *data;
                 let (op_tp, op_spec) = env.lookup_operator(name).expect("Operator not found");
                 let op_tp = env.inst(ctx, op_tp);
                 match op_spec {
                     OperatorSpecification::Infix(op_prec, assoc) => {
                         match bin_ops.last() {
-                            None => bin_ops.push((*name, op_tp, *op_prec, *assoc)),
-                            Some((_, _, last_prec, last_assoc)) => {
+                            None => bin_ops.push((*name, op_tp, *op_prec, *assoc, data)),
+                            Some((_, _, last_prec, last_assoc, data)) => {
+                                let data = *data;
                                 if last_prec == op_prec {
                                     if assoc == &Associativity::None || last_assoc == &Associativity::None {
                                         panic!("Encountered repeated operator without associativity")
                                     } else if assoc == &Associativity::Left {
-                                        let (last_name, last_type, _, _) = bin_ops.pop().unwrap();
-                                        call_operator(ctx, &mut exprs, last_name, &last_type);
+                                        let (last_name, last_type, _, _, data) = bin_ops.pop().unwrap();
+                                        call_operator(ctx, &mut exprs, last_name, &last_type).map_err(|e| TypeError::unification(e, data))?;
                                     }
                                 } else if last_prec > op_prec {
-                                    let (last_name, last_type, _, _) = bin_ops.pop().unwrap();
-                                    call_operator(ctx, &mut exprs, last_name, &last_type);
+                                    let (last_name, last_type, _, _, data) = bin_ops.pop().unwrap();
+                                    call_operator(ctx, &mut exprs, last_name, &last_type).map_err(|e| TypeError::unification(e, data))?;
                                 }
-                                bin_ops.push((*name, op_tp, *op_prec, *assoc))
+                                bin_ops.push((*name, op_tp, *op_prec, *assoc, data))
                             }
                         }
                     }
@@ -416,8 +418,8 @@ fn transform_operators<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &
 
     //TODO: If unary ops remain, error
 
-    while let Some((op_name, op_type, _, _)) = bin_ops.pop() {
-        call_operator(ctx, &mut exprs, op_name, &op_type);
+    while let Some((op_name, op_type, _, _, data)) = bin_ops.pop() {
+        call_operator(ctx, &mut exprs, op_name, &op_type).map_err(|e| TypeError::unification(e, data))?;
     }
 
     Ok(exprs.pop().unwrap())
