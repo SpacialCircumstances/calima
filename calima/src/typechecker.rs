@@ -22,6 +22,13 @@ pub struct TypeError<Data> {
 }
 
 impl<Data> TypeError<Data> {
+    fn type_not_found(typename: &str, location: Data) -> Self {
+        TypeError {
+            location,
+            message: format!("Type {} not defined or imported", typename)
+        }
+    }
+
     fn var_not_found(varname: &str, location: Data) -> Self {
         TypeError {
             location,
@@ -163,11 +170,11 @@ impl Context {
     }
 }
 
-fn to_type<'input, Data>(ctx: &mut Context, env: &mut Environment<'input>, ta: &TypeAnnotation<'input, Data>) -> Result<Type, String> {
+fn to_type<'input, Data: Copy>(ctx: &mut Context, env: &mut Environment<'input>, ta: &TypeAnnotation<'input, Data>) -> Result<Type, TypeError<Data>> {
     match ta {
-        TypeAnnotation::Name(name, _) => match PrimitiveType::try_from(*name) {
+        TypeAnnotation::Name(name, loc) => match PrimitiveType::try_from(*name) {
             Ok(pt) => Ok(Type::Basic(TypeDef::Primitive(pt))),
-            Err(()) => Err(format!("{} is not a recognized type", name))
+            Err(()) => Err(TypeError::type_not_found(name, *loc))
         },
         TypeAnnotation::Function(ta1, ta2) => {
             to_type(ctx, env, &*ta1).and_then(|t1| to_type(ctx, env, &*ta2).map(|t2| (t1, t2))).map(|(t1, t2)| Type::Parameterized(ComplexType::Function, vec![ t1, t2 ]))
@@ -454,7 +461,6 @@ fn infer_statement<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut 
             Ok(Some(TStatement::Let(v, map_bind_pattern(pattern))))
         },
         Statement::LetOperator(mods, op, name, ta, expr, loc) => {
-            //TODO: Type annotations
             //TODO: Check for unary/binary
             let v = if mods.contains(&Modifier::Rec) {
                 let var = ctx.new_generic();
@@ -466,6 +472,10 @@ fn infer_statement<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut 
             } else {
                 infer_expr(env, ctx, expr)?
             };
+            if let Some(ta) = ta {
+                let tp = to_type(ctx, env, ta)?;
+                ctx.unify(v.typ(), &tp).map_err(|e| TypeError::unification(e, *loc))?;
+            }
             env.add_operator(name, env.generalize(v.typ()), op.clone());
             Ok(Some(TStatement::Let(v, BindPattern::Name(name, None, Unit::unit()))))
         }
