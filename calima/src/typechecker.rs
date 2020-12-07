@@ -180,7 +180,7 @@ fn to_type<'input, Data: Copy>(ctx: &mut Context, env: &mut Environment<'input>,
             to_type(ctx, env, &*ta1).and_then(|t1| to_type(ctx, env, &*ta2).map(|t2| (t1, t2))).map(|(t1, t2)| Type::Parameterized(ComplexType::Function, vec![ t1, t2 ]))
         },
         TypeAnnotation::Generic(gname) => Ok(Type::Var(env.get_or_create_generic(ctx, gname.0))),
-        TypeAnnotation::Tuple(params) => params.iter().map(|p| to_type(ctx, env, p)).collect::<Result<Vec<Type>, String>>().map(|ps| Type::Parameterized(ComplexType::Tuple(ps.len()), ps)),
+        TypeAnnotation::Tuple(params) => params.iter().map(|p| to_type(ctx, env, p)).collect::<Result<Vec<Type>, TypeError<Data>>>().map(|ps| Type::Parameterized(ComplexType::Tuple(ps.len()), ps)),
         _ => unimplemented!()
     }
 }
