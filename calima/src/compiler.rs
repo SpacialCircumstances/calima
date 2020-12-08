@@ -44,10 +44,11 @@ fn try_resolve_module(search_dirs: &[PathBuf], from: &Module<UntypedModuleData>,
         }).collect()
 }
 
-fn parse_module(desc: ModuleDescriptor, interner: &StringInterner) -> Result<Module<UntypedModuleData>, CompilerError> {
+fn parse_module<'a>(desc: ModuleDescriptor, interner: &'a StringInterner, err: &mut ErrorContext<'a>) -> Result<Module<UntypedModuleData<'a>>, CompilerError<'a>> {
     let code = read_to_string(&desc.path).map_err(|e| GeneralError(Some(Box::new(e)), format!("Error opening file {}", &desc.path.display())))?;
-    let ast = parser::parse(&code, interner).map_err(|pe| ParserError(pe, desc.identifier.clone(), desc.path.clone()))?;
+    let ast = parser::parse(&code, interner).map_err(|pe| ParserError(pe, desc.identifier.clone()))?;
     let deps = find_imported_modules(&ast);
+    err.add_file(&desc.identifier, &desc.path, code);
 
     Ok(Module {
         path: desc.path,
@@ -94,7 +95,7 @@ pub fn parse_all_modules<'input, S: AsRef<str>>(string_interner: &'input StringI
     let mut modules: HashMap<ModuleIdentifier, Module<UntypedModuleData>> = HashMap::new();
 
     while let Some(next) = module_queue.pop() {
-        match parse_module(next, string_interner) {
+        match parse_module(next, string_interner, error_context) {
             Err(e) => error_context.add_error(e),
             Ok(module) => {
                 for (dep, location) in &module.deps {
@@ -115,7 +116,6 @@ pub fn parse_all_modules<'input, S: AsRef<str>>(string_interner: &'input StringI
                                 Err(search_dirs) => {
                                     let err = ImportError {
                                         importing_mod: module.name.clone(),
-                                        importing_mod_path: module.path.clone(),
                                         imported: dep.clone(),
                                         search_dirs,
                                         location: *location

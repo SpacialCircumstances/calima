@@ -575,7 +575,7 @@ pub fn typecheck<'input>(string_interner: &StringInterner, errors: &mut ErrorCon
             Ok(typed_module) => {
                 ctx.modules.insert(name, typed_module);
             },
-            Err(e) => errors.add_error(CompilerError::TypeError(e,name.to_string(), path))
+            Err(e) => errors.add_error(CompilerError::TypeError(e, name.clone()))
         }
     }
 

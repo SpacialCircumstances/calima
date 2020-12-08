@@ -16,9 +16,9 @@ use crate::typechecker::TypeError;
 #[derive(Debug)]
 pub enum CompilerError<'a> {
     GeneralError(Option<Box<dyn Error>>, String),
-    ParserError(lalrpop_util::ParseError<Location, Token<'a>, crate::lexer::Error>, ModuleIdentifier, PathBuf),
-    ImportError { importing_mod: ModuleIdentifier, importing_mod_path: PathBuf, location: Span, imported: ModuleIdentifier, search_dirs: Vec<PathBuf> },
-    TypeError(TypeError<Span>, String, PathBuf)
+    ParserError(lalrpop_util::ParseError<Location, Token<'a>, crate::lexer::Error>, ModuleIdentifier),
+    ImportError { importing_mod: ModuleIdentifier, location: Span, imported: ModuleIdentifier, search_dirs: Vec<PathBuf> },
+    TypeError(TypeError<Span>, ModuleIdentifier)
 }
 
 struct CompilerFile {
@@ -39,14 +39,13 @@ impl CompilerFile {
     }
 }
 
-//TODO: Do not load files twice
 struct CompilerFiles {
     file_map: HashMap<u32, CompilerFile>,
-    path_map: HashMap<PathBuf, u32>,
+    path_map: HashMap<ModuleIdentifier, u32>,
     file_id: u32
 }
 
-impl<'a> CompilerFiles {
+impl CompilerFiles {
     fn new() -> Self {
         CompilerFiles {
             file_map: HashMap::new(),
@@ -55,25 +54,20 @@ impl<'a> CompilerFiles {
         }
     }
 
-    fn add_or_get(&mut self, path: &Path) -> Option<u32> {
-        match self.path_map.get(path) {
-            Some(id) => Some(*id),
-            None => {
-                let content = match read_to_string(&path) {
-                    Err(_) => return None,
-                    Ok(s) => s
-                };
-                let file = CompilerFile::new(path.to_path_buf(), content);
-                let id = self.file_id;
-                self.file_id += 1;
-                self.path_map.insert(path.to_path_buf(), id);
-                self.file_map.insert(id, file);
-                Some(id)
-            }
-        }
+    fn add_module(&mut self, module: &ModuleIdentifier, path: &PathBuf, code: String) -> u32 {
+        let id = self.file_id;
+        self.file_id += 1;
+        let cf = CompilerFile::new(path.clone(), code);
+        self.file_map.insert(id, cf);
+        self.path_map.insert(module.clone(), id);
+        id
     }
 
-    fn get(&'a self, id: u32) -> Option<&CompilerFile> {
+    fn get_module(&self, module: &ModuleIdentifier) -> Option<u32> {
+        self.path_map.get(module).copied()
+    }
+
+    fn get(&self, id: u32) -> Option<&CompilerFile> {
         self.file_map.get(&id)
     }
 }
@@ -121,6 +115,10 @@ impl<'a> ErrorContext<'a> {
         }
     }
 
+    pub fn add_file(&mut self, module: &ModuleIdentifier, path: &PathBuf, code: String) {
+        self.files.add_module(module, path, code);
+    }
+
     pub fn add_error(&mut self, err: CompilerError<'a>) {
         self.errors.push(err);
     }
@@ -142,8 +140,8 @@ impl<'a> ErrorContext<'a> {
         for err in &self.errors {
             match err {
                 CompilerError::GeneralError(source, descr) => general_errors.push((source, descr)),
-                CompilerError::ParserError(parser_err, _, path) => {
-                    let file_id = self.files.add_or_get(path).expect("Error loading file");
+                CompilerError::ParserError(parser_err, module) => {
+                    let file_id = self.files.get_module(module).expect("Error loading file");
                     match parser_err {
                         ParseError::User { error } => {
                             let message = format!("{}", error.kind);
@@ -194,8 +192,8 @@ impl<'a> ErrorContext<'a> {
                         }
                     }
                 },
-                CompilerError::ImportError { importing_mod, importing_mod_path, location, imported, search_dirs } => {
-                    let file_id = self.files.add_or_get(importing_mod_path).expect("Error loading file");
+                CompilerError::ImportError { importing_mod, location, imported, search_dirs, .. } => {
+                    let file_id = self.files.get_module(importing_mod).expect("Error loading file");
                     let mut notes = vec![
                         format!("Importing module {} into {} failed.", imported, importing_mod),
                         format!("Reason: Module not found in search paths:"),
@@ -214,8 +212,8 @@ impl<'a> ErrorContext<'a> {
                         .with_notes(notes);
                     diagnostics.push(e);
                 },
-                CompilerError::TypeError(te, modname, path) => {
-                    let file_id = self.files.add_or_get(path).expect("Error loading file");
+                CompilerError::TypeError(te, modname) => {
+                    let file_id = self.files.get_module(modname).expect("Error loading file");
                     let e = Diagnostic::new(Severity::Error)
                         .with_message(format!("Type error in module {}", modname))
                         .with_labels(vec![
