@@ -12,7 +12,7 @@ use crate::prelude::prelude;
 use std::convert::TryFrom;
 use crate::token::Span;
 
-pub struct TypedModuleData<'input>(Context, TBlock<'input>);
+pub struct TypedModuleData<'input>(Substitution<Type>, TBlock<'input>);
 
 //TODO: Additional information
 #[derive(Debug, Clone)]
@@ -90,16 +90,18 @@ impl<T: Clone> Index<usize> for Substitution<T> {
     }
 }
 
-pub struct Context {
+pub struct Context<'a, 'input> {
     generic_id: usize,
-    type_subst: Substitution<Type>
+    type_subst: Substitution<Type>,
+    error_context: &'a mut ErrorContext<'input>
 }
 
-impl Context {
-    pub fn new() -> Self {
+impl<'a, 'input> Context<'a, 'input> {
+    pub fn new(error_context: &'a mut ErrorContext<'input>) -> Self {
         Context {
             generic_id: 0,
             type_subst: Substitution::new(),
+            error_context
         }
     }
 
@@ -536,9 +538,9 @@ fn infer_top_level_block<'input, Data: Copy>(env: &mut Environment<'input>, ctx:
     })
 }
 
-fn typecheck_module<'input>(unchecked: Module<UntypedModuleData<'input>>, deps: Vec<&Module<TypedModuleData<'input>>>) -> Result<Module<TypedModuleData<'input>>, TypeError<Span>> {
+fn typecheck_module<'input>(unchecked: Module<UntypedModuleData<'input>>, deps: Vec<&Module<TypedModuleData<'input>>>, error_context: &mut ErrorContext<'input>) -> Result<Module<TypedModuleData<'input>>, TypeError<Span>> {
     //TODO: Import dependencies into context
-    let mut context = Context::new();
+    let mut context = Context::new(error_context);
     let mut env = Environment::new();
     let prelude = prelude();
     env.import_module(&mut context, &prelude);
@@ -547,7 +549,7 @@ fn typecheck_module<'input>(unchecked: Module<UntypedModuleData<'input>>, deps: 
         let rettype = substitute(&context.type_subst, tast.res.typ());
         println!("Return type of program: {}", rettype);
         Module {
-            data: TypedModuleData(context, tast),
+            data: TypedModuleData(context.type_subst, tast),
             name: unchecked.name,
             path: unchecked.path,
             depth: unchecked.depth,
@@ -560,7 +562,7 @@ pub struct TypedContext<'input> {
     pub modules: HashMap<ModuleIdentifier, Module<TypedModuleData<'input>>>,
 }
 
-pub fn typecheck<'input>(string_interner: &StringInterner, errors: &mut ErrorContext, mut module_ctx: ModuleTreeContext<'input>) -> Result<TypedContext<'input>, ()> {
+pub fn typecheck<'input>(string_interner: &StringInterner, errors: &mut ErrorContext<'input>, mut module_ctx: ModuleTreeContext<'input>) -> Result<TypedContext<'input>, ()> {
     let mut ctx = TypedContext {
         modules: HashMap::new()
     };
@@ -571,7 +573,7 @@ pub fn typecheck<'input>(string_interner: &StringInterner, errors: &mut ErrorCon
         let deps = module.deps.iter().map(|(d, _)| ctx.modules.get(d).expect("Fatal error: Dependent module not found")).collect();
         let name = module.name.clone();
         let path = module.path.clone();
-        match typecheck_module(module, deps) {
+        match typecheck_module(module, deps, errors) {
             Ok(typed_module) => {
                 ctx.modules.insert(name, typed_module);
             },
@@ -591,6 +593,7 @@ mod tests {
     use crate::ast_common::{Literal, NumberType};
     use crate::typed_ast::{TExpression, TExprData};
     use crate::types::{Type, int};
+    use crate::errors::ErrorContext;
 
     fn int_lit(lit: &str) -> OperatorElement<()> {
         Expression(Expr::Literal(Literal::Number(lit, NumberType::Integer), ()))
@@ -625,7 +628,8 @@ mod tests {
 
     #[test]
     fn op_transform_simple_binary() {
-        let mut ctx = Context::new();
+        let mut err_ctx = ErrorContext::new();
+        let mut ctx = Context::new(&mut err_ctx);
         let mut env = Environment::new();
         env.import_module(&mut ctx, &prelude());
         let ops = vec![
@@ -644,7 +648,8 @@ mod tests {
 
     #[test]
     fn op_transform_binary_precedence() {
-        let mut ctx = Context::new();
+        let mut err_ctx = ErrorContext::new();
+        let mut ctx = Context::new(&mut err_ctx);
         let mut env = Environment::new();
         env.import_module(&mut ctx, &prelude());
         let ops = vec![
@@ -668,7 +673,8 @@ mod tests {
 
     #[test]
     fn op_transform_unary_simple() {
-        let mut ctx = Context::new();
+        let mut err_ctx = ErrorContext::new();
+        let mut ctx = Context::new(&mut err_ctx);
         let mut env = Environment::new();
         env.import_module(&mut ctx, &prelude());
         let ops = vec![
@@ -685,7 +691,8 @@ mod tests {
 
     #[test]
     fn op_transform_unary_binary() {
-        let mut ctx = Context::new();
+        let mut err_ctx = ErrorContext::new();
+        let mut ctx = Context::new(&mut err_ctx);
         let mut env = Environment::new();
         env.import_module(&mut ctx, &prelude());
         let ops = vec![
@@ -708,8 +715,10 @@ mod tests {
 
     #[test]
     fn op_transform_complex() {
-        let mut ctx = Context::new();
-        let mut env = Environment::new();
+        let mut err_ctx = ErrorContext::new();
+        let mut ctx = Context::new(&mut err_ctx);
+        let mut err_ctx = ErrorContext::new();
+        let mut ctx = Context::new(&mut err_ctx);let mut env = Environment::new();
         env.import_module(&mut ctx, &prelude());
         let ops = vec![
             Operator("~", ()),
@@ -735,7 +744,8 @@ mod tests {
 
     #[test]
     fn op_transform_bin_assoc() {
-        let mut ctx = Context::new();
+        let mut err_ctx = ErrorContext::new();
+        let mut ctx = Context::new(&mut err_ctx);
         let mut env = Environment::new();
         env.import_module(&mut ctx, &prelude());
         let ops = vec![
