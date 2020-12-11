@@ -100,13 +100,13 @@ impl<T: Clone> Index<usize> for Substitution<T> {
     }
 }
 
-pub struct Context<Data> {
+pub struct Context<Data: Copy> {
     generic_id: usize,
     type_subst: Substitution<Type>,
     errors: Vec<TypeError<Data>>
 }
 
-impl<Data> Context<Data> {
+impl<Data: Copy> Context<Data> {
     pub fn new() -> Self {
         Context {
             generic_id: 0,
@@ -208,6 +208,14 @@ impl<Data> Context<Data> {
             }
         }
     }
+
+    fn to_type<'input>(&mut self, env: &mut Environment<'input>, ta: &TypeAnnotation<'input, Data>) -> Type {
+        //TODO
+        to_type(self, env, ta).unwrap_or_else(|e| {
+            self.add_error(e);
+            Type::Error
+        })
+    }
 }
 
 fn to_type<'input, Data: Copy>(ctx: &mut Context<Data>, env: &mut Environment<'input>, ta: &TypeAnnotation<'input, Data>) -> Result<Type, TypeError<Data>> {
@@ -249,7 +257,7 @@ impl<'a> Environment<'a> {
         self.named_generics.get(name).copied()
     }
 
-    fn get_or_create_generic<Data>(&mut self, ctx: &mut Context<Data>, name: &'a str) -> GenericId {
+    fn get_or_create_generic<Data: Copy>(&mut self, ctx: &mut Context<Data>, name: &'a str) -> GenericId {
         *self.named_generics.entry(name).or_insert_with(|| ctx.next_id())
     }
 
@@ -283,7 +291,7 @@ impl<'a> Environment<'a> {
         }
     }
 
-    fn inst<Data>(&self, ctx: &mut Context<Data>, sch: &Scheme) -> Type {
+    fn inst<Data: Copy>(&self, ctx: &mut Context<Data>, sch: &Scheme) -> Type {
         let mapping: HashMap<GenericId, Type> = sch.1.iter().map(|v| (*v, ctx.new_generic())).collect();
         Self::replace(&sch.2, &|id| mapping.get(&id).cloned())
     }
@@ -307,18 +315,18 @@ impl<'a> Environment<'a> {
         Scheme(HashSet::new(), scheme_vars, tp.clone())
     }
 
-    fn import_scheme<Data>(ctx: &mut Context<Data>, tp: &Scheme) -> Scheme {
+    fn import_scheme<Data: Copy>(ctx: &mut Context<Data>, tp: &Scheme) -> Scheme {
         let mapping: HashMap<GenericId, GenericId> = tp.1.iter().map(|v| (*v, ctx.next_id())).collect();
         let tp = Self::replace(&tp.2, &|gid| mapping.get(&gid).copied().map(Type::Var));
         let vars = mapping.values().copied().collect();
         Scheme(HashSet::new(), vars, tp)
     }
 
-    fn import_module<Data>(&mut self, ctx: &mut Context<Data>, exports: &Exports<'a>) {
+    fn import_module<Data: Copy>(&mut self, ctx: &mut Context<Data>, exports: &Exports<'a>) {
         exports.iter_vars().for_each(|(name, tp)| self.import(ctx, name, tp));
     }
 
-    fn import<'b: 'a, Data>(&mut self, ctx: &mut Context<Data>, name: &'b str, exv: &ExportValue) {
+    fn import<'b: 'a, Data: Copy>(&mut self, ctx: &mut Context<Data>, name: &'b str, exv: &ExportValue) {
         match exv {
             ExportValue::Value(tp) => {
                 self.add(name, Self::import_scheme(ctx, tp))
@@ -330,20 +338,20 @@ impl<'a> Environment<'a> {
     }
 }
 
-fn function_call<'input, Data>(ctx: &mut Context<Data>, tfunc: TExpression<'input>, args: Vec<TExpression<'input>>, loc: Data) -> Result<TExpression<'input>, UnificationError> {
+fn function_call<'input, Data: Copy>(ctx: &mut Context<Data>, tfunc: TExpression<'input>, args: Vec<TExpression<'input>>, loc: Data) -> TExpression<'input> {
     let argtypes: Vec<Type> = args.iter().map(TExpression::typ).cloned().collect();
     let ret = ctx.new_generic();
     let mut arg_fun_type = build_function(&argtypes, &ret);
     ctx.unify(&mut arg_fun_type, tfunc.typ(), UnificationSource::TypeInference, loc);
-    Ok(TExpression::new(TExprData::FunctionCall(tfunc.into(), args), ret))
+    TExpression::new(TExprData::FunctionCall(tfunc.into(), args), ret)
 }
 
-fn infer_expr<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut Context<Data>, expr: &Expr<'input, Data>) -> Result<TExpression<'input>, TypeError<Data>> {
+fn infer_expr<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut Context<Data>, expr: &Expr<'input, Data>) -> TExpression<'input> {
     match expr {
-        Expr::Literal(lit, _) => Ok(TExpression::new(TExprData::Literal(lit.clone()), get_literal_type(lit))),
+        Expr::Literal(lit, _) => TExpression::new(TExprData::Literal(lit.clone()), get_literal_type(lit)),
         Expr::Variable(varname, loc) => {
             let vartype = ctx.lookup_var(env, varname, *loc);
-            Ok(TExpression::new(TExprData::Variable(varname), vartype))
+            TExpression::new(TExprData::Variable(varname), vartype)
         },
         Expr::Lambda { params, body, data: _ } => {
             let mut body_env = env.clone();
@@ -357,60 +365,56 @@ fn infer_expr<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut Conte
                 param_types.push(tp);
             }
 
-            let body = infer_block(&mut body_env, ctx, body)?;
+            let body = infer_block(&mut body_env, ctx, body);
             let scheme = build_function(&param_types, body.res.typ());
-            Ok(TExpression::new(TExprData::Lambda(params.iter().map(|p| map_bind_pattern(p)).collect(), body), scheme))
+            TExpression::new(TExprData::Lambda(params.iter().map(|p| map_bind_pattern(p)).collect(), body), scheme)
         },
         Expr::FunctionCall(func, args, loc) => {
-            let tfunc = infer_expr(env, ctx, func)?;
-            let targs = args.iter().map(|e| infer_expr(env, ctx, e)).collect::<Result<Vec<TExpression<'input>>, TypeError<Data>>>()?;
-            function_call(ctx, tfunc, targs, *loc).map_err(|e| TypeError::unification(e, *loc))
+            let tfunc = infer_expr(env, ctx, func);
+            let targs = args.iter().map(|e| infer_expr(env, ctx, e)).collect();
+            function_call(ctx, tfunc, targs, *loc)
         },
         Expr::OperatorCall(elements, loc) => {
             transform_operators(env, ctx, elements)
         },
         Expr::If { data: loc, cond, if_true, if_false } => {
-            let tcond = infer_expr(env, ctx, &*cond)?;
+            let tcond = infer_expr(env, ctx, &*cond);
             ctx.unify_check(tcond.typ(), &Type::Basic(TypeDef::Primitive(PrimitiveType::Bool)), UnificationSource::If, *loc);
             let mut true_env = env.clone();
             let mut false_env = env.clone();
-            let ttrue = infer_block(&mut true_env, ctx, if_true)?;
-            let tfalse = infer_block(&mut false_env, ctx, if_false)?;
+            let ttrue = infer_block(&mut true_env, ctx, if_true);
+            let tfalse = infer_block(&mut false_env, ctx, if_false);
             ctx.unify_check(ttrue.res.typ(), tfalse.res.typ(), UnificationSource::BlockReturn, *loc);
             let rett = ttrue.res.typ().clone();
             let case = vec![
                 (MatchPattern::Literal(Literal::Boolean(true), Unit::unit()), ttrue),
                 (MatchPattern::Literal(Literal::Boolean(false), Unit::unit()), tfalse)
             ];
-            Ok(TExpression::new(TExprData::Case(tcond.into(), case), rett))
+            TExpression::new(TExprData::Case(tcond.into(), case), rett)
         },
         Expr::OperatorAsFunction(name, loc) => {
-            let op_sch = match env.lookup(name) {
-                Some(scheme) => scheme,
-                None => return Err(TypeError::var_not_found(name, *loc))
-            };
-            let op_tp = env.inst(ctx, op_sch);
-            Ok(TExpression::new(TExprData::Variable(name), op_tp))
+            let vartype = ctx.lookup_var(env, name, *loc);
+            TExpression::new(TExprData::Variable(name), vartype)
         },
         Expr::Tuple(exprs, _) => {
-            let texprs = exprs.iter().map(|e| infer_expr(env, ctx, e)).collect::<Result<Vec<TExpression>, TypeError<Data>>>()?;
+            let texprs: Vec<TExpression> = exprs.iter().map(|e| infer_expr(env, ctx, e)).collect();
             let types = texprs.iter().map(|t| t.typ().clone()).collect();
             let tp = Type::Parameterized(ComplexType::Tuple(texprs.len()), types);
-            Ok(TExpression::new(TExprData::Tuple(texprs), tp))
+            TExpression::new(TExprData::Tuple(texprs), tp)
         }
         _ => unimplemented!()
     }
 }
 
-fn call_operator<'input, Data: Copy>(ctx: &mut Context<Data>, exprs: &mut Vec<TExpression<'input>>, last_name: &'input str, last_type: &Type, loc: Data) -> Result<(), UnificationError> {
+fn call_operator<'input, Data: Copy>(ctx: &mut Context<Data>, exprs: &mut Vec<TExpression<'input>>, last_name: &'input str, last_type: &Type, loc: Data) {
     let r = exprs.pop().unwrap();
     let l = exprs.pop().unwrap();
     let last_expr = TExpression::new(TExprData::Variable(last_name), last_type.clone());
-    let fc = function_call(ctx, last_expr, vec![l, r ], loc)?;
-    Ok(exprs.push(fc))
+    let fc = function_call(ctx, last_expr, vec![l, r ], loc);
+    exprs.push(fc)
 }
 
-fn transform_operators<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut Context<Data>, elements: &Vec<OperatorElement<'input, Data>>) -> Result<TExpression<'input>, TypeError<Data>> {
+fn transform_operators<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut Context<Data>, elements: &Vec<OperatorElement<'input, Data>>) -> TExpression<'input> {
     let mut bin_ops: Vec<(&str, Type, u32, Associativity, Data)> = Vec::new();
     let mut un_ops: Vec<(&str, Type)> = Vec::new();
     let mut exprs = Vec::new();
@@ -432,11 +436,11 @@ fn transform_operators<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &
                                         panic!("Encountered repeated operator without associativity")
                                     } else if assoc == &Associativity::Left {
                                         let (last_name, last_type, _, _, data) = bin_ops.pop().unwrap();
-                                        call_operator(ctx, &mut exprs, last_name, &last_type, data).map_err(|e| TypeError::unification(e, data))?;
+                                        call_operator(ctx, &mut exprs, last_name, &last_type, data);
                                     }
                                 } else if last_prec > op_prec {
                                     let (last_name, last_type, _, _, data) = bin_ops.pop().unwrap();
-                                    call_operator(ctx, &mut exprs, last_name, &last_type, data).map_err(|e| TypeError::unification(e, data))?;
+                                    call_operator(ctx, &mut exprs, last_name, &last_type, data)
                                 }
                                 bin_ops.push((*name, op_tp, *op_prec, *assoc, data))
                             }
@@ -448,11 +452,11 @@ fn transform_operators<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &
                 }
             },
             OperatorElement::Expression(oexpr) => {
-                let mut expr = infer_expr(env, ctx, oexpr)?;
+                let mut expr = infer_expr(env, ctx, oexpr);
 
                 while let Some((op_name, op_tp)) = un_ops.pop() {
                     let op_expr = TExpression::new(TExprData::Variable(op_name), op_tp.clone());
-                    expr = function_call(ctx, op_expr, vec![ expr ], *oexpr.get_location()).map_err(|e| TypeError::unification(e, *oexpr.get_location()))?;
+                    expr = function_call(ctx, op_expr, vec![ expr ], *oexpr.get_location());
                 }
 
                 exprs.push(expr);
@@ -466,7 +470,7 @@ fn transform_operators<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &
         call_operator(ctx, &mut exprs, op_name, &op_type, data);
     }
 
-    Ok(exprs.pop().unwrap())
+    exprs.pop().unwrap()
 }
 
 fn get_literal_type(lit: &Literal) -> Type {
@@ -479,23 +483,23 @@ fn get_literal_type(lit: &Literal) -> Type {
     }))
 }
 
-fn infer_statement<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut Context<Data>, statement: &Statement<'input, Data>) -> Result<Option<TStatement<'input>>, TypeError<Data>> {
+fn infer_statement<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut Context<Data>, statement: &Statement<'input, Data>) -> Option<TStatement<'input>> {
     match statement {
-        Statement::Region(name, _) => Ok(None),
-        Statement::Do(expr, _) => Ok(Some(TStatement::Do(infer_expr(env, ctx, expr)?))),
+        Statement::Region(name, _) => None,
+        Statement::Do(expr, _) => Some(TStatement::Do(infer_expr(env, ctx, expr))),
         Statement::Let(mods, pattern, value, loc) => {
             let v = if mods.contains(&Modifier::Rec) {
                 let mut var = ctx.new_generic();
                 let mut body_env = env.clone();
                 bind_to_pattern(&mut body_env, pattern, &Scheme::simple(var.clone()));
-                let v = infer_expr(&mut body_env, ctx, value)?;
+                let v = infer_expr(&mut body_env, ctx, value);
                 ctx.unify(&mut var, &v.typ(), UnificationSource::TypeInference, *loc);
                 v
             } else {
-                infer_expr(env, ctx, value)?
+                infer_expr(env, ctx, value)
             };
             bind_to_pattern(env, pattern, &env.generalize(&v.typ()));
-            Ok(Some(TStatement::Let(v, map_bind_pattern(pattern))))
+            Some(TStatement::Let(v, map_bind_pattern(pattern)))
         },
         Statement::LetOperator(mods, op, name, ta, expr, loc) => {
             //TODO: Check for unary/binary
@@ -503,18 +507,18 @@ fn infer_statement<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut 
                 let var = ctx.new_generic();
                 let mut body_env = env.clone();
                 body_env.add_operator(name, Scheme::simple(var.clone()), op.clone());
-                let v = infer_expr(&mut body_env, ctx, expr)?;
+                let v = infer_expr(&mut body_env, ctx, expr);
                 ctx.unify_check(&var, &v.typ(), UnificationSource::TypeInference, *loc);
                 v
             } else {
-                infer_expr(env, ctx, expr)?
+                infer_expr(env, ctx, expr)
             };
             if let Some(ta) = ta {
-                let tp = to_type(ctx, env, ta)?;
+                let tp = ctx.to_type(env, ta);
                 ctx.unify_check(v.typ(), &tp, UnificationSource::TypeAnnotation, *loc);
             }
             env.add_operator(name, env.generalize(v.typ()), op.clone());
-            Ok(Some(TStatement::Let(v, BindPattern::Name(name, None, Unit::unit()))))
+            Some(TStatement::Let(v, BindPattern::Name(name, None, Unit::unit())))
         }
     }
 }
@@ -547,15 +551,14 @@ fn bind_to_pattern<'input, Data>(env: &mut Environment<'input>, pattern: &BindPa
     }
 }
 
-fn infer_block<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut Context<Data>, block: &Block<'input, Data>) -> Result<TBlock<'input>, TypeError<Data>> {
+fn infer_block<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut Context<Data>, block: &Block<'input, Data>) -> TBlock<'input> {
     let mut block_env = env.clone();
-    let tstatements = block.statements.iter().map(|st| infer_statement(&mut block_env, ctx, st)).collect::<Result<Vec<Option<TStatement<'input>>>, TypeError<Data>>>()?;
-    let tstatements = tstatements.into_iter().filter_map(|x| x).collect();
-    let result = infer_expr(&mut block_env, ctx, &block.result)?;
-    Ok(TBlock {
+    let tstatements = block.statements.iter().filter_map(|s| infer_statement(env, ctx, s)).collect();
+    let result = infer_expr(&mut block_env, ctx, &block.result);
+    TBlock {
         statements: tstatements,
         res: Box::new(result)
-    })
+    }
 }
 
 fn process_top_level<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut Context<Data>, tls: &TopLevelStatement<'input, Data>) {
@@ -564,9 +567,8 @@ fn process_top_level<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mu
 
 fn infer_top_level_block<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut Context<Data>,tlb: &TopLevelBlock<'input, Data>) -> Result<TBlock<'input>, TypeError<Data>> {
     tlb.top_levels.iter().for_each(|st| process_top_level(env, ctx, st));
-    let statements = tlb.block.statements.iter().map(|st| infer_statement(env, ctx, st)).collect::<Result<Vec<Option<TStatement<'input>>>, TypeError<Data>>>()?;
-    let statements = statements.into_iter().filter_map(|x| x).collect();
-    let res = infer_expr(env, ctx, &*tlb.block.result)?;
+    let statements = tlb.block.statements.iter().filter_map(|st| infer_statement(env, ctx, st)).collect();
+    let res = infer_expr(env, ctx, &*tlb.block.result);
     Ok(TBlock {
         statements,
         res: res.into()

@@ -27,8 +27,7 @@ pub enum TExprData<'input> {
     Literal(Literal<'input>),
     Lambda(Vec<BindPattern<'input, Unit, Unit>>, TBlock<'input>),
     Case(Box<TExpression<'input>>, Vec<(MatchPattern<'input, Unit, Unit>, TBlock<'input>)>),
-    Ref(Region, Box<TExpression<'input>>),
-    Error
+    Ref(Region, Box<TExpression<'input>>)
 }
 
 #[derive(Debug, Clone)]
