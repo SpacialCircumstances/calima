@@ -103,15 +103,17 @@ impl<T: Clone> Index<usize> for Substitution<T> {
 pub struct Context<Data: Copy> {
     generic_id: usize,
     type_subst: Substitution<Type>,
-    errors: Vec<TypeError<Data>>
+    errors: Vec<TypeError<Data>>,
+    module: ModuleIdentifier
 }
 
 impl<Data: Copy> Context<Data> {
-    pub fn new() -> Self {
+    pub fn new(module: ModuleIdentifier) -> Self {
         Context {
             generic_id: 0,
             type_subst: Substitution::new(),
-            errors: Vec::new()
+            errors: Vec::new(),
+            module
         }
     }
 
@@ -229,6 +231,13 @@ impl<Data: Copy> Context<Data> {
             self.add_error(e);
             Type::Error
         })
+    }
+}
+
+impl Context<Span> {
+    fn publish_errors(&mut self, error_ctx: &mut ErrorContext) {
+        let name = self.module.clone();
+        self.errors.drain(..).for_each(|e| error_ctx.add_error(CompilerError::TypeError(e, name.clone())))
     }
 }
 
@@ -573,34 +582,34 @@ fn process_top_level<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mu
 
 }
 
-fn infer_top_level_block<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut Context<Data>,tlb: &TopLevelBlock<'input, Data>) -> Result<TBlock<'input>, TypeError<Data>> {
+fn infer_top_level_block<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut Context<Data>,tlb: &TopLevelBlock<'input, Data>) -> TBlock<'input> {
     tlb.top_levels.iter().for_each(|st| process_top_level(env, ctx, st));
     let statements = tlb.block.statements.iter().filter_map(|st| infer_statement(env, ctx, st)).collect();
     let res = infer_expr(env, ctx, &*tlb.block.result);
-    Ok(TBlock {
+    TBlock {
         statements,
         res: res.into()
-    })
+    }
 }
 
-fn typecheck_module<'input>(unchecked: Module<UntypedModuleData<'input>>, deps: Vec<&Module<TypedModuleData<'input>>>, error_context: &mut ErrorContext<'input>) -> Result<Module<TypedModuleData<'input>>, TypeError<Span>> {
+fn typecheck_module<'input>(unchecked: Module<UntypedModuleData<'input>>, deps: Vec<&Module<TypedModuleData<'input>>>, error_context: &mut ErrorContext<'input>) -> Module<TypedModuleData<'input>> {
     //TODO: Import dependencies into context
-    let mut context = Context::new();
+    let mut context = Context::new(unchecked.name.clone());
     let mut env = Environment::new();
     let prelude = prelude();
     env.import_module(&mut context, &prelude);
 
-    infer_top_level_block(&mut env, &mut context, &unchecked.data.0).map(|tast| {
-        let rettype = substitute(&context.type_subst, tast.res.typ());
-        println!("Return type of program: {}", rettype);
-        Module {
-            data: TypedModuleData(context.type_subst, tast),
-            name: unchecked.name,
-            path: unchecked.path,
-            depth: unchecked.depth,
-            deps: unchecked.deps
-        }
-    })
+    let tast = infer_top_level_block(&mut env, &mut context, &unchecked.data.0);
+    let rettype = substitute(&context.type_subst, tast.res.typ());
+    context.publish_errors(error_context);
+    println!("Return type of program: {}", rettype);
+    Module {
+        data: TypedModuleData(context.type_subst, tast),
+        name: unchecked.name,
+        path: unchecked.path,
+        depth: unchecked.depth,
+        deps: unchecked.deps
+    }
 }
 
 pub struct TypedContext<'input> {
@@ -617,13 +626,8 @@ pub fn typecheck<'input>(string_interner: &StringInterner, errors: &mut ErrorCon
     for module in ordered_modules {
         let deps = module.deps.iter().map(|(d, _)| ctx.modules.get(d).expect("Fatal error: Dependent module not found")).collect();
         let name = module.name.clone();
-        let path = module.path.clone();
-        match typecheck_module(module, deps, errors) {
-            Ok(typed_module) => {
-                ctx.modules.insert(name, typed_module);
-            },
-            Err(e) => errors.add_error(CompilerError::TypeError(e, name.clone()))
-        }
+        let typed_mod = typecheck_module(module, deps, errors);
+        ctx.modules.insert(name, typed_mod);
     }
 
     errors.handle_errors().map(|()| ctx)
@@ -639,6 +643,7 @@ mod tests {
     use crate::typed_ast::{TExpression, TExprData};
     use crate::types::{Type, int};
     use crate::errors::ErrorContext;
+    use crate::common::ModuleIdentifier;
 
     fn int_lit(lit: &str) -> OperatorElement<()> {
         Expression(Expr::Literal(Literal::Number(lit, NumberType::Integer), ()))
@@ -673,7 +678,7 @@ mod tests {
 
     #[test]
     fn op_transform_simple_binary() {
-        let mut ctx = Context::new();
+        let mut ctx = Context::new(ModuleIdentifier::from_name("Test"));
         let mut env = Environment::new();
         env.import_module(&mut ctx, &prelude());
         let ops = vec![
@@ -692,7 +697,7 @@ mod tests {
 
     #[test]
     fn op_transform_binary_precedence() {
-        let mut ctx = Context::new();
+        let mut ctx = Context::new(ModuleIdentifier::from_name("Test"));
         let mut env = Environment::new();
         env.import_module(&mut ctx, &prelude());
         let ops = vec![
@@ -716,7 +721,7 @@ mod tests {
 
     #[test]
     fn op_transform_unary_simple() {
-        let mut ctx = Context::new();
+        let mut ctx = Context::new(ModuleIdentifier::from_name("Test"));
         let mut env = Environment::new();
         env.import_module(&mut ctx, &prelude());
         let ops = vec![
@@ -733,7 +738,7 @@ mod tests {
 
     #[test]
     fn op_transform_unary_binary() {
-        let mut ctx = Context::new();
+        let mut ctx = Context::new(ModuleIdentifier::from_name("Test"));
         let mut env = Environment::new();
         env.import_module(&mut ctx, &prelude());
         let ops = vec![
@@ -756,7 +761,7 @@ mod tests {
 
     #[test]
     fn op_transform_complex() {
-        let mut ctx = Context::new();
+        let mut ctx = Context::new(ModuleIdentifier::from_name("Test"));
         let mut env = Environment::new();
         env.import_module(&mut ctx, &prelude());
         let ops = vec![
@@ -783,7 +788,7 @@ mod tests {
 
     #[test]
     fn op_transform_bin_assoc() {
-        let mut ctx = Context::new();
+        let mut ctx = Context::new(ModuleIdentifier::from_name("Test"));
         let mut env = Environment::new();
         env.import_module(&mut ctx, &prelude());
         let ops = vec![
