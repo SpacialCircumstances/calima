@@ -501,7 +501,6 @@ fn infer_statement<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut 
             Some(TStatement::Let(v, map_bind_pattern(pattern)))
         },
         Statement::LetOperator(mods, op, name, ta, expr, loc) => {
-            //TODO: Check for unary/binary
             let v = if mods.contains(&Modifier::Rec) {
                 let var = ctx.new_generic();
                 let mut body_env = env.clone();
