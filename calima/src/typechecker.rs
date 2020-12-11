@@ -59,6 +59,7 @@ impl<Data> TypeError<Data> {
 }
 
 //TODO: Add types to unification
+#[derive(Debug, Clone)]
 enum UnificationError {
     UnificationError,
     RecursiveType
@@ -653,24 +654,24 @@ mod tests {
         TExpression::new(TExprData::Literal(Literal::Number(lit, NumberType::Integer)), int())
     }
 
-    fn lookup(env: &Environment, ctx: &mut Context<Data>, name: &str) -> Type {
+    fn lookup<Data: Copy>(env: &Environment, ctx: &mut Context<Data>, name: &str) -> Type {
         let sch = env.lookup(name).unwrap();
         env.inst(ctx, sch)
     }
 
-    fn add_op<'a>(env: &Environment<'a>, ctx: &mut Context<Data>) -> TExpression<'a> {
+    fn add_op<'a, Data: Copy>(env: &Environment<'a>, ctx: &mut Context<Data>) -> TExpression<'a> {
         TExpression::new(TExprData::Variable("+"), lookup(env, ctx, "+"))
     }
 
-    fn mul_op<'a>(env: &Environment<'a>, ctx: &mut Context<Data>) -> TExpression<'a> {
+    fn mul_op<'a, Data: Copy>(env: &Environment<'a>, ctx: &mut Context<Data>) -> TExpression<'a> {
         TExpression::new(TExprData::Variable("*"), lookup(env, ctx, "*"))
     }
 
-    fn neg_op<'a>(env: &Environment<'a>, ctx: &mut Context<Data>) -> TExpression<'a> {
+    fn neg_op<'a, Data: Copy>(env: &Environment<'a>, ctx: &mut Context<Data>) -> TExpression<'a> {
         TExpression::new(TExprData::Variable("~"), lookup(env, ctx, "~"))
     }
 
-    fn neg_expr<'a>(env: &Environment<'a>, ctx: &mut Context<Data>, expr: TExpression<'a>) -> TExpression<'a> {
+    fn neg_expr<'a, Data: Copy>(env: &Environment<'a>, ctx: &mut Context<Data>, expr: TExpression<'a>) -> TExpression<'a> {
         TExpression::new(TExprData::FunctionCall(neg_op(env, ctx).into(), vec![
             expr
         ]), int())
@@ -678,7 +679,7 @@ mod tests {
 
     #[test]
     fn op_transform_simple_binary() {
-        let mut ctx = Context::new(ModuleIdentifier::from_name("Test"));
+        let mut ctx = Context::new(ModuleIdentifier::from_filename(String::from("Test")));
         let mut env = Environment::new();
         env.import_module(&mut ctx, &prelude());
         let ops = vec![
@@ -691,13 +692,13 @@ mod tests {
             int_lit_typed("2")
         ]), int());
         let res = transform_operators(&mut env, &mut ctx, &ops);
-        ctx.unify_assert(exprs.typ(), res.typ());
+        ctx.unify_rec(exprs.typ(), res.typ()).unwrap();
         assert_eq!(exprs.data(), res.data())
     }
 
     #[test]
     fn op_transform_binary_precedence() {
-        let mut ctx = Context::new(ModuleIdentifier::from_name("Test"));
+        let mut ctx = Context::new(ModuleIdentifier::from_filename(String::from("Test")));
         let mut env = Environment::new();
         env.import_module(&mut ctx, &prelude());
         let ops = vec![
@@ -721,7 +722,7 @@ mod tests {
 
     #[test]
     fn op_transform_unary_simple() {
-        let mut ctx = Context::new(ModuleIdentifier::from_name("Test"));
+        let mut ctx = Context::new(ModuleIdentifier::from_filename(String::from("Test")));
         let mut env = Environment::new();
         env.import_module(&mut ctx, &prelude());
         let ops = vec![
@@ -738,7 +739,7 @@ mod tests {
 
     #[test]
     fn op_transform_unary_binary() {
-        let mut ctx = Context::new(ModuleIdentifier::from_name("Test"));
+        let mut ctx = Context::new(ModuleIdentifier::from_filename(String::from("Test")));
         let mut env = Environment::new();
         env.import_module(&mut ctx, &prelude());
         let ops = vec![
@@ -761,7 +762,7 @@ mod tests {
 
     #[test]
     fn op_transform_complex() {
-        let mut ctx = Context::new(ModuleIdentifier::from_name("Test"));
+        let mut ctx = Context::new(ModuleIdentifier::from_filename(String::from("Test")));
         let mut env = Environment::new();
         env.import_module(&mut ctx, &prelude());
         let ops = vec![
@@ -788,7 +789,7 @@ mod tests {
 
     #[test]
     fn op_transform_bin_assoc() {
-        let mut ctx = Context::new(ModuleIdentifier::from_name("Test"));
+        let mut ctx = Context::new(ModuleIdentifier::from_filename(String::from("Test")));
         let mut env = Environment::new();
         env.import_module(&mut ctx, &prelude());
         let ops = vec![
