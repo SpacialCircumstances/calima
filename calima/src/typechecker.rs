@@ -49,7 +49,8 @@ impl<Data> TypeError<Data> {
     fn unification(ue: UnificationError, location: Data) -> Self {
         let message = match ue {
             UnificationError::RecursiveType => String::from("Recursive type detected"),
-            UnificationError::UnificationError => String::from("Incompatible types")
+            UnificationError::UnificationError => String::from("Incompatible types"),
+            UnificationError::Propagation => String::from("Propagated type error")
         };
         TypeError {
             location,
@@ -62,7 +63,8 @@ impl<Data> TypeError<Data> {
 #[derive(Debug, Clone)]
 enum UnificationError {
     UnificationError,
-    RecursiveType
+    RecursiveType,
+    Propagation
 }
 
 pub struct Substitution<T: Clone> {
@@ -89,6 +91,7 @@ fn substitute(subst: &Substitution<Type>, typ: &Type) -> Type {
         Type::Basic(_) => typ.clone(),
         Type::Var(v) => subst[(*v).0].as_ref().map(|t| t.clone()).unwrap_or_else(|| typ.clone()),
         Type::Parameterized(t, params) => Type::Parameterized(t.clone(), params.into_iter().map(|t| substitute(subst, t)).collect()),
+        Type::Error => Type::Error,
         _ => unimplemented!()
     }
 }
@@ -156,32 +159,31 @@ impl<Data: Copy> Context<Data> {
             }
             Type::Basic(_) => Ok(()),
             Type::Reference(_, t) => self.check_occurs(gid, &*t),
-            Type::Error => panic!("Cannot occurs_check on erroneous type") //TODO
+            Type::Error => panic!("Cannot occurs_check on erroneous type")
         }
     }
 
     fn unify_rec(&mut self, t1: &Type, t2: &Type) -> Result<(), UnificationError> {
-        if t1 != t2 {
-            match (t1, t2) {
-                (Type::Basic(td1), Type::Basic(td2)) if td1 != td2 => {
+        match (t1, t2) {
+            (Type::Error, _) => Err(UnificationError::Propagation),
+            (_, Type::Error) => Err(UnificationError::Propagation),
+            (_, _) if t1 == t2 => Ok(()),
+            (Type::Basic(td1), Type::Basic(td2)) if td1 != td2 => {
+                Err(UnificationError::UnificationError)
+            },
+            (Type::Var(gid), _) => {
+                self.check_occurs(*gid, t2).map_err(|()| UnificationError::RecursiveType)?;
+                self.bind(*gid, t2)
+            },
+            (_, Type::Var(gid)) => self.bind(*gid, t1),
+            (Type::Parameterized(p1, params1), Type::Parameterized(p2, params2)) => {
+                if p1 != p2 || params1.len() != params2.len() {
                     Err(UnificationError::UnificationError)
-                },
-                (Type::Var(gid), _) => {
-                    self.check_occurs(*gid, t2).map_err(|()| UnificationError::RecursiveType)?;
-                    self.bind(*gid, t2)
-                },
-                (_, Type::Var(gid)) => self.bind(*gid, t1),
-                (Type::Parameterized(p1, params1), Type::Parameterized(p2, params2)) => {
-                    if p1 != p2 || params1.len() != params2.len() {
-                        Err(UnificationError::UnificationError)
-                    } else {
-                        params1.iter().zip(params2.iter()).map(|(p1, p2)| self.unify_rec(p1, p2)).collect()
-                    }
-                },
-                _ => unimplemented!() //TODO: Handle err types
-            }
-        } else {
-            Ok(())
+                } else {
+                    params1.iter().zip(params2.iter()).map(|(p1, p2)| self.unify_rec(p1, p2)).collect()
+                }
+            },
+            _ => unimplemented!()
         }
     }
 
