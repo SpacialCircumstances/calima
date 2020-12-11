@@ -11,8 +11,18 @@ use crate::types::*;
 use crate::prelude::prelude;
 use std::convert::TryFrom;
 use crate::token::Span;
+use crate::typechecker::UnificationSource::TypeInference;
 
 pub struct TypedModuleData<'input>(Substitution<Type>, TBlock<'input>);
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum UnificationSource {
+    TypeAnnotation,
+    TypeInference,
+    OperatorConstraint,
+    If,
+    BlockReturn
+}
 
 //TODO: Additional information
 #[derive(Debug, Clone)]
@@ -119,7 +129,7 @@ impl<Data> Context<Data> {
     fn bind(&mut self, gid: GenericId, t2: &Type) -> Result<(), UnificationError> {
         let existing = self.type_subst[gid.0].clone();
         match existing {
-            Some(t) => self.unify(&t, t2),
+            Some(t) => self.unify_rec(&t, t2),
             None => Ok(self.type_subst.add(gid.0, t2.clone()))
         }
     }
@@ -147,7 +157,7 @@ impl<Data> Context<Data> {
         }
     }
 
-    fn unify(&mut self, t1: &Type, t2: &Type) -> Result<(), UnificationError> {
+    fn unify_rec(&mut self, t1: &Type, t2: &Type) -> Result<(), UnificationError> {
         if t1 != t2 {
             match (t1, t2) {
                 (Type::Basic(td1), Type::Basic(td2)) if td1 != td2 => {
@@ -162,14 +172,22 @@ impl<Data> Context<Data> {
                     if p1 != p2 || params1.len() != params2.len() {
                         Err(UnificationError::UnificationError)
                     } else {
-                        params1.iter().zip(params2.iter()).map(|(p1, p2)| self.unify(p1, p2)).collect()
+                        params1.iter().zip(params2.iter()).map(|(p1, p2)| self.unify_rec(p1, p2)).collect()
                     }
                 },
-                _ => unimplemented!()
+                _ => unimplemented!() //TODO: Handle err types
             }
         } else {
             Ok(())
         }
+    }
+
+    fn unify(&mut self, target: &mut Type, with: &Type, source: UnificationSource, loc: Data) {
+        self.unify_rec(&target, with); //TODO: Error handling and other niceties
+    }
+
+    fn unify_check(&mut self, target: &Type, with: &Type, source: UnificationSource, loc: Data) {
+        self.unify_rec(target, with);//TODO: Error handling and other niceties
     }
 
     fn add_error(&mut self, te: TypeError<Data>) {
@@ -307,12 +325,11 @@ impl<'a> Environment<'a> {
     }
 }
 
-fn function_call<'input, Data>(ctx: &mut Context<Data>, tfunc: TExpression<'input>, args: Vec<TExpression<'input>>) -> Result<TExpression<'input>, UnificationError> {
+fn function_call<'input, Data>(ctx: &mut Context<Data>, tfunc: TExpression<'input>, args: Vec<TExpression<'input>>, loc: Data) -> Result<TExpression<'input>, UnificationError> {
     let argtypes: Vec<Type> = args.iter().map(TExpression::typ).cloned().collect();
     let ret = ctx.new_generic();
-    let arg_fun_type = build_function(&argtypes, &ret);
-    println!("{}, {}", tfunc.typ(), &arg_fun_type);
-    ctx.unify(tfunc.typ(), &arg_fun_type)?;
+    let mut arg_fun_type = build_function(&argtypes, &ret);
+    ctx.unify(&mut arg_fun_type, tfunc.typ(), UnificationSource::TypeInference, loc);
     Ok(TExpression::new(TExprData::FunctionCall(tfunc.into(), args), ret))
 }
 
@@ -342,19 +359,19 @@ fn infer_expr<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut Conte
         Expr::FunctionCall(func, args, loc) => {
             let tfunc = infer_expr(env, ctx, func)?;
             let targs = args.iter().map(|e| infer_expr(env, ctx, e)).collect::<Result<Vec<TExpression<'input>>, TypeError<Data>>>()?;
-            function_call(ctx, tfunc, targs).map_err(|e| TypeError::unification(e, *loc))
+            function_call(ctx, tfunc, targs, *loc).map_err(|e| TypeError::unification(e, *loc))
         },
         Expr::OperatorCall(elements, loc) => {
             transform_operators(env, ctx, elements)
         },
         Expr::If { data: loc, cond, if_true, if_false } => {
             let tcond = infer_expr(env, ctx, &*cond)?;
-            ctx.unify(tcond.typ(), &Type::Basic(TypeDef::Primitive(PrimitiveType::Bool))).map_err(|e| TypeError::unification(e, *loc))?;
+            ctx.unify_check(tcond.typ(), &Type::Basic(TypeDef::Primitive(PrimitiveType::Bool)), UnificationSource::If, *loc);
             let mut true_env = env.clone();
             let mut false_env = env.clone();
             let ttrue = infer_block(&mut true_env, ctx, if_true)?;
             let tfalse = infer_block(&mut false_env, ctx, if_false)?;
-            ctx.unify(ttrue.res.typ(), tfalse.res.typ()).map_err(|e| TypeError::unification(e, *loc))?;
+            ctx.unify_check(ttrue.res.typ(), tfalse.res.typ(), UnificationSource::BlockReturn, *loc);
             let rett = ttrue.res.typ().clone();
             let case = vec![
                 (MatchPattern::Literal(Literal::Boolean(true), Unit::unit()), ttrue),
@@ -380,11 +397,11 @@ fn infer_expr<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut Conte
     }
 }
 
-fn call_operator<'input, Data>(ctx: &mut Context<Data>, exprs: &mut Vec<TExpression<'input>>, last_name: &'input str, last_type: &Type) -> Result<(), UnificationError> {
+fn call_operator<'input, Data: Copy>(ctx: &mut Context<Data>, exprs: &mut Vec<TExpression<'input>>, last_name: &'input str, last_type: &Type, loc: Data) -> Result<(), UnificationError> {
     let r = exprs.pop().unwrap();
     let l = exprs.pop().unwrap();
     let last_expr = TExpression::new(TExprData::Variable(last_name), last_type.clone());
-    let fc = function_call(ctx, last_expr, vec![l, r ])?;
+    let fc = function_call(ctx, last_expr, vec![l, r ], loc)?;
     Ok(exprs.push(fc))
 }
 
@@ -410,11 +427,11 @@ fn transform_operators<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &
                                         panic!("Encountered repeated operator without associativity")
                                     } else if assoc == &Associativity::Left {
                                         let (last_name, last_type, _, _, data) = bin_ops.pop().unwrap();
-                                        call_operator(ctx, &mut exprs, last_name, &last_type).map_err(|e| TypeError::unification(e, data))?;
+                                        call_operator(ctx, &mut exprs, last_name, &last_type, data).map_err(|e| TypeError::unification(e, data))?;
                                     }
                                 } else if last_prec > op_prec {
                                     let (last_name, last_type, _, _, data) = bin_ops.pop().unwrap();
-                                    call_operator(ctx, &mut exprs, last_name, &last_type).map_err(|e| TypeError::unification(e, data))?;
+                                    call_operator(ctx, &mut exprs, last_name, &last_type, data).map_err(|e| TypeError::unification(e, data))?;
                                 }
                                 bin_ops.push((*name, op_tp, *op_prec, *assoc, data))
                             }
@@ -430,7 +447,7 @@ fn transform_operators<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &
 
                 while let Some((op_name, op_tp)) = un_ops.pop() {
                     let op_expr = TExpression::new(TExprData::Variable(op_name), op_tp.clone());
-                    expr = function_call(ctx, op_expr, vec![ expr ]).map_err(|e| TypeError::unification(e, *oexpr.get_location()))?;
+                    expr = function_call(ctx, op_expr, vec![ expr ], *oexpr.get_location()).map_err(|e| TypeError::unification(e, *oexpr.get_location()))?;
                 }
 
                 exprs.push(expr);
@@ -441,7 +458,7 @@ fn transform_operators<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &
     //TODO: If unary ops remain, error
 
     while let Some((op_name, op_type, _, _, data)) = bin_ops.pop() {
-        call_operator(ctx, &mut exprs, op_name, &op_type).map_err(|e| TypeError::unification(e, data))?;
+        call_operator(ctx, &mut exprs, op_name, &op_type, data);
     }
 
     Ok(exprs.pop().unwrap())
@@ -463,11 +480,11 @@ fn infer_statement<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut 
         Statement::Do(expr, _) => Ok(Some(TStatement::Do(infer_expr(env, ctx, expr)?))),
         Statement::Let(mods, pattern, value, loc) => {
             let v = if mods.contains(&Modifier::Rec) {
-                let var = ctx.new_generic();
+                let mut var = ctx.new_generic();
                 let mut body_env = env.clone();
                 bind_to_pattern(&mut body_env, pattern, &Scheme::simple(var.clone()));
                 let v = infer_expr(&mut body_env, ctx, value)?;
-                ctx.unify(&var, &v.typ()).map_err(|e| TypeError::unification(e, *loc))?;
+                ctx.unify(&mut var, &v.typ(), UnificationSource::TypeInference, *loc);
                 v
             } else {
                 infer_expr(env, ctx, value)?
@@ -482,14 +499,14 @@ fn infer_statement<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut 
                 let mut body_env = env.clone();
                 body_env.add_operator(name, Scheme::simple(var.clone()), op.clone());
                 let v = infer_expr(&mut body_env, ctx, expr)?;
-                ctx.unify(&var, &v.typ()).map_err(|e| TypeError::unification(e, *loc))?;
+                ctx.unify_check(&var, &v.typ(), UnificationSource::TypeInference, *loc);
                 v
             } else {
                 infer_expr(env, ctx, expr)?
             };
             if let Some(ta) = ta {
                 let tp = to_type(ctx, env, ta)?;
-                ctx.unify(v.typ(), &tp).map_err(|e| TypeError::unification(e, *loc))?;
+                ctx.unify_check(v.typ(), &tp, UnificationSource::TypeAnnotation, *loc);
             }
             env.add_operator(name, env.generalize(v.typ()), op.clone());
             Ok(Some(TStatement::Let(v, BindPattern::Name(name, None, Unit::unit()))))
@@ -654,7 +671,7 @@ mod tests {
             int_lit_typed("2")
         ]), int());
         let res = transform_operators(&mut env, &mut ctx, &ops);
-        ctx.unify(exprs.typ(), res.typ());
+        ctx.unify_assert(exprs.typ(), res.typ());
         assert_eq!(exprs.data(), res.data())
     }
 
@@ -678,7 +695,7 @@ mod tests {
             ]), int())
         ]), int());
         let res = transform_operators(&mut env, &mut ctx, &ops);
-        ctx.unify(exprs.typ(), res.typ());
+        ctx.unify_rec(exprs.typ(), res.typ()).unwrap();
         assert_eq!(exprs.data(), res.data())
     }
 
@@ -695,7 +712,7 @@ mod tests {
         let e1 = neg_expr(&env, &mut ctx, int_lit_typed("1"));
         let exprs = neg_expr(&env, &mut ctx, e1);
         let res = transform_operators(&mut env, &mut ctx, &ops);
-        ctx.unify(exprs.typ(), res.typ());
+        ctx.unify_rec(exprs.typ(), res.typ()).unwrap();
         assert_eq!(exprs.data(), res.data())
     }
 
@@ -718,7 +735,7 @@ mod tests {
             neg_expr(&env, &mut ctx, e2)
         ]), int());
         let res = transform_operators(&mut env, &mut ctx, &ops);
-        ctx.unify(exprs.typ(), res.typ());
+        ctx.unify_rec(exprs.typ(), res.typ()).unwrap();
         assert_eq!(exprs.data(), res.data())
     }
 
@@ -745,7 +762,7 @@ mod tests {
             neg_expr(&env, &mut ctx, int_lit_typed("3"))
         ]), int());
         let res = transform_operators(&mut env, &mut ctx, &ops);
-        ctx.unify(exprs.typ(), res.typ());
+        ctx.unify_rec(exprs.typ(), res.typ()).unwrap();
         assert_eq!(exprs.data(), res.data())
     }
 
@@ -769,7 +786,7 @@ mod tests {
             int_lit_typed("6")
         ]), int());
         let res = transform_operators(&mut env, &mut ctx, &ops);
-        ctx.unify(exprs.typ(), res.typ());
+        ctx.unify_rec(exprs.typ(), res.typ()).unwrap();
         assert_eq!(exprs.data(), res.data())
     }
 }
