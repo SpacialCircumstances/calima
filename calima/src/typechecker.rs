@@ -90,18 +90,18 @@ impl<T: Clone> Index<usize> for Substitution<T> {
     }
 }
 
-pub struct Context<'a, 'input> {
+pub struct Context<Data> {
     generic_id: usize,
     type_subst: Substitution<Type>,
-    error_context: &'a mut ErrorContext<'input>
+    errors: Vec<TypeError<Data>>
 }
 
-impl<'a, 'input> Context<'a, 'input> {
-    pub fn new(error_context: &'a mut ErrorContext<'input>) -> Self {
+impl<Data> Context<Data> {
+    pub fn new() -> Self {
         Context {
             generic_id: 0,
             type_subst: Substitution::new(),
-            error_context
+            errors: Vec::new()
         }
     }
 
@@ -171,9 +171,23 @@ impl<'a, 'input> Context<'a, 'input> {
             Ok(())
         }
     }
+
+    fn add_error(&mut self, te: TypeError<Data>) {
+        self.errors.push(te);
+    }
+
+    fn lookup_var(&mut self, env: &Environment, name: &str, loc: Data) -> Type {
+        match env.lookup(name) {
+            Some(sch) => env.inst(self, sch),
+            None => {
+                self.add_error(TypeError::var_not_found(name, loc));
+                Type::Error
+            }
+        }
+    }
 }
 
-fn to_type<'input, Data: Copy>(ctx: &mut Context, env: &mut Environment<'input>, ta: &TypeAnnotation<'input, Data>) -> Result<Type, TypeError<Data>> {
+fn to_type<'input, Data: Copy>(ctx: &mut Context<Data>, env: &mut Environment<'input>, ta: &TypeAnnotation<'input, Data>) -> Result<Type, TypeError<Data>> {
     match ta {
         TypeAnnotation::Name(name, loc) => match PrimitiveType::try_from(*name) {
             Ok(pt) => Ok(Type::Basic(TypeDef::Primitive(pt))),
@@ -212,7 +226,7 @@ impl<'a> Environment<'a> {
         self.named_generics.get(name).copied()
     }
 
-    fn get_or_create_generic(&mut self, ctx: &mut Context, name: &'a str) -> GenericId {
+    fn get_or_create_generic<Data>(&mut self, ctx: &mut Context<Data>, name: &'a str) -> GenericId {
         *self.named_generics.entry(name).or_insert_with(|| ctx.next_id())
     }
 
@@ -246,7 +260,7 @@ impl<'a> Environment<'a> {
         }
     }
 
-    fn inst(&self, ctx: &mut Context, sch: &Scheme) -> Type {
+    fn inst<Data>(&self, ctx: &mut Context<Data>, sch: &Scheme) -> Type {
         let mapping: HashMap<GenericId, Type> = sch.1.iter().map(|v| (*v, ctx.new_generic())).collect();
         Self::replace(&sch.2, &|id| mapping.get(&id).cloned())
     }
@@ -270,18 +284,18 @@ impl<'a> Environment<'a> {
         Scheme(HashSet::new(), scheme_vars, tp.clone())
     }
 
-    fn import_scheme(ctx: &mut Context, tp: &Scheme) -> Scheme {
+    fn import_scheme<Data>(ctx: &mut Context<Data>, tp: &Scheme) -> Scheme {
         let mapping: HashMap<GenericId, GenericId> = tp.1.iter().map(|v| (*v, ctx.next_id())).collect();
         let tp = Self::replace(&tp.2, &|gid| mapping.get(&gid).copied().map(Type::Var));
         let vars = mapping.values().copied().collect();
         Scheme(HashSet::new(), vars, tp)
     }
 
-    fn import_module(&mut self, ctx: &mut Context, exports: &Exports<'a>) {
+    fn import_module<Data>(&mut self, ctx: &mut Context<Data>, exports: &Exports<'a>) {
         exports.iter_vars().for_each(|(name, tp)| self.import(ctx, name, tp));
     }
 
-    fn import<'b: 'a>(&mut self, ctx: &mut Context, name: &'b str, exv: &ExportValue) {
+    fn import<'b: 'a, Data>(&mut self, ctx: &mut Context<Data>, name: &'b str, exv: &ExportValue) {
         match exv {
             ExportValue::Value(tp) => {
                 self.add(name, Self::import_scheme(ctx, tp))
@@ -293,7 +307,7 @@ impl<'a> Environment<'a> {
     }
 }
 
-fn function_call<'input>(ctx: &mut Context, tfunc: TExpression<'input>, args: Vec<TExpression<'input>>) -> Result<TExpression<'input>, UnificationError> {
+fn function_call<'input, Data>(ctx: &mut Context<Data>, tfunc: TExpression<'input>, args: Vec<TExpression<'input>>) -> Result<TExpression<'input>, UnificationError> {
     let argtypes: Vec<Type> = args.iter().map(TExpression::typ).cloned().collect();
     let ret = ctx.new_generic();
     let arg_fun_type = build_function(&argtypes, &ret);
@@ -302,14 +316,12 @@ fn function_call<'input>(ctx: &mut Context, tfunc: TExpression<'input>, args: Ve
     Ok(TExpression::new(TExprData::FunctionCall(tfunc.into(), args), ret))
 }
 
-fn infer_expr<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut Context, expr: &Expr<'input, Data>) -> Result<TExpression<'input>, TypeError<Data>> {
+fn infer_expr<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut Context<Data>, expr: &Expr<'input, Data>) -> Result<TExpression<'input>, TypeError<Data>> {
     match expr {
         Expr::Literal(lit, _) => Ok(TExpression::new(TExprData::Literal(lit.clone()), get_literal_type(lit))),
         Expr::Variable(varname, loc) => {
-            match env.lookup(varname) {
-                Some(scheme) => Ok(TExpression::new(TExprData::Variable(varname), env.inst(ctx, scheme))),
-                None => Err(TypeError::var_not_found(varname, *loc))
-            }
+            let vartype = ctx.lookup_var(env, varname, *loc);
+            Ok(TExpression::new(TExprData::Variable(varname), vartype))
         },
         Expr::Lambda { params, body, data: _ } => {
             let mut body_env = env.clone();
@@ -368,7 +380,7 @@ fn infer_expr<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut Conte
     }
 }
 
-fn call_operator<'input>(ctx: &mut Context, exprs: &mut Vec<TExpression<'input>>, last_name: &'input str, last_type: &Type) -> Result<(), UnificationError> {
+fn call_operator<'input, Data>(ctx: &mut Context<Data>, exprs: &mut Vec<TExpression<'input>>, last_name: &'input str, last_type: &Type) -> Result<(), UnificationError> {
     let r = exprs.pop().unwrap();
     let l = exprs.pop().unwrap();
     let last_expr = TExpression::new(TExprData::Variable(last_name), last_type.clone());
@@ -376,7 +388,7 @@ fn call_operator<'input>(ctx: &mut Context, exprs: &mut Vec<TExpression<'input>>
     Ok(exprs.push(fc))
 }
 
-fn transform_operators<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut Context, elements: &Vec<OperatorElement<'input, Data>>) -> Result<TExpression<'input>, TypeError<Data>> {
+fn transform_operators<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut Context<Data>, elements: &Vec<OperatorElement<'input, Data>>) -> Result<TExpression<'input>, TypeError<Data>> {
     let mut bin_ops: Vec<(&str, Type, u32, Associativity, Data)> = Vec::new();
     let mut un_ops: Vec<(&str, Type)> = Vec::new();
     let mut exprs = Vec::new();
@@ -445,7 +457,7 @@ fn get_literal_type(lit: &Literal) -> Type {
     }))
 }
 
-fn infer_statement<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut Context, statement: &Statement<'input, Data>) -> Result<Option<TStatement<'input>>, TypeError<Data>> {
+fn infer_statement<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut Context<Data>, statement: &Statement<'input, Data>) -> Result<Option<TStatement<'input>>, TypeError<Data>> {
     match statement {
         Statement::Region(name, _) => Ok(None),
         Statement::Do(expr, _) => Ok(Some(TStatement::Do(infer_expr(env, ctx, expr)?))),
@@ -513,7 +525,7 @@ fn bind_to_pattern<'input, Data>(env: &mut Environment<'input>, pattern: &BindPa
     }
 }
 
-fn infer_block<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut Context, block: &Block<'input, Data>) -> Result<TBlock<'input>, TypeError<Data>> {
+fn infer_block<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut Context<Data>, block: &Block<'input, Data>) -> Result<TBlock<'input>, TypeError<Data>> {
     let mut block_env = env.clone();
     let tstatements = block.statements.iter().map(|st| infer_statement(&mut block_env, ctx, st)).collect::<Result<Vec<Option<TStatement<'input>>>, TypeError<Data>>>()?;
     let tstatements = tstatements.into_iter().filter_map(|x| x).collect();
@@ -524,11 +536,11 @@ fn infer_block<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut Cont
     })
 }
 
-fn process_top_level<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut Context, tls: &TopLevelStatement<'input, Data>) {
+fn process_top_level<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut Context<Data>, tls: &TopLevelStatement<'input, Data>) {
 
 }
 
-fn infer_top_level_block<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut Context,tlb: &TopLevelBlock<'input, Data>) -> Result<TBlock<'input>, TypeError<Data>> {
+fn infer_top_level_block<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut Context<Data>,tlb: &TopLevelBlock<'input, Data>) -> Result<TBlock<'input>, TypeError<Data>> {
     tlb.top_levels.iter().for_each(|st| process_top_level(env, ctx, st));
     let statements = tlb.block.statements.iter().map(|st| infer_statement(env, ctx, st)).collect::<Result<Vec<Option<TStatement<'input>>>, TypeError<Data>>>()?;
     let statements = statements.into_iter().filter_map(|x| x).collect();
@@ -541,7 +553,7 @@ fn infer_top_level_block<'input, Data: Copy>(env: &mut Environment<'input>, ctx:
 
 fn typecheck_module<'input>(unchecked: Module<UntypedModuleData<'input>>, deps: Vec<&Module<TypedModuleData<'input>>>, error_context: &mut ErrorContext<'input>) -> Result<Module<TypedModuleData<'input>>, TypeError<Span>> {
     //TODO: Import dependencies into context
-    let mut context = Context::new(error_context);
+    let mut context = Context::new();
     let mut env = Environment::new();
     let prelude = prelude();
     env.import_module(&mut context, &prelude);
@@ -604,24 +616,24 @@ mod tests {
         TExpression::new(TExprData::Literal(Literal::Number(lit, NumberType::Integer)), int())
     }
 
-    fn lookup(env: &Environment, ctx: &mut Context, name: &str) -> Type {
+    fn lookup(env: &Environment, ctx: &mut Context<Data>, name: &str) -> Type {
         let sch = env.lookup(name).unwrap();
         env.inst(ctx, sch)
     }
 
-    fn add_op<'a>(env: &Environment<'a>, ctx: &mut Context) -> TExpression<'a> {
+    fn add_op<'a>(env: &Environment<'a>, ctx: &mut Context<Data>) -> TExpression<'a> {
         TExpression::new(TExprData::Variable("+"), lookup(env, ctx, "+"))
     }
 
-    fn mul_op<'a>(env: &Environment<'a>, ctx: &mut Context) -> TExpression<'a> {
+    fn mul_op<'a>(env: &Environment<'a>, ctx: &mut Context<Data>) -> TExpression<'a> {
         TExpression::new(TExprData::Variable("*"), lookup(env, ctx, "*"))
     }
 
-    fn neg_op<'a>(env: &Environment<'a>, ctx: &mut Context) -> TExpression<'a> {
+    fn neg_op<'a>(env: &Environment<'a>, ctx: &mut Context<Data>) -> TExpression<'a> {
         TExpression::new(TExprData::Variable("~"), lookup(env, ctx, "~"))
     }
 
-    fn neg_expr<'a>(env: &Environment<'a>, ctx: &mut Context, expr: TExpression<'a>) -> TExpression<'a> {
+    fn neg_expr<'a>(env: &Environment<'a>, ctx: &mut Context<Data>, expr: TExpression<'a>) -> TExpression<'a> {
         TExpression::new(TExprData::FunctionCall(neg_op(env, ctx).into(), vec![
             expr
         ]), int())
@@ -629,8 +641,7 @@ mod tests {
 
     #[test]
     fn op_transform_simple_binary() {
-        let mut err_ctx = ErrorContext::new();
-        let mut ctx = Context::new(&mut err_ctx);
+        let mut ctx = Context::new();
         let mut env = Environment::new();
         env.import_module(&mut ctx, &prelude());
         let ops = vec![
@@ -649,8 +660,7 @@ mod tests {
 
     #[test]
     fn op_transform_binary_precedence() {
-        let mut err_ctx = ErrorContext::new();
-        let mut ctx = Context::new(&mut err_ctx);
+        let mut ctx = Context::new();
         let mut env = Environment::new();
         env.import_module(&mut ctx, &prelude());
         let ops = vec![
@@ -674,8 +684,7 @@ mod tests {
 
     #[test]
     fn op_transform_unary_simple() {
-        let mut err_ctx = ErrorContext::new();
-        let mut ctx = Context::new(&mut err_ctx);
+        let mut ctx = Context::new();
         let mut env = Environment::new();
         env.import_module(&mut ctx, &prelude());
         let ops = vec![
@@ -692,8 +701,7 @@ mod tests {
 
     #[test]
     fn op_transform_unary_binary() {
-        let mut err_ctx = ErrorContext::new();
-        let mut ctx = Context::new(&mut err_ctx);
+        let mut ctx = Context::new();
         let mut env = Environment::new();
         env.import_module(&mut ctx, &prelude());
         let ops = vec![
@@ -716,10 +724,8 @@ mod tests {
 
     #[test]
     fn op_transform_complex() {
-        let mut err_ctx = ErrorContext::new();
-        let mut ctx = Context::new(&mut err_ctx);
-        let mut err_ctx = ErrorContext::new();
-        let mut ctx = Context::new(&mut err_ctx);let mut env = Environment::new();
+        let mut ctx = Context::new();
+        let mut env = Environment::new();
         env.import_module(&mut ctx, &prelude());
         let ops = vec![
             Operator("~", ()),
@@ -745,8 +751,7 @@ mod tests {
 
     #[test]
     fn op_transform_bin_assoc() {
-        let mut err_ctx = ErrorContext::new();
-        let mut ctx = Context::new(&mut err_ctx);
+        let mut ctx = Context::new();
         let mut env = Environment::new();
         env.import_module(&mut ctx, &prelude());
         let ops = vec![
