@@ -182,12 +182,17 @@ impl<Data> Context<Data> {
         }
     }
 
-    fn unify(&mut self, target: &mut Type, with: &Type, source: UnificationSource, loc: Data) {
-        self.unify_rec(&target, with); //TODO: Error handling and other niceties
+    fn unify(&mut self, target: &mut Type, with: &Type, source: UnificationSource, loc: Data) -> Result<(), ()> {
+        self.unify_rec(target, with).map_err(|e| {
+            self.add_error(TypeError::unification(e, loc));
+            *target = Type::Error;
+        })
     }
 
-    fn unify_check(&mut self, target: &Type, with: &Type, source: UnificationSource, loc: Data) {
-        self.unify_rec(target, with);//TODO: Error handling and other niceties
+    fn unify_check(&mut self, target: &Type, with: &Type, source: UnificationSource, loc: Data) -> Result<(), ()> {
+        self.unify_rec(target, with).map_err(|e| {
+            self.add_error(TypeError::unification(e, loc))
+        })
     }
 
     fn add_error(&mut self, te: TypeError<Data>) {
