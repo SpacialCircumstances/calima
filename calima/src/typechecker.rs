@@ -185,17 +185,18 @@ impl<Data: Copy> Context<Data> {
         }
     }
 
-    fn unify(&mut self, target: &mut Type, with: &Type, source: UnificationSource, loc: Data) -> Result<(), ()> {
-        self.unify_rec(target, with).map_err(|e| {
+    fn unify(&mut self, target: &mut Type, with: &Type, source: UnificationSource, loc: Data) {
+        if let Err(e) = self.unify_rec(target, with) {
             self.add_error(TypeError::unification(e, loc));
             *target = Type::Error;
-        })
+        }
     }
 
-    fn unify_check(&mut self, target: &Type, with: &Type, source: UnificationSource, loc: Data) -> Result<(), ()> {
-        self.unify_rec(target, with).map_err(|e| {
-            self.add_error(TypeError::unification(e, loc))
-        })
+    fn unify_check(&mut self, target: &mut Type, unify_target: &Type, with: &Type, source: UnificationSource, loc: Data) {
+        if let Err(e) = self.unify_rec(unify_target, with) {
+            self.add_error(TypeError::unification(e, loc));
+            *target = Type::Error;
+        }
     }
 
     fn add_error(&mut self, te: TypeError<Data>) {
@@ -388,13 +389,13 @@ fn infer_expr<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut Conte
         },
         Expr::If { data: loc, cond, if_true, if_false } => {
             let tcond = infer_expr(env, ctx, &*cond);
-            ctx.unify_check(tcond.typ(), &Type::Basic(TypeDef::Primitive(PrimitiveType::Bool)), UnificationSource::If, *loc);
             let mut true_env = env.clone();
             let mut false_env = env.clone();
             let ttrue = infer_block(&mut true_env, ctx, if_true);
             let tfalse = infer_block(&mut false_env, ctx, if_false);
-            ctx.unify_check(ttrue.res.typ(), tfalse.res.typ(), UnificationSource::BlockReturn, *loc);
-            let rett = ttrue.res.typ().clone();
+            let mut rett = ttrue.res.typ().clone();
+            ctx.unify_check(&mut rett, tcond.typ(), &Type::Basic(TypeDef::Primitive(PrimitiveType::Bool)), UnificationSource::If, *loc);
+            ctx.unify(&mut rett, tfalse.res.typ(), UnificationSource::BlockReturn, *loc);
             let case = vec![
                 (MatchPattern::Literal(Literal::Boolean(true), Unit::unit()), ttrue),
                 (MatchPattern::Literal(Literal::Boolean(false), Unit::unit()), tfalse)
@@ -511,31 +512,33 @@ fn infer_statement<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut 
             Some(TStatement::Let(v, map_bind_pattern(pattern)))
         },
         Statement::LetOperator(mods, op, name, ta, expr, loc) => {
-            let v = if mods.contains(&Modifier::Rec) {
-                let var = ctx.new_generic();
+            let (mut op_type, v) = if mods.contains(&Modifier::Rec) {
+                let recursive_type = ctx.new_generic();
                 let mut body_env = env.clone();
-                body_env.add_operator(name, Scheme::simple(var.clone()), op.clone());
-                let v = infer_expr(&mut body_env, ctx, expr);
-                ctx.unify_check(&var, &v.typ(), UnificationSource::TypeInference, *loc);
-                v
+                body_env.add_operator(name, Scheme::simple(recursive_type.clone()), op.clone());
+                let value = infer_expr(&mut body_env, ctx, expr);
+                let mut typ = value.typ().clone();
+                ctx.unify(&mut typ, &value.typ(), UnificationSource::TypeInference, *loc);
+                (typ, value)
             } else {
-                infer_expr(env, ctx, expr)
+                let value = infer_expr(env, ctx, expr);
+                (value.typ().clone(), value)
             };
             if let Some(ta) = ta {
                 let tp = ctx.type_from_annotation(env, ta);
-                ctx.unify_check(v.typ(), &tp, UnificationSource::TypeAnnotation, *loc);
+                ctx.unify(&mut op_type, &tp, UnificationSource::TypeAnnotation, *loc);
             }
             match op {
                 OperatorSpecification::Infix(_, _) => {
-                    let op_type = build_function(&[ ctx.new_generic(), ctx.new_generic() ], &ctx.new_generic());
-                    ctx.unify_check(v.typ(), &op_type, UnificationSource::OperatorConstraint(*op), *loc);
+                    let expected_type = build_function(&[ ctx.new_generic(), ctx.new_generic() ], &ctx.new_generic());
+                    ctx.unify(&mut op_type, &expected_type, UnificationSource::OperatorConstraint(*op), *loc);
                 },
                 OperatorSpecification::Prefix => {
-                    let op_type = build_function(&[ ctx.new_generic() ], &ctx.new_generic());
-                    ctx.unify_check(v.typ(), &op_type, UnificationSource::OperatorConstraint(*op), *loc);
+                    let expected_type = build_function(&[ ctx.new_generic() ], &ctx.new_generic());
+                    ctx.unify(&mut op_type, &expected_type, UnificationSource::OperatorConstraint(*op), *loc);
                 }
             }
-            env.add_operator(name, env.generalize(v.typ()), op.clone());
+            env.add_operator(name, env.generalize(&op_type), op.clone());
             Some(TStatement::Let(v, BindPattern::Name(name, None, Unit::unit())))
         }
     }
