@@ -142,7 +142,8 @@ impl<'a, 'input> Context<'a, 'input> {
                 Ok(())
             }
             Type::Basic(_) => Ok(()),
-            Type::Reference(_, t) => self.check_occurs(gid, &*t)
+            Type::Reference(_, t) => self.check_occurs(gid, &*t),
+            Type::Error => panic!("Cannot occurs_check on erroneous type") //TODO
         }
     }
 
