@@ -209,27 +209,26 @@ impl<Data: Copy> Context<Data> {
         }
     }
 
-    fn to_type<'input>(&mut self, env: &mut Environment<'input>, ta: &TypeAnnotation<'input, Data>) -> Type {
-        //TODO
+    fn type_from_annotation<'input>(&mut self, env: &mut Environment<'input>, ta: &TypeAnnotation<'input, Data>) -> Type {
+        fn to_type<'input, Data: Copy>(ctx: &mut Context<Data>, env: &mut Environment<'input>, ta: &TypeAnnotation<'input, Data>) -> Result<Type, TypeError<Data>> {
+            match ta {
+                TypeAnnotation::Name(name, loc) => match PrimitiveType::try_from(*name) {
+                    Ok(pt) => Ok(Type::Basic(TypeDef::Primitive(pt))),
+                    Err(()) => Err(TypeError::type_not_found(name, *loc))
+                },
+                TypeAnnotation::Function(ta1, ta2) => {
+                    to_type(ctx, env, &*ta1).and_then(|t1| to_type(ctx, env, &*ta2).map(|t2| (t1, t2))).map(|(t1, t2)| Type::Parameterized(ComplexType::Function, vec![ t1, t2 ]))
+                },
+                TypeAnnotation::Generic(gname) => Ok(Type::Var(env.get_or_create_generic(ctx, gname.0))),
+                TypeAnnotation::Tuple(params) => params.iter().map(|p| to_type(ctx, env, p)).collect::<Result<Vec<Type>, TypeError<Data>>>().map(|ps| Type::Parameterized(ComplexType::Tuple(ps.len()), ps)),
+                _ => unimplemented!()
+            }
+        }
+
         to_type(self, env, ta).unwrap_or_else(|e| {
             self.add_error(e);
             Type::Error
         })
-    }
-}
-
-fn to_type<'input, Data: Copy>(ctx: &mut Context<Data>, env: &mut Environment<'input>, ta: &TypeAnnotation<'input, Data>) -> Result<Type, TypeError<Data>> {
-    match ta {
-        TypeAnnotation::Name(name, loc) => match PrimitiveType::try_from(*name) {
-            Ok(pt) => Ok(Type::Basic(TypeDef::Primitive(pt))),
-            Err(()) => Err(TypeError::type_not_found(name, *loc))
-        },
-        TypeAnnotation::Function(ta1, ta2) => {
-            to_type(ctx, env, &*ta1).and_then(|t1| to_type(ctx, env, &*ta2).map(|t2| (t1, t2))).map(|(t1, t2)| Type::Parameterized(ComplexType::Function, vec![ t1, t2 ]))
-        },
-        TypeAnnotation::Generic(gname) => Ok(Type::Var(env.get_or_create_generic(ctx, gname.0))),
-        TypeAnnotation::Tuple(params) => params.iter().map(|p| to_type(ctx, env, p)).collect::<Result<Vec<Type>, TypeError<Data>>>().map(|ps| Type::Parameterized(ComplexType::Tuple(ps.len()), ps)),
-        _ => unimplemented!()
     }
 }
 
@@ -514,7 +513,7 @@ fn infer_statement<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut 
                 infer_expr(env, ctx, expr)
             };
             if let Some(ta) = ta {
-                let tp = ctx.to_type(env, ta);
+                let tp = ctx.type_from_annotation(env, ta);
                 ctx.unify_check(v.typ(), &tp, UnificationSource::TypeAnnotation, *loc);
             }
             env.add_operator(name, env.generalize(v.typ()), op.clone());
