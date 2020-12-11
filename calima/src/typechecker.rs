@@ -19,7 +19,7 @@ pub struct TypedModuleData<'input>(Substitution<Type>, TBlock<'input>);
 pub enum UnificationSource {
     TypeAnnotation,
     TypeInference,
-    OperatorConstraint,
+    OperatorConstraint(OperatorSpecification),
     If,
     BlockReturn
 }
@@ -515,6 +515,16 @@ fn infer_statement<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut 
             if let Some(ta) = ta {
                 let tp = ctx.type_from_annotation(env, ta);
                 ctx.unify_check(v.typ(), &tp, UnificationSource::TypeAnnotation, *loc);
+            }
+            match op {
+                OperatorSpecification::Infix(_, _) => {
+                    let op_type = build_function(&[ ctx.new_generic(), ctx.new_generic() ], &ctx.new_generic());
+                    ctx.unify_check(v.typ(), &op_type, UnificationSource::OperatorConstraint(*op), *loc);
+                },
+                OperatorSpecification::Prefix => {
+                    let op_type = build_function(&[ ctx.new_generic() ], &ctx.new_generic());
+                    ctx.unify_check(v.typ(), &op_type, UnificationSource::OperatorConstraint(*op), *loc);
+                }
             }
             env.add_operator(name, env.generalize(v.typ()), op.clone());
             Some(TStatement::Let(v, BindPattern::Name(name, None, Unit::unit())))

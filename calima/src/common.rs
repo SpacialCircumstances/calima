@@ -80,7 +80,7 @@ impl TryFrom<&str> for Associativity {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone, Eq)]
 pub enum OperatorSpecification {
     Infix(u32, Associativity),
     Prefix
