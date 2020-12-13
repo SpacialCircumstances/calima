@@ -235,12 +235,19 @@ impl<Data: Copy> Context<Data> {
         })
     }
 
-    fn bind_to_pattern<'input>(&mut self, env: &mut Environment<'input>, pattern: &BindPattern<'input, TypeAnnotation<Data>, Data>, sch: &Scheme) {
+    fn bind_to_pattern<'input>(&mut self, env: &mut Environment<'input>, pattern: &BindPattern<'input, TypeAnnotation<'input, Data>, Data>, sch: &Scheme) {
         match pattern {
             BindPattern::Any(_) => (),
-            BindPattern::Name(idt, ta, _) => {
-                //TODO: Check type annotation
-                env.add(idt, sch.clone());
+            BindPattern::Name(idt, ta, loc) => {
+                let mut sch = sch.clone();
+                match ta {
+                    Some(ta) => {
+                        let tp = self.type_from_annotation(env, ta);
+                        self.unify(&mut sch.2, &tp, UnificationSource::TypeAnnotation, *loc);
+                    },
+                    None => ()
+                }
+                env.add(idt, sch);
             },
             _ => ()
         }
