@@ -335,7 +335,7 @@ impl Context<Span> {
 #[derive(Clone)]
 struct Environment<'a, Data: Copy> {
     values: SymbolTable<'a, Scheme, Data>,
-    operators: HashMap<&'a str, OperatorSpecification>,
+    operators: SymbolTable<'a, (Scheme, OperatorSpecification), Data>,
     mono_vars: HashSet<GenericId>,
     named_generics: HashMap<&'a str, GenericId>,
     depth: usize
@@ -345,7 +345,7 @@ impl<'a, Data: Copy> Environment<'a, Data> {
     fn new() -> Self {
         Environment {
             values: SymbolTable::new(),
-            operators: HashMap::new(),
+            operators: SymbolTable::new(),
             mono_vars: HashSet::new(),
             named_generics: HashMap::new(),
             depth: 0
@@ -361,8 +361,7 @@ impl<'a, Data: Copy> Environment<'a, Data> {
     }
 
     fn add_operator(&mut self, name: &'a str, sch: Scheme, op: OperatorSpecification, location: Data) {
-        self.values.add(name, sch, Location::Local(location));
-        self.operators.insert(name, op);
+        self.operators.add(name, (sch, op), Location::Local(location));
     }
 
     fn add(&mut self, name: &'a str, sch: Scheme, location: Data) {
@@ -373,8 +372,8 @@ impl<'a, Data: Copy> Environment<'a, Data> {
         self.values.get(name)
     }
 
-    fn lookup_operator(&self, name: &'a str) -> Option<(&Scheme, &OperatorSpecification)> {
-        self.values.get(name).and_then(|sch| self.operators.get(name).map(|op| (sch, op)))
+    fn lookup_operator(&self, name: &'a str) -> Option<&(Scheme, OperatorSpecification)> {
+        self.operators.get(name)
     }
 
     fn add_monomorphic_var(&mut self, id: GenericId) {
@@ -431,8 +430,7 @@ impl<'a, Data: Copy> Environment<'a, Data> {
                 self.values.add(name, Self::import_scheme(ctx, tp), Location::External)
             },
             ExportValue::Operator(op, tp) => {
-                self.values.add(name, Self::import_scheme(ctx, tp), Location::External);
-                self.operators.insert(name, op.clone());
+                self.operators.add(name, (Self::import_scheme(ctx, tp), op.clone()), Location::External);
             }
         }
     }
