@@ -29,7 +29,7 @@ impl<'a, T, Data: Copy> SymbolTable<'a, T, Data> {
         SymbolTable(HashMap::new())
     }
 
-    pub fn insert(&mut self, key: &'a str, value: T, def_loc: Location<Data>) {
+    pub fn add(&mut self, key: &'a str, value: T, def_loc: Location<Data>) {
         self.0.insert(key, Element::new(value, def_loc));
     }
 

@@ -331,6 +331,7 @@ impl Context<Span> {
     }
 }
 
+//TODO: Immutable environments or something similar to allow variable shadowing?
 #[derive(Clone)]
 struct Environment<'a, Data: Copy> {
     values: SymbolTable<'a, Scheme, Data>,
@@ -360,12 +361,12 @@ impl<'a, Data: Copy> Environment<'a, Data> {
     }
 
     fn add_operator(&mut self, name: &'a str, sch: Scheme, op: OperatorSpecification, location: Data) {
-        self.values.insert(name, sch, Location::Local(location));
+        self.values.add(name, sch, Location::Local(location));
         self.operators.insert(name, op);
     }
 
     fn add(&mut self, name: &'a str, sch: Scheme, location: Data) {
-        self.values.insert(name, sch, Location::Local(location));
+        self.values.add(name, sch, Location::Local(location));
     }
 
     fn lookup(&self, name: &'a str) -> Option<&Scheme> {
@@ -427,10 +428,10 @@ impl<'a, Data: Copy> Environment<'a, Data> {
     fn import<'b: 'a>(&mut self, ctx: &mut Context<Data>, name: &'b str, exv: &ExportValue) {
         match exv {
             ExportValue::Value(tp) => {
-                self.values.insert(name, Self::import_scheme(ctx, tp), Location::External)
+                self.values.add(name, Self::import_scheme(ctx, tp), Location::External)
             },
             ExportValue::Operator(op, tp) => {
-                self.values.insert(name, Self::import_scheme(ctx, tp), Location::External);
+                self.values.add(name, Self::import_scheme(ctx, tp), Location::External);
                 self.operators.insert(name, op.clone());
             }
         }
