@@ -235,6 +235,17 @@ impl<Data: Copy> Context<Data> {
             Type::Error
         })
     }
+
+    fn bind_to_pattern<'input>(&mut self, env: &mut Environment<'input>, pattern: &BindPattern<'input, TypeAnnotation<Data>, Data>, sch: &Scheme) {
+        match pattern {
+            BindPattern::Any(_) => (),
+            BindPattern::Name(idt, ta, _) => {
+                //TODO: Check type annotation
+                env.add(idt, sch.clone());
+            },
+            _ => ()
+        }
+    }
 }
 
 impl Context<Span> {
@@ -372,7 +383,7 @@ fn infer_expr<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut Conte
                 body_env.add_monomorphic_var(gen);
                 let tp = Type::Var(gen);
                 let param_type = Scheme::simple(tp.clone());
-                bind_to_pattern(&mut body_env, param, &param_type);
+                ctx.bind_to_pattern(&mut body_env, param, &param_type);
                 param_types.push(tp);
             }
 
@@ -502,14 +513,14 @@ fn infer_statement<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut 
             let v = if mods.contains(&Modifier::Rec) {
                 let mut var = ctx.new_generic();
                 let mut body_env = env.clone();
-                bind_to_pattern(&mut body_env, pattern, &Scheme::simple(var.clone()));
+                ctx.bind_to_pattern(&mut body_env, pattern, &Scheme::simple(var.clone()));
                 let v = infer_expr(&mut body_env, ctx, value);
                 ctx.unify(&mut var, &v.typ(), UnificationSource::TypeInference, *loc);
                 v
             } else {
                 infer_expr(env, ctx, value)
             };
-            bind_to_pattern(env, pattern, &env.generalize(&v.typ()));
+            ctx.bind_to_pattern(env, pattern, &env.generalize(&v.typ()));
             Some(TStatement::Let(v, map_bind_pattern(pattern)))
         },
         Statement::LetOperator(mods, op, name, ta, expr, loc) => {
@@ -559,17 +570,6 @@ fn map_match_pattern<'input, Data>(pattern: &MatchPattern<'input, TypeAnnotation
         MatchPattern::Literal(lit, _) => MatchPattern::Literal(lit.clone(), Unit::unit()),
         MatchPattern::Name(id, _, _) => MatchPattern::Name(id, None, Unit::unit()),
         _ => unimplemented!()
-    }
-}
-
-fn bind_to_pattern<'input, Data>(env: &mut Environment<'input>, pattern: &BindPattern<'input, TypeAnnotation<Data>, Data>, sch: &Scheme) {
-    match pattern {
-        BindPattern::Any(_) => (),
-        BindPattern::Name(idt, ta, _) => {
-            //TODO: Check type annotation
-            env.add(idt, sch.clone());
-        },
-        _ => ()
     }
 }
 
