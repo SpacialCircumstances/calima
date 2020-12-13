@@ -11,6 +11,9 @@ use crate::types::*;
 use crate::prelude::prelude;
 use std::convert::TryFrom;
 use crate::token::Span;
+use crate::typechecker::symbol_table::{SymbolTable, Location};
+
+mod symbol_table;
 
 pub struct TypedModuleData<'input>(Substitution<Type>, TBlock<'input>);
 
@@ -203,7 +206,7 @@ impl<Data: Copy> Context<Data> {
         self.errors.push(te);
     }
 
-    fn lookup_var(&mut self, env: &Environment, name: &str, loc: Data) -> Type {
+    fn lookup_var(&mut self, env: &Environment<Data>, name: &str, loc: Data) -> Type {
         match env.lookup(name) {
             Some(sch) => env.inst(self, sch),
             None => {
@@ -213,8 +216,8 @@ impl<Data: Copy> Context<Data> {
         }
     }
 
-    fn type_from_annotation<'input>(&mut self, env: &mut Environment<'input>, ta: &TypeAnnotation<'input, Data>) -> Type {
-        fn to_type<'input, Data: Copy>(ctx: &mut Context<Data>, env: &mut Environment<'input>, ta: &TypeAnnotation<'input, Data>) -> Result<Type, TypeError<Data>> {
+    fn type_from_annotation<'input>(&mut self, env: &mut Environment<'input, Data>, ta: &TypeAnnotation<'input, Data>) -> Type {
+        fn to_type<'input, Data: Copy>(ctx: &mut Context<Data>, env: &mut Environment<'input, Data>, ta: &TypeAnnotation<'input, Data>) -> Result<Type, TypeError<Data>> {
             match ta {
                 TypeAnnotation::Name(name, loc) => match PrimitiveType::try_from(*name) {
                     Ok(pt) => Ok(Type::Basic(TypeDef::Primitive(pt))),
@@ -235,7 +238,7 @@ impl<Data: Copy> Context<Data> {
         })
     }
 
-    fn bind_to_pattern<'input>(&mut self, env: &mut Environment<'input>, pattern: &BindPattern<'input, TypeAnnotation<'input, Data>, Data>, sch: &Scheme) {
+    fn bind_to_pattern<'input>(&mut self, env: &mut Environment<'input, Data>, pattern: &BindPattern<'input, TypeAnnotation<'input, Data>, Data>, sch: &Scheme) {
         match pattern {
             BindPattern::Any(_) => (),
             BindPattern::Name(idt, ta, loc) => {
@@ -247,7 +250,7 @@ impl<Data: Copy> Context<Data> {
                     },
                     None => ()
                 }
-                env.add(idt, sch);
+                env.add(idt, sch, *loc);
             },
             _ => ()
         }
@@ -261,7 +264,7 @@ impl<Data: Copy> Context<Data> {
         exprs.push(fc)
     }
 
-    fn transform_operators<'input>(&mut self, env: &mut Environment<'input>, elements: &Vec<OperatorElement<'input, Data>>, top_location: Data) -> TExpression<'input> {
+    fn transform_operators<'input>(&mut self, env: &mut Environment<'input, Data>, elements: &Vec<OperatorElement<'input, Data>>, top_location: Data) -> TExpression<'input> {
         let mut bin_ops: Vec<(&str, Type, u32, Associativity, Data)> = Vec::new();
         let mut un_ops: Vec<(&str, Type)> = Vec::new();
         let mut exprs = Vec::new();
@@ -329,18 +332,18 @@ impl Context<Span> {
 }
 
 #[derive(Clone)]
-struct Environment<'a> {
-    values: HashMap<&'a str, Scheme>,
+struct Environment<'a, Data: Copy> {
+    values: SymbolTable<'a, Scheme, Data>,
     operators: HashMap<&'a str, OperatorSpecification>,
     mono_vars: HashSet<GenericId>,
     named_generics: HashMap<&'a str, GenericId>,
     depth: usize
 }
 
-impl<'a> Environment<'a> {
+impl<'a, Data: Copy> Environment<'a, Data> {
     fn new() -> Self {
         Environment {
-            values: HashMap::new(),
+            values: SymbolTable::new(),
             operators: HashMap::new(),
             mono_vars: HashSet::new(),
             named_generics: HashMap::new(),
@@ -352,17 +355,17 @@ impl<'a> Environment<'a> {
         self.named_generics.get(name).copied()
     }
 
-    fn get_or_create_generic<Data: Copy>(&mut self, ctx: &mut Context<Data>, name: &'a str) -> GenericId {
+    fn get_or_create_generic(&mut self, ctx: &mut Context<Data>, name: &'a str) -> GenericId {
         *self.named_generics.entry(name).or_insert_with(|| ctx.next_id())
     }
 
-    fn add_operator(&mut self, name: &'a str, sch: Scheme, op: OperatorSpecification) {
-        self.values.insert(name, sch);
+    fn add_operator(&mut self, name: &'a str, sch: Scheme, op: OperatorSpecification, location: Data) {
+        self.values.insert(name, sch, Location::Local(location));
         self.operators.insert(name, op);
     }
 
-    fn add(&mut self, name: &'a str, sch: Scheme) {
-        self.values.insert(name, sch);
+    fn add(&mut self, name: &'a str, sch: Scheme, location: Data) {
+        self.values.insert(name, sch, Location::Local(location));
     }
 
     fn lookup(&self, name: &'a str) -> Option<&Scheme> {
@@ -386,7 +389,7 @@ impl<'a> Environment<'a> {
         }
     }
 
-    fn inst<Data: Copy>(&self, ctx: &mut Context<Data>, sch: &Scheme) -> Type {
+    fn inst(&self, ctx: &mut Context<Data>, sch: &Scheme) -> Type {
         let mapping: HashMap<GenericId, Type> = sch.1.iter().map(|v| (*v, ctx.new_generic())).collect();
         Self::replace(&sch.2, &|id| mapping.get(&id).cloned())
     }
@@ -410,24 +413,25 @@ impl<'a> Environment<'a> {
         Scheme(HashSet::new(), scheme_vars, tp.clone())
     }
 
-    fn import_scheme<Data: Copy>(ctx: &mut Context<Data>, tp: &Scheme) -> Scheme {
+    fn import_scheme(ctx: &mut Context<Data>, tp: &Scheme) -> Scheme {
         let mapping: HashMap<GenericId, GenericId> = tp.1.iter().map(|v| (*v, ctx.next_id())).collect();
         let tp = Self::replace(&tp.2, &|gid| mapping.get(&gid).copied().map(Type::Var));
         let vars = mapping.values().copied().collect();
         Scheme(HashSet::new(), vars, tp)
     }
 
-    fn import_module<Data: Copy>(&mut self, ctx: &mut Context<Data>, exports: &Exports<'a>) {
+    fn import_module(&mut self, ctx: &mut Context<Data>, exports: &Exports<'a>) {
         exports.iter_vars().for_each(|(name, tp)| self.import(ctx, name, tp));
     }
 
-    fn import<'b: 'a, Data: Copy>(&mut self, ctx: &mut Context<Data>, name: &'b str, exv: &ExportValue) {
+    fn import<'b: 'a>(&mut self, ctx: &mut Context<Data>, name: &'b str, exv: &ExportValue) {
         match exv {
             ExportValue::Value(tp) => {
-                self.add(name, Self::import_scheme(ctx, tp))
+                self.values.insert(name, Self::import_scheme(ctx, tp), Location::External)
             },
             ExportValue::Operator(op, tp) => {
-                self.add_operator(name, Self::import_scheme(ctx, tp), op.clone())
+                self.values.insert(name, Self::import_scheme(ctx, tp), Location::External);
+                self.operators.insert(name, op.clone());
             }
         }
     }
@@ -441,7 +445,7 @@ fn function_call<'input, Data: Copy>(ctx: &mut Context<Data>, tfunc: TExpression
     TExpression::new(TExprData::FunctionCall(tfunc.into(), args), ret)
 }
 
-fn infer_expr<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut Context<Data>, expr: &Expr<'input, Data>) -> TExpression<'input> {
+fn infer_expr<'input, Data: Copy>(env: &mut Environment<'input, Data>, ctx: &mut Context<Data>, expr: &Expr<'input, Data>) -> TExpression<'input> {
     match expr {
         Expr::Literal(lit, _) => TExpression::new(TExprData::Literal(lit.clone()), get_literal_type(lit)),
         Expr::Variable(varname, loc) => {
@@ -511,7 +515,7 @@ fn get_literal_type(lit: &Literal) -> Type {
     }))
 }
 
-fn infer_statement<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut Context<Data>, statement: &Statement<'input, Data>) -> Option<TStatement<'input>> {
+fn infer_statement<'input, Data: Copy>(env: &mut Environment<'input, Data>, ctx: &mut Context<Data>, statement: &Statement<'input, Data>) -> Option<TStatement<'input>> {
     match statement {
         Statement::Region(name, _) => None,
         Statement::Do(expr, _) => Some(TStatement::Do(infer_expr(env, ctx, expr))),
@@ -533,7 +537,7 @@ fn infer_statement<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut 
             let (mut op_type, v) = if mods.contains(&Modifier::Rec) {
                 let recursive_type = ctx.new_generic();
                 let mut body_env = env.clone();
-                body_env.add_operator(name, Scheme::simple(recursive_type.clone()), op.clone());
+                body_env.add_operator(name, Scheme::simple(recursive_type.clone()), op.clone(), *loc);
                 let value = infer_expr(&mut body_env, ctx, expr);
                 let mut typ = value.typ().clone();
                 ctx.unify(&mut typ, &value.typ(), UnificationSource::TypeInference, *loc);
@@ -556,7 +560,7 @@ fn infer_statement<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut 
                     ctx.unify(&mut op_type, &expected_type, UnificationSource::OperatorConstraint(*op), *loc);
                 }
             }
-            env.add_operator(name, env.generalize(&op_type), op.clone());
+            env.add_operator(name, env.generalize(&op_type), op.clone(), *loc);
             Some(TStatement::Let(v, BindPattern::Name(name, None, Unit::unit())))
         }
     }
@@ -579,7 +583,7 @@ fn map_match_pattern<'input, Data>(pattern: &MatchPattern<'input, TypeAnnotation
     }
 }
 
-fn infer_block<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut Context<Data>, block: &Block<'input, Data>) -> TBlock<'input> {
+fn infer_block<'input, Data: Copy>(env: &mut Environment<'input, Data>, ctx: &mut Context<Data>, block: &Block<'input, Data>) -> TBlock<'input> {
     let mut block_env = env.clone();
     let tstatements = block.statements.iter().filter_map(|s| infer_statement(env, ctx, s)).collect();
     let result = infer_expr(&mut block_env, ctx, &block.result);
@@ -589,11 +593,11 @@ fn infer_block<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut Cont
     }
 }
 
-fn process_top_level<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut Context<Data>, tls: &TopLevelStatement<'input, Data>) {
+fn process_top_level<'input, Data: Copy>(env: &mut Environment<'input, Data>, ctx: &mut Context<Data>, tls: &TopLevelStatement<'input, Data>) {
 
 }
 
-fn infer_top_level_block<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut Context<Data>,tlb: &TopLevelBlock<'input, Data>) -> TBlock<'input> {
+fn infer_top_level_block<'input, Data: Copy>(env: &mut Environment<'input, Data>, ctx: &mut Context<Data>,tlb: &TopLevelBlock<'input, Data>) -> TBlock<'input> {
     tlb.top_levels.iter().for_each(|st| process_top_level(env, ctx, st));
     let statements = tlb.block.statements.iter().filter_map(|st| infer_statement(env, ctx, st)).collect();
     let res = infer_expr(env, ctx, &*tlb.block.result);
@@ -664,24 +668,24 @@ mod tests {
         TExpression::new(TExprData::Literal(Literal::Number(lit, NumberType::Integer)), int())
     }
 
-    fn lookup<Data: Copy>(env: &Environment, ctx: &mut Context<Data>, name: &str) -> Type {
+    fn lookup<Data: Copy>(env: &Environment<Data>, ctx: &mut Context<Data>, name: &str) -> Type {
         let sch = env.lookup(name).unwrap();
         env.inst(ctx, sch)
     }
 
-    fn add_op<'a, Data: Copy>(env: &Environment<'a>, ctx: &mut Context<Data>) -> TExpression<'a> {
+    fn add_op<'a, Data: Copy>(env: &Environment<'a, Data>, ctx: &mut Context<Data>) -> TExpression<'a> {
         TExpression::new(TExprData::Variable("+"), lookup(env, ctx, "+"))
     }
 
-    fn mul_op<'a, Data: Copy>(env: &Environment<'a>, ctx: &mut Context<Data>) -> TExpression<'a> {
+    fn mul_op<'a, Data: Copy>(env: &Environment<'a, Data>, ctx: &mut Context<Data>) -> TExpression<'a> {
         TExpression::new(TExprData::Variable("*"), lookup(env, ctx, "*"))
     }
 
-    fn neg_op<'a, Data: Copy>(env: &Environment<'a>, ctx: &mut Context<Data>) -> TExpression<'a> {
+    fn neg_op<'a, Data: Copy>(env: &Environment<'a, Data>, ctx: &mut Context<Data>) -> TExpression<'a> {
         TExpression::new(TExprData::Variable("~"), lookup(env, ctx, "~"))
     }
 
-    fn neg_expr<'a, Data: Copy>(env: &Environment<'a>, ctx: &mut Context<Data>, expr: TExpression<'a>) -> TExpression<'a> {
+    fn neg_expr<'a, Data: Copy>(env: &Environment<'a, Data>, ctx: &mut Context<Data>, expr: TExpression<'a>) -> TExpression<'a> {
         TExpression::new(TExprData::FunctionCall(neg_op(env, ctx).into(), vec![
             expr
         ]), int())
