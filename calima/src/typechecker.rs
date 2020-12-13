@@ -46,10 +46,10 @@ impl<Data> TypeError<Data> {
         }
     }
 
-    fn unification(ue: UnificationError, location: Data) -> Self {
+    fn unification(ue: UnificationError, expected: &Type, actual: &Type, location: Data) -> Self {
         let message = match ue {
             UnificationError::RecursiveType => String::from("Recursive type detected"),
-            UnificationError::UnificationError => String::from("Incompatible types"),
+            UnificationError::UnificationError => format!("Cannot unify types: Expected {}, but got {}", expected, actual),
             UnificationError::Propagation => String::from("Propagated type error")
         };
         TypeError {
@@ -59,7 +59,6 @@ impl<Data> TypeError<Data> {
     }
 }
 
-//TODO: Add types to unification
 #[derive(Debug, Clone)]
 enum UnificationError {
     UnificationError,
@@ -189,14 +188,14 @@ impl<Data: Copy> Context<Data> {
 
     fn unify(&mut self, target: &mut Type, with: &Type, source: UnificationSource, loc: Data) {
         if let Err(e) = self.unify_rec(target, with) {
-            self.add_error(TypeError::unification(e, loc));
+            self.add_error(TypeError::unification(e, &with, &target, loc));
             *target = Type::Error;
         }
     }
 
     fn unify_check(&mut self, target: &mut Type, unify_target: &Type, with: &Type, source: UnificationSource, loc: Data) {
         if let Err(e) = self.unify_rec(unify_target, with) {
-            self.add_error(TypeError::unification(e, loc));
+            self.add_error(TypeError::unification(e, &with, &unify_target, loc));
             *target = Type::Error;
         }
     }
