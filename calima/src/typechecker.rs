@@ -252,6 +252,73 @@ impl<Data: Copy> Context<Data> {
             _ => ()
         }
     }
+
+    fn call_operator<'input>(&mut self, exprs: &mut Vec<TExpression<'input>>, last_name: &'input str, last_type: &Type, loc: Data) {
+        let r = exprs.pop().unwrap();
+        let l = exprs.pop().unwrap();
+        let last_expr = TExpression::new(TExprData::Variable(last_name), last_type.clone());
+        let fc = function_call(self, last_expr, vec![l, r ], loc);
+        exprs.push(fc)
+    }
+
+    fn transform_operators<'input>(&mut self, env: &mut Environment<'input>, elements: &Vec<OperatorElement<'input, Data>>, top_location: Data) -> TExpression<'input> {
+        let mut bin_ops: Vec<(&str, Type, u32, Associativity, Data)> = Vec::new();
+        let mut un_ops: Vec<(&str, Type)> = Vec::new();
+        let mut exprs = Vec::new();
+
+        for el in elements {
+            match el {
+                OperatorElement::Operator(name, data) => {
+                    let data = *data;
+                    let (op_tp, op_spec) = env.lookup_operator(name).expect("Operator not found");
+                    let op_tp = env.inst(self, op_tp);
+                    match op_spec {
+                        OperatorSpecification::Infix(op_prec, assoc) => {
+                            match bin_ops.last() {
+                                None => bin_ops.push((*name, op_tp, *op_prec, *assoc, data)),
+                                Some((_, _, last_prec, last_assoc, data)) => {
+                                    let data = *data;
+                                    if last_prec == op_prec {
+                                        if assoc == &Associativity::None || last_assoc == &Associativity::None {
+                                            panic!("Encountered repeated operator without associativity")
+                                        } else if assoc == &Associativity::Left {
+                                            let (last_name, last_type, _, _, data) = bin_ops.pop().unwrap();
+                                            self.call_operator(&mut exprs, last_name, &last_type, data);
+                                        }
+                                    } else if last_prec > op_prec {
+                                        let (last_name, last_type, _, _, data) = bin_ops.pop().unwrap();
+                                        self.call_operator(&mut exprs, last_name, &last_type, data)
+                                    }
+                                    bin_ops.push((*name, op_tp, *op_prec, *assoc, data))
+                                }
+                            }
+                        }
+                        OperatorSpecification::Prefix => {
+                            un_ops.push((*name, op_tp))
+                        }
+                    }
+                },
+                OperatorElement::Expression(oexpr) => {
+                    let mut expr = infer_expr(env, self, oexpr);
+
+                    while let Some((op_name, op_tp)) = un_ops.pop() {
+                        let op_expr = TExpression::new(TExprData::Variable(op_name), op_tp.clone());
+                        expr = function_call(self, op_expr, vec![ expr ], *oexpr.get_location());
+                    }
+
+                    exprs.push(expr);
+                }
+            }
+        }
+
+        //TODO: If unary ops remain, error
+
+        while let Some((op_name, op_type, _, _, data)) = bin_ops.pop() {
+            self.call_operator(&mut exprs, op_name, &op_type, data);
+        }
+
+        exprs.pop().unwrap()
+    }
 }
 
 impl Context<Span> {
@@ -403,7 +470,7 @@ fn infer_expr<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut Conte
             function_call(ctx, tfunc, targs, *loc)
         },
         Expr::OperatorCall(elements, loc) => {
-            transform_operators(env, ctx, elements)
+            ctx.transform_operators(env, elements, *loc)
         },
         Expr::If { data: loc, cond, if_true, if_false } => {
             let tcond = infer_expr(env, ctx, &*cond);
@@ -432,73 +499,6 @@ fn infer_expr<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut Conte
         }
         _ => unimplemented!()
     }
-}
-
-fn call_operator<'input, Data: Copy>(ctx: &mut Context<Data>, exprs: &mut Vec<TExpression<'input>>, last_name: &'input str, last_type: &Type, loc: Data) {
-    let r = exprs.pop().unwrap();
-    let l = exprs.pop().unwrap();
-    let last_expr = TExpression::new(TExprData::Variable(last_name), last_type.clone());
-    let fc = function_call(ctx, last_expr, vec![l, r ], loc);
-    exprs.push(fc)
-}
-
-fn transform_operators<'input, Data: Copy>(env: &mut Environment<'input>, ctx: &mut Context<Data>, elements: &Vec<OperatorElement<'input, Data>>) -> TExpression<'input> {
-    let mut bin_ops: Vec<(&str, Type, u32, Associativity, Data)> = Vec::new();
-    let mut un_ops: Vec<(&str, Type)> = Vec::new();
-    let mut exprs = Vec::new();
-
-    for el in elements {
-        match el {
-            OperatorElement::Operator(name, data) => {
-                let data = *data;
-                let (op_tp, op_spec) = env.lookup_operator(name).expect("Operator not found");
-                let op_tp = env.inst(ctx, op_tp);
-                match op_spec {
-                    OperatorSpecification::Infix(op_prec, assoc) => {
-                        match bin_ops.last() {
-                            None => bin_ops.push((*name, op_tp, *op_prec, *assoc, data)),
-                            Some((_, _, last_prec, last_assoc, data)) => {
-                                let data = *data;
-                                if last_prec == op_prec {
-                                    if assoc == &Associativity::None || last_assoc == &Associativity::None {
-                                        panic!("Encountered repeated operator without associativity")
-                                    } else if assoc == &Associativity::Left {
-                                        let (last_name, last_type, _, _, data) = bin_ops.pop().unwrap();
-                                        call_operator(ctx, &mut exprs, last_name, &last_type, data);
-                                    }
-                                } else if last_prec > op_prec {
-                                    let (last_name, last_type, _, _, data) = bin_ops.pop().unwrap();
-                                    call_operator(ctx, &mut exprs, last_name, &last_type, data)
-                                }
-                                bin_ops.push((*name, op_tp, *op_prec, *assoc, data))
-                            }
-                        }
-                    }
-                    OperatorSpecification::Prefix => {
-                        un_ops.push((*name, op_tp))
-                    }
-                }
-            },
-            OperatorElement::Expression(oexpr) => {
-                let mut expr = infer_expr(env, ctx, oexpr);
-
-                while let Some((op_name, op_tp)) = un_ops.pop() {
-                    let op_expr = TExpression::new(TExprData::Variable(op_name), op_tp.clone());
-                    expr = function_call(ctx, op_expr, vec![ expr ], *oexpr.get_location());
-                }
-
-                exprs.push(expr);
-            }
-        }
-    }
-
-    //TODO: If unary ops remain, error
-
-    while let Some((op_name, op_type, _, _, data)) = bin_ops.pop() {
-        call_operator(ctx, &mut exprs, op_name, &op_type, data);
-    }
-
-    exprs.pop().unwrap()
 }
 
 fn get_literal_type(lit: &Literal) -> Type {
@@ -701,7 +701,7 @@ mod tests {
             int_lit_typed("1"),
             int_lit_typed("2")
         ]), int());
-        let res = transform_operators(&mut env, &mut ctx, &ops);
+        let res = ctx.transform_operators(&mut env, &ops, ());
         ctx.unify_rec(exprs.typ(), res.typ()).unwrap();
         assert_eq!(exprs.data(), res.data())
     }
@@ -725,7 +725,7 @@ mod tests {
                 int_lit_typed("3")
             ]), int())
         ]), int());
-        let res = transform_operators(&mut env, &mut ctx, &ops);
+        let res = ctx.transform_operators(&mut env, &ops, ());
         ctx.unify_rec(exprs.typ(), res.typ()).unwrap();
         assert_eq!(exprs.data(), res.data())
     }
@@ -742,7 +742,7 @@ mod tests {
         ];
         let e1 = neg_expr(&env, &mut ctx, int_lit_typed("1"));
         let exprs = neg_expr(&env, &mut ctx, e1);
-        let res = transform_operators(&mut env, &mut ctx, &ops);
+        let res = ctx.transform_operators(&mut env, &ops, ());
         ctx.unify_rec(exprs.typ(), res.typ()).unwrap();
         assert_eq!(exprs.data(), res.data())
     }
@@ -765,7 +765,7 @@ mod tests {
             neg_expr(&env, &mut ctx, int_lit_typed("1")),
             neg_expr(&env, &mut ctx, e2)
         ]), int());
-        let res = transform_operators(&mut env, &mut ctx, &ops);
+        let res = ctx.transform_operators(&mut env, &ops, ());
         ctx.unify_rec(exprs.typ(), res.typ()).unwrap();
         assert_eq!(exprs.data(), res.data())
     }
@@ -792,7 +792,7 @@ mod tests {
             ]), int()),
             neg_expr(&env, &mut ctx, int_lit_typed("3"))
         ]), int());
-        let res = transform_operators(&mut env, &mut ctx, &ops);
+        let res = ctx.transform_operators(&mut env, &ops, ());
         ctx.unify_rec(exprs.typ(), res.typ()).unwrap();
         assert_eq!(exprs.data(), res.data())
     }
@@ -816,7 +816,7 @@ mod tests {
             ]), int()),
             int_lit_typed("6")
         ]), int());
-        let res = transform_operators(&mut env, &mut ctx, &ops);
+        let res = ctx.transform_operators(&mut env, &ops, ());
         ctx.unify_rec(exprs.typ(), res.typ()).unwrap();
         assert_eq!(exprs.data(), res.data())
     }
