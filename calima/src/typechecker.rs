@@ -11,7 +11,6 @@ use crate::types::*;
 use crate::prelude::prelude;
 use std::convert::TryFrom;
 use crate::token::Span;
-use crate::typechecker::UnificationSource::TypeInference;
 
 pub struct TypedModuleData<'input>(Substitution<Type>, TBlock<'input>);
 
@@ -621,7 +620,7 @@ pub struct TypedContext<'input> {
     pub modules: HashMap<ModuleIdentifier, Module<TypedModuleData<'input>>>,
 }
 
-pub fn typecheck<'input>(string_interner: &StringInterner, errors: &mut ErrorContext<'input>, mut module_ctx: ModuleTreeContext<'input>) -> Result<TypedContext<'input>, ()> {
+pub fn typecheck<'input>(errors: &mut ErrorContext<'input>, mut module_ctx: ModuleTreeContext<'input>) -> Result<TypedContext<'input>, ()> {
     let mut ctx = TypedContext {
         modules: HashMap::new()
     };

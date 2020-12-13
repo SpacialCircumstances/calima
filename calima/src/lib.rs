@@ -37,6 +37,6 @@ pub fn compile<S: AsRef<str>>(args: CompilerArguments<S>) -> Result<(), ()> {
     let strs = StringInterner::new();
     let mut errors = ErrorContext::new();
     let module_context = compiler::parse_all_modules(&strs, &mut errors, args)?;
-    let typed_context = typechecker::typecheck(&strs, &mut errors, module_context)?;
+    let typed_context = typechecker::typecheck(&mut errors, module_context)?;
     Ok(())
 }
