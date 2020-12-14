@@ -12,6 +12,7 @@ use crate::prelude::prelude;
 use std::convert::TryFrom;
 use crate::token::Span;
 use crate::typechecker::symbol_table::{SymbolTable, Location};
+use crate::util::format_iter;
 
 mod symbol_table;
 
@@ -48,6 +49,13 @@ impl<Data> TypeError<Data> {
         }
     }
 
+    fn operator_not_found(opname: &str, location: Data) -> Self {
+        TypeError {
+            location,
+            message: format!("Operator {} is not defined or imported", opname)
+        }
+    }
+
     fn unification(ue: UnificationError, expected: &Type, actual: &Type, location: Data) -> Self {
         let message = match ue {
             UnificationError::RecursiveType => String::from("Recursive type detected"),
@@ -57,6 +65,20 @@ impl<Data> TypeError<Data> {
         TypeError {
             location,
             message
+        }
+    }
+
+    fn repeated_unassociative_operators(location: Data, ops: &[&str]) -> Self {
+        TypeError {
+            location,
+            message: format!("Repeated operators without associativity used: {}", format_iter(ops.iter(), ", "))
+        }
+    }
+
+    fn remaining_unary_operators(location: Data, ops: &[&str]) -> Self {
+        TypeError {
+            location,
+            message: format!("Unary prefix operators {} were used without an expression to apply them to", format_iter(ops.iter(), ", "))
         }
     }
 }
@@ -216,6 +238,16 @@ impl<Data: Copy> Context<Data> {
         }
     }
 
+    fn lookup_operator(&mut self, env: &Environment<Data>, name: &str, loc: Data) -> (Type, Option<OperatorSpecification>) {
+        match env.lookup_operator(name) {
+            Some((tp, op)) => (env.inst(self, tp), Some(*op)),
+            None => {
+                self.add_error(TypeError::operator_not_found(name, loc));
+                (Type::Error, None)
+            }
+        }
+    }
+
     fn type_from_annotation<'input>(&mut self, env: &mut Environment<'input, Data>, ta: &TypeAnnotation<'input, Data>) -> Type {
         fn to_type<'input, Data: Copy>(ctx: &mut Context<Data>, env: &mut Environment<'input, Data>, ta: &TypeAnnotation<'input, Data>) -> Result<Type, TypeError<Data>> {
             match ta {
@@ -273,30 +305,30 @@ impl<Data: Copy> Context<Data> {
             match el {
                 OperatorElement::Operator(name, data) => {
                     let data = *data;
-                    let (op_tp, op_spec) = env.lookup_operator(name).expect("Operator not found");
-                    let op_tp = env.inst(self, op_tp);
+                    let (op_tp, op_spec) = self.lookup_operator(env, name, data);
                     match op_spec {
-                        OperatorSpecification::Infix(op_prec, assoc) => {
+                        None => (),
+                        Some(OperatorSpecification::Infix(op_prec, assoc)) => {
                             match bin_ops.last() {
-                                None => bin_ops.push((*name, op_tp, *op_prec, *assoc, data)),
-                                Some((_, _, last_prec, last_assoc, data)) => {
+                                None => bin_ops.push((*name, op_tp, op_prec, assoc, data)),
+                                Some((last_op, _, last_prec, last_assoc, data)) => {
                                     let data = *data;
-                                    if last_prec == op_prec {
-                                        if assoc == &Associativity::None || last_assoc == &Associativity::None {
-                                            panic!("Encountered repeated operator without associativity")
-                                        } else if assoc == &Associativity::Left {
+                                    if last_prec == &op_prec {
+                                        if assoc == Associativity::None || last_assoc == &Associativity::None {
+                                            self.add_error(TypeError::repeated_unassociative_operators(top_location, &vec![ *last_op, *name ]));
+                                        } else if assoc == Associativity::Left {
                                             let (last_name, last_type, _, _, data) = bin_ops.pop().unwrap();
                                             self.call_operator(&mut exprs, last_name, &last_type, data);
                                         }
-                                    } else if last_prec > op_prec {
+                                    } else if last_prec > &op_prec {
                                         let (last_name, last_type, _, _, data) = bin_ops.pop().unwrap();
                                         self.call_operator(&mut exprs, last_name, &last_type, data)
                                     }
-                                    bin_ops.push((*name, op_tp, *op_prec, *assoc, data))
+                                    bin_ops.push((*name, op_tp, op_prec, assoc, data))
                                 }
                             }
                         }
-                        OperatorSpecification::Prefix => {
+                        Some(OperatorSpecification::Prefix) => {
                             un_ops.push((*name, op_tp))
                         }
                     }
@@ -314,7 +346,10 @@ impl<Data: Copy> Context<Data> {
             }
         }
 
-        //TODO: If unary ops remain, error
+        if !un_ops.is_empty() {
+            let op_names: Vec<&str> = un_ops.iter().map(|(a, _)| *a).collect();
+            self.add_error(TypeError::remaining_unary_operators(top_location, &op_names))
+        }
 
         while let Some((op_name, op_type, _, _, data)) = bin_ops.pop() {
             self.call_operator(&mut exprs, op_name, &op_type, data);
