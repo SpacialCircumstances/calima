@@ -226,7 +226,7 @@ impl<Data: Copy> Context<Data> {
                 TypeAnnotation::Function(ta1, ta2) => {
                     to_type(ctx, env, &*ta1).and_then(|t1| to_type(ctx, env, &*ta2).map(|t2| (t1, t2))).map(|(t1, t2)| Type::Parameterized(ComplexType::Function, vec![ t1, t2 ]))
                 },
-                TypeAnnotation::Generic(gname) => Ok(Type::Var(env.get_or_create_generic(ctx, gname.0))),
+                TypeAnnotation::Generic(gname) => Ok(Type::Var(env.get_or_create_generic(ctx, gname.0, gname.1))),
                 TypeAnnotation::Tuple(params) => params.iter().map(|p| to_type(ctx, env, p)).collect::<Result<Vec<Type>, TypeError<Data>>>().map(|ps| Type::Parameterized(ComplexType::Tuple(ps.len()), ps)),
                 _ => unimplemented!()
             }
@@ -337,7 +337,7 @@ struct Environment<'a, Data: Copy> {
     values: SymbolTable<'a, Scheme, Data>,
     operators: SymbolTable<'a, (Scheme, OperatorSpecification), Data>,
     mono_vars: HashSet<GenericId>,
-    named_generics: HashMap<&'a str, GenericId>,
+    named_generics: SymbolTable<'a, GenericId, Data>,
     depth: usize
 }
 
@@ -347,7 +347,7 @@ impl<'a, Data: Copy> Environment<'a, Data> {
             values: SymbolTable::new(),
             operators: SymbolTable::new(),
             mono_vars: HashSet::new(),
-            named_generics: HashMap::new(),
+            named_generics: SymbolTable::new(),
             depth: 0
         }
     }
@@ -356,8 +356,15 @@ impl<'a, Data: Copy> Environment<'a, Data> {
         self.named_generics.get(name).copied()
     }
 
-    fn get_or_create_generic(&mut self, ctx: &mut Context<Data>, name: &'a str) -> GenericId {
-        *self.named_generics.entry(name).or_insert_with(|| ctx.next_id())
+    fn get_or_create_generic(&mut self, ctx: &mut Context<Data>, name: &'a str, location: Data) -> GenericId {
+        match self.named_generics.get(name) {
+            None => {
+                let gid = ctx.next_id();
+                self.named_generics.add(name, gid, Location::Local(location));
+                gid
+            },
+            Some(gid) => *gid
+        }
     }
 
     fn add_operator(&mut self, name: &'a str, sch: Scheme, op: OperatorSpecification, location: Data) {
