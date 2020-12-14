@@ -3,7 +3,6 @@ use crate::errors::{ErrorContext, CompilerError};
 use crate::string_interner::StringInterner;
 use crate::common::{Module, ModuleIdentifier, Associativity, OperatorSpecification};
 use std::collections::{HashMap, HashSet};
-use std::ops::Index;
 use crate::ast_common::*;
 use crate::ast::*;
 use crate::typed_ast::*;
@@ -13,8 +12,10 @@ use std::convert::TryFrom;
 use crate::token::Span;
 use crate::typechecker::symbol_table::{SymbolTable, Location};
 use crate::util::format_iter;
+use crate::typechecker::substitution::Substitution;
 
 mod symbol_table;
+mod substitution;
 
 pub struct TypedModuleData<'input>(Substitution<Type>, TBlock<'input>);
 
@@ -90,25 +91,6 @@ enum UnificationError {
     Propagation
 }
 
-pub struct Substitution<T: Clone> {
-    subst: Vec<Option<T>>
-}
-
-impl<T: Clone> Substitution<T> {
-    fn new() -> Self {
-        Substitution {
-            subst: (1..10).map(|_| None).collect()
-        }
-    }
-
-    fn add(&mut self, idx: usize, value: T) {
-        if idx >= self.subst.len() {
-            self.subst.resize(idx + 1, Option::None);
-        }
-        self.subst[idx] = Some(value);
-    }
-}
-
 fn substitute(subst: &Substitution<Type>, typ: &Type) -> Type {
     match typ {
         Type::Basic(_) => typ.clone(),
@@ -116,14 +98,6 @@ fn substitute(subst: &Substitution<Type>, typ: &Type) -> Type {
         Type::Parameterized(t, params) => Type::Parameterized(t.clone(), params.into_iter().map(|t| substitute(subst, t)).collect()),
         Type::Error => Type::Error,
         _ => unimplemented!()
-    }
-}
-
-impl<T: Clone> Index<usize> for Substitution<T> {
-    type Output = Option<T>;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        self.subst.get(index).unwrap_or(&Option::None)
     }
 }
 
