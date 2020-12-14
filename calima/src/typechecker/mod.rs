@@ -691,7 +691,7 @@ pub fn typecheck<'input>(errors: &mut ErrorContext<'input>, mut module_ctx: Modu
 
 #[cfg(test)]
 mod tests {
-    use crate::typechecker::{Environment, Context, transform_operators};
+    use crate::typechecker::{Environment, Context};
     use crate::prelude::prelude;
     use crate::ast::OperatorElement::*;
     use crate::ast::{Expr, OperatorElement};
@@ -714,16 +714,21 @@ mod tests {
         env.inst(ctx, sch)
     }
 
+    fn lookup_operator<Data: Copy>(env: &Environment<Data>, ctx: &mut Context<Data>, name: &str) -> Type {
+        let (sch, _) = env.lookup_operator(name).unwrap();
+        env.inst(ctx, sch)
+    }
+
     fn add_op<'a, Data: Copy>(env: &Environment<'a, Data>, ctx: &mut Context<Data>) -> TExpression<'a> {
-        TExpression::new(TExprData::Variable("+"), lookup(env, ctx, "+"))
+        TExpression::new(TExprData::Variable("+"), lookup_operator(env, ctx, "+"))
     }
 
     fn mul_op<'a, Data: Copy>(env: &Environment<'a, Data>, ctx: &mut Context<Data>) -> TExpression<'a> {
-        TExpression::new(TExprData::Variable("*"), lookup(env, ctx, "*"))
+        TExpression::new(TExprData::Variable("*"), lookup_operator(env, ctx, "*"))
     }
 
     fn neg_op<'a, Data: Copy>(env: &Environment<'a, Data>, ctx: &mut Context<Data>) -> TExpression<'a> {
-        TExpression::new(TExprData::Variable("~"), lookup(env, ctx, "~"))
+        TExpression::new(TExprData::Variable("~"), lookup_operator(env, ctx, "~"))
     }
 
     fn neg_expr<'a, Data: Copy>(env: &Environment<'a, Data>, ctx: &mut Context<Data>, expr: TExpression<'a>) -> TExpression<'a> {
