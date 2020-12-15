@@ -210,6 +210,25 @@ pub enum Expr<'a, Data> {
     Ref(RegionAnnotation<'a, Data>, Box<Expr<'a, Data>>, Data)
 }
 
+impl<'a, Data> Expr<'a, Data> {
+    pub fn get_location(&self) -> &Data {
+        match self {
+            Expr::OperatorAsFunction(_, data) => data,
+            Expr::Variable(_, data) => data,
+            Expr::FunctionCall(_, _, data) => data,
+            Expr::OperatorCall(_, data) => data,
+            Expr::Record(_, data) => data,
+            Expr::Tuple(_, data) => data,
+            Expr::Literal(_, data) => data,
+            Expr::Lambda { data, .. } => data,
+            Expr::If { data, .. } => data,
+            Expr::Case { data, .. } => data,
+            Expr::List(_, data) => data,
+            Expr::Ref(_, _, data) => data
+        }
+    }
+}
+
 impl<'a, Data> Display for Expr<'a, Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {

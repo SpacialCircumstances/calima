@@ -18,6 +18,14 @@ pub enum ErrorKind {
     InvalidNumber
 }
 
+impl Display for ErrorKind {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ErrorKind::InvalidNumber => write!(f, "Invalid number format")
+        }
+    }
+}
+
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub struct Error {
     pub location: Span,
@@ -26,7 +34,7 @@ pub struct Error {
 
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Lexer error {:#?} in position: {}", self.kind, self.location)
+        write!(f, "Lexer error {} in position: {}", self.kind, self.location)
     }
 }
 

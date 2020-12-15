@@ -1,4 +1,5 @@
 use std::fmt::{Display, Formatter};
+use std::ops::Range;
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum NumberFormat {
@@ -108,6 +109,12 @@ impl Display for Location {
 pub struct Span {
     pub left: Location,
     pub right: Location
+}
+
+impl Span {
+    pub fn to_range(&self) -> Range<usize> {
+        self.left.pos..self.right.pos
+    }
 }
 
 impl Display for Span {

@@ -1,42 +1,6 @@
 use std::fmt::{Display, Formatter};
 use std::collections::BTreeMap;
 
-pub fn split_errors<T, E, I: Iterator<Item=Result<T, E>>>(iter: I) -> (Vec<T>, Vec<E>) {
-    iter.fold((Vec::new(), Vec::new()), |(mut vs, mut es), v| {
-        match v {
-            Ok(t) => vs.push(t),
-            Err(e) => es.push(e)
-        }
-        (vs, es)
-    })
-}
-
-pub fn all_max<T, K: Ord, I: Iterator<Item=T>, F: Fn(&T) -> K>(mut iter: I, f: F) -> (Option<K>, Vec<T>) {
-    let mut max_elements = Vec::new();
-    let mut curr_max: Option<K> = None;
-
-    while let Some(el) = iter.next() {
-        let key = (f)(&el);
-        match &curr_max {
-            None => {
-                curr_max = Some(key);
-                max_elements.push(el);
-            },
-            Some(x) if &key > x => {
-                curr_max = Some(key);
-                max_elements.clear();
-                max_elements.push(el);
-            },
-            Some(x) if &key == x => {
-                max_elements.push(el);
-            },
-            _ => ()
-        }
-    }
-
-    (curr_max, max_elements)
-}
-
 pub fn group_by<K: Ord, V, I: Iterator<Item=(K, V)>>(iter: I) -> BTreeMap<K, Vec<V>> {
     let mut map = BTreeMap::new();
     iter.for_each(|(k, v)| map.entry(k).or_insert_with(|| Vec::new()).push(v));

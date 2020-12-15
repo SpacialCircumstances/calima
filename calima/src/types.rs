@@ -126,7 +126,8 @@ pub enum Type {
     Basic(TypeDef),
     Parameterized(ComplexType, Vec<Type>),
     Var(GenericId),
-    Reference(Region, Box<Type>)
+    Reference(Region, Box<Type>),
+    Error
 }
 
 impl Display for Type {
@@ -135,7 +136,8 @@ impl Display for Type {
             Type::Basic(td) => write!(f, "{}", td),
             Type::Var(id) => write!(f, "{}", id),
             Type::Parameterized(p, params) => write!(f, "({} {})", p, format_iter(params.iter(), " ")),
-            Type::Reference(reg, tp) => write!(f, "@{} {}", reg, tp)
+            Type::Reference(reg, tp) => write!(f, "@{} {}", reg, tp),
+            Type::Error => write!(f, "ERROR_TYPE")
         }
     }
 }
