@@ -94,7 +94,10 @@ enum UnificationError {
 fn substitute(subst: &Substitution<Type>, typ: &Type) -> Type {
     match typ {
         Type::Basic(_) => typ.clone(),
-        Type::Var(v) => subst[(*v).0].as_ref().map(|t| t.clone()).unwrap_or_else(|| typ.clone()),
+        Type::Var(v) => match subst[(*v).0].as_ref() {
+            Some(t) => substitute(subst, t),
+            None => typ.clone()
+        },
         Type::Parameterized(t, params) => Type::Parameterized(t.clone(), params.into_iter().map(|t| substitute(subst, t)).collect()),
         Type::Error => Type::Error,
         _ => unimplemented!()
