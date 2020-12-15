@@ -1,5 +1,6 @@
 use std::ops::Index;
 
+#[derive(Debug, Clone)]
 pub struct Substitution<T: Clone> {
     subst: Vec<Option<T>>
 }
