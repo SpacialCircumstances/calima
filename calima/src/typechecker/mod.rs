@@ -13,6 +13,7 @@ use crate::token::Span;
 use crate::typechecker::symbol_table::{SymbolTable, Location};
 use crate::util::format_iter;
 use crate::typechecker::substitution::Substitution;
+use std::fmt::Debug;
 
 mod symbol_table;
 mod substitution;
@@ -104,14 +105,14 @@ fn substitute(subst: &Substitution<Type>, typ: &Type) -> Type {
     }
 }
 
-pub struct Context<Data: Copy> {
+pub struct Context<Data: Copy + Debug> {
     generic_id: usize,
     type_subst: Substitution<Type>,
     errors: Vec<TypeError<Data>>,
     module: ModuleIdentifier
 }
 
-impl<Data: Copy> Context<Data> {
+impl<Data: Copy + Debug> Context<Data> {
     pub fn new(module: ModuleIdentifier) -> Self {
         Context {
             generic_id: 0,
@@ -226,7 +227,7 @@ impl<Data: Copy> Context<Data> {
     }
 
     fn type_from_annotation<'input>(&mut self, env: &mut Environment<'input, Data>, ta: &TypeAnnotation<'input, Data>) -> Type {
-        fn to_type<'input, Data: Copy>(ctx: &mut Context<Data>, env: &mut Environment<'input, Data>, ta: &TypeAnnotation<'input, Data>) -> Result<Type, TypeError<Data>> {
+        fn to_type<'input, Data: Copy + Debug>(ctx: &mut Context<Data>, env: &mut Environment<'input, Data>, ta: &TypeAnnotation<'input, Data>) -> Result<Type, TypeError<Data>> {
             match ta {
                 TypeAnnotation::Name(name, loc) => match PrimitiveType::try_from(*name) {
                     Ok(pt) => Ok(Type::Basic(TypeDef::Primitive(pt))),
@@ -344,8 +345,8 @@ impl Context<Span> {
 }
 
 //TODO: Immutable environments or something similar to allow variable shadowing?
-#[derive(Clone)]
-struct Environment<'a, Data: Copy> {
+#[derive(Debug, Clone)]
+struct Environment<'a, Data: Copy + Debug> {
     values: SymbolTable<'a, Scheme, Data>,
     operators: SymbolTable<'a, (Scheme, OperatorSpecification), Data>,
     mono_vars: HashSet<GenericId>,
@@ -353,7 +354,7 @@ struct Environment<'a, Data: Copy> {
     depth: usize
 }
 
-impl<'a, Data: Copy> Environment<'a, Data> {
+impl<'a, Data: Copy + Debug> Environment<'a, Data> {
     fn new() -> Self {
         Environment {
             values: SymbolTable::new(),
@@ -455,7 +456,7 @@ impl<'a, Data: Copy> Environment<'a, Data> {
     }
 }
 
-fn function_call<'input, Data: Copy>(ctx: &mut Context<Data>, tfunc: TExpression<'input>, args: Vec<TExpression<'input>>, loc: Data) -> TExpression<'input> {
+fn function_call<'input, Data: Copy + Debug>(ctx: &mut Context<Data>, tfunc: TExpression<'input>, args: Vec<TExpression<'input>>, loc: Data) -> TExpression<'input> {
     let argtypes: Vec<Type> = args.iter().map(TExpression::typ).cloned().collect();
     let ret = ctx.new_generic();
     let mut arg_fun_type = build_function(&argtypes, &ret);
@@ -463,7 +464,7 @@ fn function_call<'input, Data: Copy>(ctx: &mut Context<Data>, tfunc: TExpression
     TExpression::new(TExprData::FunctionCall(tfunc.into(), args), ret)
 }
 
-fn infer_expr<'input, Data: Copy>(env: &mut Environment<'input, Data>, ctx: &mut Context<Data>, expr: &Expr<'input, Data>) -> TExpression<'input> {
+fn infer_expr<'input, Data: Copy + Debug>(env: &mut Environment<'input, Data>, ctx: &mut Context<Data>, expr: &Expr<'input, Data>) -> TExpression<'input> {
     match expr {
         Expr::Literal(lit, _) => TExpression::new(TExprData::Literal(lit.clone()), get_literal_type(lit)),
         Expr::Variable(varname, loc) => {
@@ -533,7 +534,7 @@ fn get_literal_type(lit: &Literal) -> Type {
     }))
 }
 
-fn infer_statement<'input, Data: Copy>(env: &mut Environment<'input, Data>, ctx: &mut Context<Data>, statement: &Statement<'input, Data>) -> Option<TStatement<'input>> {
+fn infer_statement<'input, Data: Copy + Debug>(env: &mut Environment<'input, Data>, ctx: &mut Context<Data>, statement: &Statement<'input, Data>) -> Option<TStatement<'input>> {
     match statement {
         Statement::Region(name, _) => None,
         Statement::Do(expr, _) => Some(TStatement::Do(infer_expr(env, ctx, expr))),
@@ -602,9 +603,9 @@ fn map_match_pattern<'input, Data>(pattern: &MatchPattern<'input, TypeAnnotation
     }
 }
 
-fn infer_block<'input, Data: Copy>(env: &mut Environment<'input, Data>, ctx: &mut Context<Data>, block: &Block<'input, Data>) -> TBlock<'input> {
+fn infer_block<'input, Data: Copy + Debug>(env: &mut Environment<'input, Data>, ctx: &mut Context<Data>, block: &Block<'input, Data>) -> TBlock<'input> {
     let mut block_env = env.clone();
-    let tstatements = block.statements.iter().filter_map(|s| infer_statement(env, ctx, s)).collect();
+    let tstatements = block.statements.iter().filter_map(|s| infer_statement(&mut block_env, ctx, s)).collect();
     let result = infer_expr(&mut block_env, ctx, &block.result);
     TBlock {
         statements: tstatements,
@@ -612,11 +613,11 @@ fn infer_block<'input, Data: Copy>(env: &mut Environment<'input, Data>, ctx: &mu
     }
 }
 
-fn process_top_level<'input, Data: Copy>(env: &mut Environment<'input, Data>, ctx: &mut Context<Data>, tls: &TopLevelStatement<'input, Data>) {
+fn process_top_level<'input, Data: Copy + Debug>(env: &mut Environment<'input, Data>, ctx: &mut Context<Data>, tls: &TopLevelStatement<'input, Data>) {
 
 }
 
-fn infer_top_level_block<'input, Data: Copy>(env: &mut Environment<'input, Data>, ctx: &mut Context<Data>,tlb: &TopLevelBlock<'input, Data>) -> TBlock<'input> {
+fn infer_top_level_block<'input, Data: Copy + Debug>(env: &mut Environment<'input, Data>, ctx: &mut Context<Data>,tlb: &TopLevelBlock<'input, Data>) -> TBlock<'input> {
     tlb.top_levels.iter().for_each(|st| process_top_level(env, ctx, st));
     let statements = tlb.block.statements.iter().filter_map(|st| infer_statement(env, ctx, st)).collect();
     let res = infer_expr(env, ctx, &*tlb.block.result);
