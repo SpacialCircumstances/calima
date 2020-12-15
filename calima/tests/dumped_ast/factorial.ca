@@ -1,0 +1,360 @@
+TopLevelBlock {
+    top_levels: [],
+    block: Block {
+        statements: [
+            Let(
+                [
+                    Rec,
+                ],
+                Name(
+                    "fac",
+                    None,
+                    Span {
+                        left: Location {
+                            line: 1,
+                            col: 9,
+                            pos: 8,
+                        },
+                        right: Location {
+                            line: 1,
+                            col: 11,
+                            pos: 10,
+                        },
+                    },
+                ),
+                Lambda {
+                    params: [
+                        Name(
+                            "i",
+                            None,
+                            Span {
+                                left: Location {
+                                    line: 1,
+                                    col: 19,
+                                    pos: 18,
+                                },
+                                right: Location {
+                                    line: 1,
+                                    col: 19,
+                                    pos: 18,
+                                },
+                            },
+                        ),
+                    ],
+                    body: Block {
+                        statements: [],
+                        result: If {
+                            data: Span {
+                                left: Location {
+                                    line: 2,
+                                    col: 5,
+                                    pos: 28,
+                                },
+                                right: Location {
+                                    line: 6,
+                                    col: 7,
+                                    pos: 92,
+                                },
+                            },
+                            cond: OperatorCall(
+                                [
+                                    Expression(
+                                        Variable(
+                                            "i",
+                                            Span {
+                                                left: Location {
+                                                    line: 2,
+                                                    col: 8,
+                                                    pos: 31,
+                                                },
+                                                right: Location {
+                                                    line: 2,
+                                                    col: 8,
+                                                    pos: 31,
+                                                },
+                                            },
+                                        ),
+                                    ),
+                                    Operator(
+                                        "==",
+                                        Span {
+                                            left: Location {
+                                                line: 2,
+                                                col: 10,
+                                                pos: 33,
+                                            },
+                                            right: Location {
+                                                line: 2,
+                                                col: 11,
+                                                pos: 34,
+                                            },
+                                        },
+                                    ),
+                                    Expression(
+                                        Literal(
+                                            Number(
+                                                "0",
+                                                Integer,
+                                            ),
+                                            Span {
+                                                left: Location {
+                                                    line: 2,
+                                                    col: 13,
+                                                    pos: 36,
+                                                },
+                                                right: Location {
+                                                    line: 2,
+                                                    col: 13,
+                                                    pos: 36,
+                                                },
+                                            },
+                                        ),
+                                    ),
+                                ],
+                                Span {
+                                    left: Location {
+                                        line: 2,
+                                        col: 8,
+                                        pos: 31,
+                                    },
+                                    right: Location {
+                                        line: 2,
+                                        col: 13,
+                                        pos: 36,
+                                    },
+                                },
+                            ),
+                            if_true: Block {
+                                statements: [],
+                                result: Literal(
+                                    Number(
+                                        "1",
+                                        Integer,
+                                    ),
+                                    Span {
+                                        left: Location {
+                                            line: 3,
+                                            col: 9,
+                                            pos: 52,
+                                        },
+                                        right: Location {
+                                            line: 3,
+                                            col: 9,
+                                            pos: 52,
+                                        },
+                                    },
+                                ),
+                            },
+                            if_false: Block {
+                                statements: [],
+                                result: FunctionCall(
+                                    Variable(
+                                        "fac",
+                                        Span {
+                                            left: Location {
+                                                line: 5,
+                                                col: 9,
+                                                pos: 73,
+                                            },
+                                            right: Location {
+                                                line: 5,
+                                                col: 11,
+                                                pos: 75,
+                                            },
+                                        },
+                                    ),
+                                    [
+                                        OperatorCall(
+                                            [
+                                                Expression(
+                                                    Variable(
+                                                        "i",
+                                                        Span {
+                                                            left: Location {
+                                                                line: 5,
+                                                                col: 14,
+                                                                pos: 78,
+                                                            },
+                                                            right: Location {
+                                                                line: 5,
+                                                                col: 14,
+                                                                pos: 78,
+                                                            },
+                                                        },
+                                                    ),
+                                                ),
+                                                Operator(
+                                                    "-",
+                                                    Span {
+                                                        left: Location {
+                                                            line: 5,
+                                                            col: 16,
+                                                            pos: 80,
+                                                        },
+                                                        right: Location {
+                                                            line: 5,
+                                                            col: 16,
+                                                            pos: 80,
+                                                        },
+                                                    },
+                                                ),
+                                                Expression(
+                                                    Literal(
+                                                        Number(
+                                                            "1",
+                                                            Integer,
+                                                        ),
+                                                        Span {
+                                                            left: Location {
+                                                                line: 5,
+                                                                col: 18,
+                                                                pos: 82,
+                                                            },
+                                                            right: Location {
+                                                                line: 5,
+                                                                col: 18,
+                                                                pos: 82,
+                                                            },
+                                                        },
+                                                    ),
+                                                ),
+                                            ],
+                                            Span {
+                                                left: Location {
+                                                    line: 5,
+                                                    col: 14,
+                                                    pos: 78,
+                                                },
+                                                right: Location {
+                                                    line: 5,
+                                                    col: 18,
+                                                    pos: 82,
+                                                },
+                                            },
+                                        ),
+                                    ],
+                                    Span {
+                                        left: Location {
+                                            line: 5,
+                                            col: 9,
+                                            pos: 73,
+                                        },
+                                        right: Location {
+                                            line: 5,
+                                            col: 19,
+                                            pos: 83,
+                                        },
+                                    },
+                                ),
+                            },
+                        },
+                    },
+                    data: Span {
+                        left: Location {
+                            line: 1,
+                            col: 15,
+                            pos: 14,
+                        },
+                        right: Location {
+                            line: 6,
+                            col: 7,
+                            pos: 92,
+                        },
+                    },
+                },
+                Span {
+                    left: Location {
+                        line: 1,
+                        col: 1,
+                        pos: 0,
+                    },
+                    right: Location {
+                        line: 6,
+                        col: 7,
+                        pos: 92,
+                    },
+                },
+            ),
+        ],
+        result: FunctionCall(
+            Variable(
+                "println",
+                Span {
+                    left: Location {
+                        line: 7,
+                        col: 4,
+                        pos: 98,
+                    },
+                    right: Location {
+                        line: 7,
+                        col: 10,
+                        pos: 104,
+                    },
+                },
+            ),
+            [
+                FunctionCall(
+                    Variable(
+                        "fac",
+                        Span {
+                            left: Location {
+                                line: 7,
+                                col: 13,
+                                pos: 107,
+                            },
+                            right: Location {
+                                line: 7,
+                                col: 15,
+                                pos: 109,
+                            },
+                        },
+                    ),
+                    [
+                        Literal(
+                            Number(
+                                "5",
+                                Integer,
+                            ),
+                            Span {
+                                left: Location {
+                                    line: 7,
+                                    col: 17,
+                                    pos: 111,
+                                },
+                                right: Location {
+                                    line: 7,
+                                    col: 17,
+                                    pos: 111,
+                                },
+                            },
+                        ),
+                    ],
+                    Span {
+                        left: Location {
+                            line: 7,
+                            col: 13,
+                            pos: 107,
+                        },
+                        right: Location {
+                            line: 7,
+                            col: 17,
+                            pos: 111,
+                        },
+                    },
+                ),
+            ],
+            Span {
+                left: Location {
+                    line: 7,
+                    col: 4,
+                    pos: 98,
+                },
+                right: Location {
+                    line: 7,
+                    col: 18,
+                    pos: 112,
+                },
+            },
+        ),
+    },
+}

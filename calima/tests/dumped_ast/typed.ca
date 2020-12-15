@@ -1,0 +1,517 @@
+TopLevelBlock {
+    top_levels: [
+        Type {
+            name: "Person",
+            regions: [],
+            params: [],
+            type_def: Record(
+                [
+                    (
+                        "name",
+                        Name(
+                            "String",
+                            Span {
+                                left: Location {
+                                    line: 2,
+                                    col: 11,
+                                    pos: 27,
+                                },
+                                right: Location {
+                                    line: 2,
+                                    col: 16,
+                                    pos: 32,
+                                },
+                            },
+                        ),
+                    ),
+                    (
+                        "age",
+                        Name(
+                            "Int",
+                            Span {
+                                left: Location {
+                                    line: 3,
+                                    col: 10,
+                                    pos: 45,
+                                },
+                                right: Location {
+                                    line: 3,
+                                    col: 12,
+                                    pos: 47,
+                                },
+                            },
+                        ),
+                    ),
+                ],
+            ),
+            data: Span {
+                left: Location {
+                    line: 1,
+                    col: 1,
+                    pos: 0,
+                },
+                right: Location {
+                    line: 4,
+                    col: 1,
+                    pos: 50,
+                },
+            },
+        },
+    ],
+    block: Block {
+        statements: [
+            Let(
+                [],
+                Name(
+                    "p",
+                    Some(
+                        Name(
+                            "Person",
+                            Span {
+                                left: Location {
+                                    line: 6,
+                                    col: 9,
+                                    pos: 65,
+                                },
+                                right: Location {
+                                    line: 6,
+                                    col: 14,
+                                    pos: 70,
+                                },
+                            },
+                        ),
+                    ),
+                    Span {
+                        left: Location {
+                            line: 6,
+                            col: 4,
+                            pos: 60,
+                        },
+                        right: Location {
+                            line: 6,
+                            col: 15,
+                            pos: 71,
+                        },
+                    },
+                ),
+                Record(
+                    [
+                        (
+                            "name",
+                            Literal(
+                                String(
+                                    "Test",
+                                ),
+                                Span {
+                                    left: Location {
+                                        line: 7,
+                                        col: 12,
+                                        pos: 89,
+                                    },
+                                    right: Location {
+                                        line: 7,
+                                        col: 17,
+                                        pos: 94,
+                                    },
+                                },
+                            ),
+                        ),
+                        (
+                            "age",
+                            Literal(
+                                Number(
+                                    "42",
+                                    Integer,
+                                ),
+                                Span {
+                                    left: Location {
+                                        line: 8,
+                                        col: 11,
+                                        pos: 108,
+                                    },
+                                    right: Location {
+                                        line: 8,
+                                        col: 12,
+                                        pos: 109,
+                                    },
+                                },
+                            ),
+                        ),
+                    ],
+                    Span {
+                        left: Location {
+                            line: 6,
+                            col: 18,
+                            pos: 74,
+                        },
+                        right: Location {
+                            line: 9,
+                            col: 1,
+                            pos: 112,
+                        },
+                    },
+                ),
+                Span {
+                    left: Location {
+                        line: 6,
+                        col: 1,
+                        pos: 57,
+                    },
+                    right: Location {
+                        line: 9,
+                        col: 1,
+                        pos: 112,
+                    },
+                },
+            ),
+            Let(
+                [],
+                Name(
+                    "x",
+                    Some(
+                        Parameterized(
+                            "List",
+                            [
+                                Name(
+                                    "Int",
+                                    Span {
+                                        left: Location {
+                                            line: 10,
+                                            col: 14,
+                                            pos: 128,
+                                        },
+                                        right: Location {
+                                            line: 10,
+                                            col: 16,
+                                            pos: 130,
+                                        },
+                                    },
+                                ),
+                            ],
+                        ),
+                    ),
+                    Span {
+                        left: Location {
+                            line: 10,
+                            col: 4,
+                            pos: 118,
+                        },
+                        right: Location {
+                            line: 10,
+                            col: 17,
+                            pos: 131,
+                        },
+                    },
+                ),
+                List(
+                    [
+                        Literal(
+                            Number(
+                                "2",
+                                Integer,
+                            ),
+                            Span {
+                                left: Location {
+                                    line: 10,
+                                    col: 23,
+                                    pos: 137,
+                                },
+                                right: Location {
+                                    line: 10,
+                                    col: 23,
+                                    pos: 137,
+                                },
+                            },
+                        ),
+                        Literal(
+                            Number(
+                                "3",
+                                Integer,
+                            ),
+                            Span {
+                                left: Location {
+                                    line: 10,
+                                    col: 26,
+                                    pos: 140,
+                                },
+                                right: Location {
+                                    line: 10,
+                                    col: 26,
+                                    pos: 140,
+                                },
+                            },
+                        ),
+                        Literal(
+                            Number(
+                                "4",
+                                Integer,
+                            ),
+                            Span {
+                                left: Location {
+                                    line: 10,
+                                    col: 29,
+                                    pos: 143,
+                                },
+                                right: Location {
+                                    line: 10,
+                                    col: 29,
+                                    pos: 143,
+                                },
+                            },
+                        ),
+                    ],
+                    Span {
+                        left: Location {
+                            line: 10,
+                            col: 20,
+                            pos: 134,
+                        },
+                        right: Location {
+                            line: 10,
+                            col: 31,
+                            pos: 145,
+                        },
+                    },
+                ),
+                Span {
+                    left: Location {
+                        line: 10,
+                        col: 1,
+                        pos: 115,
+                    },
+                    right: Location {
+                        line: 10,
+                        col: 31,
+                        pos: 145,
+                    },
+                },
+            ),
+            Let(
+                [],
+                Name(
+                    "mapped",
+                    None,
+                    Span {
+                        left: Location {
+                            line: 11,
+                            col: 5,
+                            pos: 152,
+                        },
+                        right: Location {
+                            line: 11,
+                            col: 10,
+                            pos: 157,
+                        },
+                    },
+                ),
+                FunctionCall(
+                    Variable(
+                        "map",
+                        Span {
+                            left: Location {
+                                line: 11,
+                                col: 14,
+                                pos: 161,
+                            },
+                            right: Location {
+                                line: 11,
+                                col: 16,
+                                pos: 163,
+                            },
+                        },
+                    ),
+                    [
+                        Lambda {
+                            params: [
+                                Name(
+                                    "i",
+                                    None,
+                                    Span {
+                                        left: Location {
+                                            line: 11,
+                                            col: 23,
+                                            pos: 170,
+                                        },
+                                        right: Location {
+                                            line: 11,
+                                            col: 23,
+                                            pos: 170,
+                                        },
+                                    },
+                                ),
+                            ],
+                            body: Block {
+                                statements: [],
+                                result: OperatorCall(
+                                    [
+                                        Expression(
+                                            Variable(
+                                                "i",
+                                                Span {
+                                                    left: Location {
+                                                        line: 11,
+                                                        col: 28,
+                                                        pos: 175,
+                                                    },
+                                                    right: Location {
+                                                        line: 11,
+                                                        col: 28,
+                                                        pos: 175,
+                                                    },
+                                                },
+                                            ),
+                                        ),
+                                        Operator(
+                                            "+",
+                                            Span {
+                                                left: Location {
+                                                    line: 11,
+                                                    col: 30,
+                                                    pos: 177,
+                                                },
+                                                right: Location {
+                                                    line: 11,
+                                                    col: 30,
+                                                    pos: 177,
+                                                },
+                                            },
+                                        ),
+                                        Expression(
+                                            Literal(
+                                                Number(
+                                                    "2",
+                                                    Integer,
+                                                ),
+                                                Span {
+                                                    left: Location {
+                                                        line: 11,
+                                                        col: 32,
+                                                        pos: 179,
+                                                    },
+                                                    right: Location {
+                                                        line: 11,
+                                                        col: 32,
+                                                        pos: 179,
+                                                    },
+                                                },
+                                            ),
+                                        ),
+                                    ],
+                                    Span {
+                                        left: Location {
+                                            line: 11,
+                                            col: 28,
+                                            pos: 175,
+                                        },
+                                        right: Location {
+                                            line: 11,
+                                            col: 32,
+                                            pos: 179,
+                                        },
+                                    },
+                                ),
+                            },
+                            data: Span {
+                                left: Location {
+                                    line: 11,
+                                    col: 19,
+                                    pos: 166,
+                                },
+                                right: Location {
+                                    line: 11,
+                                    col: 32,
+                                    pos: 179,
+                                },
+                            },
+                        },
+                        Variable(
+                            "x",
+                            Span {
+                                left: Location {
+                                    line: 11,
+                                    col: 35,
+                                    pos: 182,
+                                },
+                                right: Location {
+                                    line: 11,
+                                    col: 35,
+                                    pos: 182,
+                                },
+                            },
+                        ),
+                    ],
+                    Span {
+                        left: Location {
+                            line: 11,
+                            col: 14,
+                            pos: 161,
+                        },
+                        right: Location {
+                            line: 11,
+                            col: 35,
+                            pos: 182,
+                        },
+                    },
+                ),
+                Span {
+                    left: Location {
+                        line: 11,
+                        col: 1,
+                        pos: 148,
+                    },
+                    right: Location {
+                        line: 11,
+                        col: 35,
+                        pos: 182,
+                    },
+                },
+            ),
+        ],
+        result: FunctionCall(
+            Variable(
+                "println",
+                Span {
+                    left: Location {
+                        line: 12,
+                        col: 4,
+                        pos: 188,
+                    },
+                    right: Location {
+                        line: 12,
+                        col: 10,
+                        pos: 194,
+                    },
+                },
+            ),
+            [
+                Variable(
+                    "p.name",
+                    Span {
+                        left: Location {
+                            line: 12,
+                            col: 12,
+                            pos: 196,
+                        },
+                        right: Location {
+                            line: 12,
+                            col: 17,
+                            pos: 201,
+                        },
+                    },
+                ),
+            ],
+            Span {
+                left: Location {
+                    line: 12,
+                    col: 4,
+                    pos: 188,
+                },
+                right: Location {
+                    line: 12,
+                    col: 17,
+                    pos: 201,
+                },
+            },
+        ),
+    },
+}

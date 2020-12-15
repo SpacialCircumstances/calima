@@ -1,0 +1,389 @@
+TopLevelBlock {
+    top_levels: [
+        Import(
+            "List",
+            [],
+            Span {
+                left: Location {
+                    line: 1,
+                    col: 1,
+                    pos: 0,
+                },
+                right: Location {
+                    line: 1,
+                    col: 11,
+                    pos: 10,
+                },
+            },
+        ),
+    ],
+    block: Block {
+        statements: [
+            Region(
+                "test",
+                Span {
+                    left: Location {
+                        line: 2,
+                        col: 1,
+                        pos: 16,
+                    },
+                    right: Location {
+                        line: 2,
+                        col: 11,
+                        pos: 26,
+                    },
+                },
+            ),
+            Let(
+                [],
+                Name(
+                    "new",
+                    None,
+                    Span {
+                        left: Location {
+                            line: 3,
+                            col: 5,
+                            pos: 33,
+                        },
+                        right: Location {
+                            line: 3,
+                            col: 7,
+                            pos: 35,
+                        },
+                    },
+                ),
+                Lambda {
+                    params: [
+                        Any(
+                            Span {
+                                left: Location {
+                                    line: 3,
+                                    col: 15,
+                                    pos: 43,
+                                },
+                                right: Location {
+                                    line: 3,
+                                    col: 15,
+                                    pos: 43,
+                                },
+                            },
+                        ),
+                    ],
+                    body: Block {
+                        statements: [
+                            Let(
+                                [],
+                                Name(
+                                    "a",
+                                    None,
+                                    Span {
+                                        left: Location {
+                                            line: 4,
+                                            col: 9,
+                                            pos: 57,
+                                        },
+                                        right: Location {
+                                            line: 4,
+                                            col: 9,
+                                            pos: 57,
+                                        },
+                                    },
+                                ),
+                                Ref(
+                                    Named(
+                                        "a",
+                                        Span {
+                                            left: Location {
+                                                line: 4,
+                                                col: 12,
+                                                pos: 60,
+                                            },
+                                            right: Location {
+                                                line: 4,
+                                                col: 14,
+                                                pos: 62,
+                                            },
+                                        },
+                                    ),
+                                    Variable(
+                                        "Empty",
+                                        Span {
+                                            left: Location {
+                                                line: 4,
+                                                col: 16,
+                                                pos: 64,
+                                            },
+                                            right: Location {
+                                                line: 4,
+                                                col: 20,
+                                                pos: 68,
+                                            },
+                                        },
+                                    ),
+                                    Span {
+                                        left: Location {
+                                            line: 4,
+                                            col: 12,
+                                            pos: 60,
+                                        },
+                                        right: Location {
+                                            line: 4,
+                                            col: 20,
+                                            pos: 68,
+                                        },
+                                    },
+                                ),
+                                Span {
+                                    left: Location {
+                                        line: 4,
+                                        col: 5,
+                                        pos: 53,
+                                    },
+                                    right: Location {
+                                        line: 4,
+                                        col: 20,
+                                        pos: 68,
+                                    },
+                                },
+                            ),
+                        ],
+                        result: Variable(
+                            "a",
+                            Span {
+                                left: Location {
+                                    line: 4,
+                                    col: 25,
+                                    pos: 73,
+                                },
+                                right: Location {
+                                    line: 4,
+                                    col: 25,
+                                    pos: 73,
+                                },
+                            },
+                        ),
+                    },
+                    data: Span {
+                        left: Location {
+                            line: 3,
+                            col: 11,
+                            pos: 39,
+                        },
+                        right: Location {
+                            line: 4,
+                            col: 25,
+                            pos: 73,
+                        },
+                    },
+                },
+                Span {
+                    left: Location {
+                        line: 3,
+                        col: 1,
+                        pos: 29,
+                    },
+                    right: Location {
+                        line: 4,
+                        col: 25,
+                        pos: 73,
+                    },
+                },
+            ),
+            Let(
+                [],
+                Name(
+                    "t1",
+                    Some(
+                        Reference(
+                            Named(
+                                "test",
+                                Span {
+                                    left: Location {
+                                        line: 5,
+                                        col: 9,
+                                        pos: 84,
+                                    },
+                                    right: Location {
+                                        line: 5,
+                                        col: 14,
+                                        pos: 89,
+                                    },
+                                },
+                            ),
+                            Parameterized(
+                                "List",
+                                [
+                                    Name(
+                                        "Int",
+                                        Span {
+                                            left: Location {
+                                                line: 5,
+                                                col: 21,
+                                                pos: 96,
+                                            },
+                                            right: Location {
+                                                line: 5,
+                                                col: 23,
+                                                pos: 98,
+                                            },
+                                        },
+                                    ),
+                                ],
+                            ),
+                        ),
+                    ),
+                    Span {
+                        left: Location {
+                            line: 5,
+                            col: 4,
+                            pos: 79,
+                        },
+                        right: Location {
+                            line: 5,
+                            col: 24,
+                            pos: 99,
+                        },
+                    },
+                ),
+                FunctionCall(
+                    Variable(
+                        "Node",
+                        Span {
+                            left: Location {
+                                line: 5,
+                                col: 28,
+                                pos: 103,
+                            },
+                            right: Location {
+                                line: 5,
+                                col: 31,
+                                pos: 106,
+                            },
+                        },
+                    ),
+                    [
+                        Tuple(
+                            [
+                                Variable(
+                                    "Empty",
+                                    Span {
+                                        left: Location {
+                                            line: 5,
+                                            col: 34,
+                                            pos: 109,
+                                        },
+                                        right: Location {
+                                            line: 5,
+                                            col: 38,
+                                            pos: 113,
+                                        },
+                                    },
+                                ),
+                                Literal(
+                                    Number(
+                                        "2",
+                                        Integer,
+                                    ),
+                                    Span {
+                                        left: Location {
+                                            line: 5,
+                                            col: 41,
+                                            pos: 116,
+                                        },
+                                        right: Location {
+                                            line: 5,
+                                            col: 41,
+                                            pos: 116,
+                                        },
+                                    },
+                                ),
+                            ],
+                            Span {
+                                left: Location {
+                                    line: 5,
+                                    col: 32,
+                                    pos: 107,
+                                },
+                                right: Location {
+                                    line: 5,
+                                    col: 42,
+                                    pos: 117,
+                                },
+                            },
+                        ),
+                    ],
+                    Span {
+                        left: Location {
+                            line: 5,
+                            col: 28,
+                            pos: 103,
+                        },
+                        right: Location {
+                            line: 5,
+                            col: 42,
+                            pos: 117,
+                        },
+                    },
+                ),
+                Span {
+                    left: Location {
+                        line: 5,
+                        col: 1,
+                        pos: 76,
+                    },
+                    right: Location {
+                        line: 5,
+                        col: 42,
+                        pos: 117,
+                    },
+                },
+            ),
+        ],
+        result: FunctionCall(
+            Variable(
+                "head",
+                Span {
+                    left: Location {
+                        line: 6,
+                        col: 4,
+                        pos: 123,
+                    },
+                    right: Location {
+                        line: 6,
+                        col: 7,
+                        pos: 126,
+                    },
+                },
+            ),
+            [
+                Variable(
+                    "t1",
+                    Span {
+                        left: Location {
+                            line: 6,
+                            col: 9,
+                            pos: 128,
+                        },
+                        right: Location {
+                            line: 6,
+                            col: 10,
+                            pos: 129,
+                        },
+                    },
+                ),
+            ],
+            Span {
+                left: Location {
+                    line: 6,
+                    col: 4,
+                    pos: 123,
+                },
+                right: Location {
+                    line: 6,
+                    col: 10,
+                    pos: 129,
+                },
+            },
+        ),
+    },
+}
