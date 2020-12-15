@@ -679,6 +679,7 @@ mod tests {
     use crate::types::{Type, int};
     use crate::errors::ErrorContext;
     use crate::common::ModuleIdentifier;
+    use std::fmt::Debug;
 
     fn int_lit(lit: &str) -> OperatorElement<()> {
         Expression(Expr::Literal(Literal::Number(lit, NumberType::Integer), ()))
@@ -688,29 +689,29 @@ mod tests {
         TExpression::new(TExprData::Literal(Literal::Number(lit, NumberType::Integer)), int())
     }
 
-    fn lookup<Data: Copy>(env: &Environment<Data>, ctx: &mut Context<Data>, name: &str) -> Type {
+    fn lookup<Data: Copy + Debug>(env: &Environment<Data>, ctx: &mut Context<Data>, name: &str) -> Type {
         let sch = env.lookup(name).unwrap();
         env.inst(ctx, sch)
     }
 
-    fn lookup_operator<Data: Copy>(env: &Environment<Data>, ctx: &mut Context<Data>, name: &str) -> Type {
+    fn lookup_operator<Data: Copy + Debug>(env: &Environment<Data>, ctx: &mut Context<Data>, name: &str) -> Type {
         let (sch, _) = env.lookup_operator(name).unwrap();
         env.inst(ctx, sch)
     }
 
-    fn add_op<'a, Data: Copy>(env: &Environment<'a, Data>, ctx: &mut Context<Data>) -> TExpression<'a> {
+    fn add_op<'a, Data: Copy + Debug>(env: &Environment<'a, Data>, ctx: &mut Context<Data>) -> TExpression<'a> {
         TExpression::new(TExprData::Variable("+"), lookup_operator(env, ctx, "+"))
     }
 
-    fn mul_op<'a, Data: Copy>(env: &Environment<'a, Data>, ctx: &mut Context<Data>) -> TExpression<'a> {
+    fn mul_op<'a, Data: Copy + Debug>(env: &Environment<'a, Data>, ctx: &mut Context<Data>) -> TExpression<'a> {
         TExpression::new(TExprData::Variable("*"), lookup_operator(env, ctx, "*"))
     }
 
-    fn neg_op<'a, Data: Copy>(env: &Environment<'a, Data>, ctx: &mut Context<Data>) -> TExpression<'a> {
+    fn neg_op<'a, Data: Copy + Debug>(env: &Environment<'a, Data>, ctx: &mut Context<Data>) -> TExpression<'a> {
         TExpression::new(TExprData::Variable("~"), lookup_operator(env, ctx, "~"))
     }
 
-    fn neg_expr<'a, Data: Copy>(env: &Environment<'a, Data>, ctx: &mut Context<Data>, expr: TExpression<'a>) -> TExpression<'a> {
+    fn neg_expr<'a, Data: Copy + Debug>(env: &Environment<'a, Data>, ctx: &mut Context<Data>, expr: TExpression<'a>) -> TExpression<'a> {
         TExpression::new(TExprData::FunctionCall(neg_op(env, ctx).into(), vec![
             expr
         ]), int())
