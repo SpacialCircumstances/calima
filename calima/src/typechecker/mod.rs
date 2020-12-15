@@ -546,7 +546,8 @@ fn infer_statement<'input, Data: Copy>(env: &mut Environment<'input, Data>, ctx:
                 ctx.unify(&mut var, &v.typ(), UnificationSource::TypeInference, *loc);
                 v
             } else {
-                infer_expr(env, ctx, value)
+                let mut body_env = env.clone();
+                infer_expr(&mut body_env, ctx, value)
             };
             ctx.bind_to_pattern(env, pattern, &env.generalize(&v.typ()));
             Some(TStatement::Let(v, map_bind_pattern(pattern)))
