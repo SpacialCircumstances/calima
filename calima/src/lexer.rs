@@ -271,17 +271,50 @@ impl<'source, 'input> Iterator for Lexer<'source, 'input> {
 
 #[cfg(test)]
 mod tests {
-    use crate::token::{Token, NumberFormat};
+    use crate::token::{Token, NumberFormat, Span, span, Location};
     use crate::token::Token::*;
     use crate::lexer::Lexer;
     use crate::string_interner::StringInterner;
     use crate::ast::TypeAnnotation::Name;
+
+    fn pos(pos: usize) -> Location {
+        Location {
+            line: 1,
+            col: pos + 1,
+            pos
+        }
+    }
+
+    fn span_one(p: usize) -> Span {
+        span(pos(p), pos(p + 1))
+    }
+
+    fn lex_equal_positions(code: &str, tokens: Vec<(Token, Span)>) {
+        let interner = StringInterner::new();
+        let lexer = Lexer::new(code, &interner);
+        let res: Vec<(Token, Span)> = lexer.map(|tk| tk.unwrap()).map(|(l, t, r)| (t, span(l, r))).collect();
+        assert_eq!(res, tokens);
+    }
 
     fn lex_equal(code: &str, tokens: Vec<Token>) {
         let interner = StringInterner::new();
         let lexer = Lexer::new(code, &interner);
         let res: Vec<Token> = lexer.map(|tk| tk.unwrap()).map(|(_, t, _)| t).collect();
         assert_eq!(res, tokens);
+    }
+
+    #[test]
+    fn lex_pos1() {
+        let code = "let x = 2 in x";
+        let tokens = vec![
+            (Let, span(pos(0), pos(3))),
+            (NameIdentifier("x"), span_one(4)),
+            (Equal, span_one(6)),
+            (NumberLiteral(("2", NumberFormat::Integer)), span_one(8)),
+            (In, span(pos(10), pos(12))),
+            (NameIdentifier("x"), span_one(13))
+        ];
+        lex_equal_positions(code, tokens);
     }
 
     #[test]
