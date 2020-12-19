@@ -120,7 +120,7 @@ pub fn span(left: Location, right: Location) -> Span {
 
 impl Span {
     pub fn to_range(&self) -> Range<usize> {
-        self.left.pos..self.right.pos
+        self.left.pos..self.right.pos+1
     }
 }
 

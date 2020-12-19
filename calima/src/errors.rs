@@ -1,6 +1,6 @@
 use std::error::Error;
 use std::io::Write;
-use crate::token::{Token, Location, Span};
+use crate::token::{Token, Location, Span, span};
 use crate::common::ModuleIdentifier;
 use std::path::PathBuf;
 use codespan_reporting::term::termcolor::{StandardStream, ColorChoice, WriteColor, ColorSpec, Color};
@@ -146,7 +146,7 @@ impl<'a> ErrorContext<'a> {
                             let message = format!("{}", error.kind);
                             let e = Diagnostic::new(Severity::Error)
                                 .with_labels(vec![
-                                    Label::primary(file_id, error.location.left.pos..error.location.right.pos).with_message(&message)
+                                    Label::primary(file_id, error.location.to_range()).with_message(&message)
                                 ])
                                 .with_message(&message);
                             diagnostics.push(e);
@@ -155,7 +155,7 @@ impl<'a> ErrorContext<'a> {
                             let e = Diagnostic::new(Severity::Error)
                                 .with_message("Parser Error")
                                 .with_labels(vec![
-                                    Label::primary(file_id, s.pos..e.pos).with_message(format!("Extra token {} found", token))
+                                    Label::primary(file_id, s.pos..e.pos+1).with_message(format!("Extra token {} found", token))
                                 ])
                                 .with_notes(vec![ format!("Parser found unexpected token: {}", token) ]);
                             diagnostics.push(e);
@@ -184,7 +184,7 @@ impl<'a> ErrorContext<'a> {
                             let e = Diagnostic::new(Severity::Error)
                                 .with_message("Parser error")
                                 .with_labels(vec![
-                                    Label::primary(file_id, s.pos..e.pos).with_message(format!("Unrecognized token {}, expected one of: {{{}}}", token, expected))
+                                    Label::primary(file_id, s.pos..e.pos+1).with_message(format!("Unrecognized token {}, expected one of: {{{}}}", token, expected))
                                 ])
                                 .with_notes(vec![ format!("Parser found unrecognized token {}", token) ]);
                             diagnostics.push(e);
