@@ -163,10 +163,9 @@ impl<'source, 'input> Lexer<'source, 'input> {
             match self.advance() {
                 None => break,
                 Some('\n') => {
-                    self.incr_line();
                     break;
                 }
-                Some(_) => self.incr_pos()
+                Some(_) => ()
             }
         }
     }
