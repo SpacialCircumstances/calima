@@ -54,4 +54,26 @@ mod tests {
         };
         assert_eq!(ast, expected);
     }
+
+    #[test]
+    fn test_by_comparing_to_parsed() {
+        let mut mint_code = Mint::new("tests/parsed/");
+        let interner = StringInterner::new();
+
+        for entry in read_dir("../examples/basic/").unwrap() {
+            match entry {
+                Ok(entry) => {
+                    let entry_path = entry.path();
+                    if entry_path.is_file() {
+                        let filename = entry_path.file_name().unwrap();
+                        let mut parsed_file = mint_code.new_goldenfile(filename).unwrap();
+                        let file_content = std::fs::read_to_string(&entry_path).unwrap();
+                        let parsed = parse(&file_content, &interner).expect(format!("Error parsing {}", filename.to_string_lossy()).as_ref());
+                        write!(parsed_file, "{}", parsed).unwrap();
+                    }
+                },
+                Err(_) => ()
+            }
+        }
+    }
 }
