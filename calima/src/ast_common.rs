@@ -1,5 +1,5 @@
 use std::fmt::{Display, Formatter};
-use crate::util::{format_tuple, format_record};
+use crate::formatting::{format_tuple, format_record};
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum NumberType {

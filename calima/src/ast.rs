@@ -1,5 +1,5 @@
 use std::fmt::{Display, Formatter, Debug};
-use crate::util::*;
+use crate::formatting::*;
 use crate::common::{ModuleIdentifier, OperatorSpecification};
 use crate::ast_common::{MatchPattern, Literal, BindPattern};
 

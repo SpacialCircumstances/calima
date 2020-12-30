@@ -1,6 +1,6 @@
 use std::collections::{HashSet, HashMap};
 use std::fmt::{Display, Formatter};
-use crate::util::{format_iter, format_iter_end};
+use crate::formatting::{format_iter, format_iter_end};
 use crate::common::OperatorSpecification;
 use std::convert::TryFrom;
 

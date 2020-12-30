@@ -11,7 +11,7 @@ use crate::prelude::prelude;
 use std::convert::TryFrom;
 use crate::token::Span;
 use crate::typechecker::symbol_table::{SymbolTable, Location};
-use crate::util::format_iter;
+use crate::formatting::format_iter;
 use crate::typechecker::substitution::Substitution;
 use std::fmt::Debug;
 

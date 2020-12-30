@@ -14,6 +14,7 @@ mod types;
 mod prelude;
 mod typed_ast;
 mod typechecker;
+mod formatting;
 
 use string_interner::StringInterner;
 use crate::errors::ErrorContext;
