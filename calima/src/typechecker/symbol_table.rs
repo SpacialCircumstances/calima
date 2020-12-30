@@ -3,20 +3,20 @@ use std::collections::HashMap;
 #[derive(Debug, Copy, Clone)]
 pub enum Location<Data: Copy> {
     External, //TODO: Remove
-    Local(Data)
+    Local(Data),
 }
 
 #[derive(Debug, Clone)]
 struct Element<T, Data: Copy> {
     data: T,
-    definition_location: Location<Data>
+    definition_location: Location<Data>,
 }
 
 impl<T, Data: Copy> Element<T, Data> {
     fn new(data: T, definition_location: Location<Data>) -> Self {
         Element {
             data,
-            definition_location
+            definition_location,
         }
     }
 }

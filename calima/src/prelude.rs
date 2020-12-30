@@ -1,23 +1,25 @@
-use crate::types::{Exports, Scheme, build_function, int, float, bool, string, unit, GenericId, Type};
-use std::collections::HashSet;
 use crate::common::Associativity;
 use crate::common::Associativity::Left;
 use crate::common::OperatorSpecification::{Infix, Prefix};
+use crate::types::{
+    bool, build_function, float, int, string, unit, Exports, GenericId, Scheme, Type,
+};
+use std::collections::HashSet;
 
 fn int_op() -> Scheme {
-    Scheme::simple(build_function(&[ int(), int() ], &int()))
+    Scheme::simple(build_function(&[int(), int()], &int()))
 }
 
 fn int_unary_op() -> Scheme {
-    Scheme::simple(build_function(&[ int() ], &int()))
+    Scheme::simple(build_function(&[int()], &int()))
 }
 
 fn float_op() -> Scheme {
-    Scheme::simple(build_function(&[ float(), float() ], &float()))
+    Scheme::simple(build_function(&[float(), float()], &float()))
 }
 
 fn float_unary_op() -> Scheme {
-    Scheme::simple(build_function(&[ float() ], &float()))
+    Scheme::simple(build_function(&[float()], &float()))
 }
 
 fn scheme(gen: &[GenericId], tp: Type) -> Scheme {
@@ -30,7 +32,11 @@ fn eq_type() -> Scheme {
     let mut eq_set = HashSet::new();
     let id = GenericId(1);
     eq_set.insert(id);
-    Scheme(HashSet::new(), eq_set, build_function(& [ Type::Var(id), Type::Var(id) ], &bool()))
+    Scheme(
+        HashSet::new(),
+        eq_set,
+        build_function(&[Type::Var(id), Type::Var(id)], &bool()),
+    )
 }
 
 pub fn prelude() -> Exports<'static> {
@@ -43,10 +49,20 @@ pub fn prelude() -> Exports<'static> {
     ex.add_operator(".*", float_op(), Infix(80, Left));
     ex.add_operator("/", int_op(), Infix(80, Left));
     ex.add_operator("./", float_op(), Infix(80, Left));
-    ex.add_operator("..", Scheme::simple(build_function(&[ string(), string() ], &string())), Infix(60, Left));
+    ex.add_operator(
+        "..",
+        Scheme::simple(build_function(&[string(), string()], &string())),
+        Infix(60, Left),
+    );
     ex.add_operator("==", eq_type(), Infix(50, Associativity::None));
     ex.add_operator("~", int_unary_op(), Prefix);
     ex.add_operator(".~", float_unary_op(), Prefix);
-    ex.add_value("println", scheme(&[ GenericId(1) ], build_function(&[ Type::Var(GenericId(1)) ], &unit())));
+    ex.add_value(
+        "println",
+        scheme(
+            &[GenericId(1)],
+            build_function(&[Type::Var(GenericId(1))], &unit()),
+        ),
+    );
     ex
 }

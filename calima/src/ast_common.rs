@@ -1,5 +1,5 @@
+use crate::formatting::{format_record, format_tuple};
 use std::fmt::{Display, Formatter};
-use crate::formatting::{format_tuple, format_record};
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum NumberType {
@@ -12,7 +12,7 @@ pub enum Literal<'a> {
     String(&'a str),
     Number(&'a str, NumberType),
     Unit,
-    Boolean(bool)
+    Boolean(bool),
 }
 
 impl<'a> Display for Literal<'a> {
@@ -21,7 +21,7 @@ impl<'a> Display for Literal<'a> {
             Literal::String(string) => write!(f, "\"{}\"", string),
             Literal::Boolean(b) => write!(f, "{}", b),
             Literal::Unit => write!(f, "()"),
-            Literal::Number(num, _) => write!(f, "{}", num)
+            Literal::Number(num, _) => write!(f, "{}", num),
         }
     }
 }
@@ -40,7 +40,7 @@ impl<'a, TA: Display, Data> Display for BindPattern<'a, TA, Data> {
             BindPattern::Any(_) => write!(f, "_"),
             BindPattern::Name(id, ta, _) => match ta {
                 None => write!(f, "{}", id),
-                Some(ta) => write!(f, "({}: {})", id, ta)
+                Some(ta) => write!(f, "({}: {})", id, ta),
             },
             BindPattern::Tuple(elements, _) => format_tuple(elements, f),
             BindPattern::Record(rows, _) => format_record(rows, f, ":", ", "),
@@ -64,13 +64,13 @@ impl<'a, TA: Display, Data> Display for MatchPattern<'a, TA, Data> {
             MatchPattern::Any(_) => write!(f, "_"),
             MatchPattern::Name(id, ta, _) => match ta {
                 None => write!(f, "{}", id),
-                Some(ta) => write!(f, "({}: {})", id, ta)
+                Some(ta) => write!(f, "({}: {})", id, ta),
             },
             MatchPattern::Literal(lit, _) => write!(f, "{}", lit),
             MatchPattern::Tuple(elements, _) => format_tuple(elements, f),
             MatchPattern::Record(rows, _) => format_record(rows, f, ":", ", "),
             MatchPattern::SumUnwrap(constr, None, _) => write!(f, "{}", constr),
-            MatchPattern::SumUnwrap(constr, Some(pat), _) => write!(f, "{} {}", constr, *pat)
+            MatchPattern::SumUnwrap(constr, Some(pat), _) => write!(f, "{} {}", constr, *pat),
         }
     }
 }

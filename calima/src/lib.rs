@@ -1,35 +1,36 @@
-#[macro_use] extern crate lalrpop_util;
+#[macro_use]
+extern crate lalrpop_util;
 
-mod token;
-mod lexer;
-mod ast_common;
 mod ast;
-mod parser;
-mod compiler;
-mod util;
-mod string_interner;
-mod errors;
+mod ast_common;
 mod common;
-mod types;
-mod prelude;
-mod typed_ast;
-mod typechecker;
+mod compiler;
+mod errors;
 mod formatting;
+mod lexer;
+mod parser;
+mod prelude;
+mod string_interner;
+mod token;
+mod typechecker;
+mod typed_ast;
+mod types;
+mod util;
 
-use string_interner::StringInterner;
 use crate::errors::ErrorContext;
+use string_interner::StringInterner;
 
 #[derive(Debug)]
 pub struct CompilerArguments<'a, S: AsRef<str>> {
     entrypoint: &'a str,
-    search_paths: &'a Vec<S>
+    search_paths: &'a Vec<S>,
 }
 
 impl<'a, S: AsRef<str>> CompilerArguments<'a, S> {
     pub fn new(entrypoint: &'a str, search_paths: &'a Vec<S>) -> Self {
         CompilerArguments {
             entrypoint,
-            search_paths
+            search_paths,
         }
     }
 }

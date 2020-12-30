@@ -1,39 +1,50 @@
+use crate::common::ModuleIdentifier;
+use crate::token::{span, Location, Span, Token};
+use crate::typechecker::TypeError;
+use codespan_reporting::diagnostic::{Diagnostic, Label, Severity};
+use codespan_reporting::term::emit;
+use codespan_reporting::term::termcolor::{
+    Color, ColorChoice, ColorSpec, StandardStream, WriteColor,
+};
+use lalrpop_util::ParseError;
+use std::collections::HashMap;
 use std::error::Error;
 use std::io::Write;
-use crate::token::{Token, Location, Span, span};
-use crate::common::ModuleIdentifier;
-use std::path::PathBuf;
-use codespan_reporting::term::termcolor::{StandardStream, ColorChoice, WriteColor, ColorSpec, Color};
-use codespan_reporting::diagnostic::{Diagnostic, Severity, Label};
-use std::ops::Range;
-use std::collections::HashMap;
 use std::iter::once;
-use lalrpop_util::ParseError;
-use codespan_reporting::term::emit;
-use crate::typechecker::TypeError;
+use std::ops::Range;
+use std::path::PathBuf;
 
 #[derive(Debug)]
 pub enum CompilerError<'a> {
     GeneralError(Option<Box<dyn Error>>, String),
-    ParserError(lalrpop_util::ParseError<Location, Token<'a>, crate::lexer::Error>, ModuleIdentifier),
-    ImportError { importing_mod: ModuleIdentifier, location: Span, imported: ModuleIdentifier, search_dirs: Vec<PathBuf> },
-    TypeError(TypeError<Span>, ModuleIdentifier)
+    ParserError(
+        lalrpop_util::ParseError<Location, Token<'a>, crate::lexer::Error>,
+        ModuleIdentifier,
+    ),
+    ImportError {
+        importing_mod: ModuleIdentifier,
+        location: Span,
+        imported: ModuleIdentifier,
+        search_dirs: Vec<PathBuf>,
+    },
+    TypeError(TypeError<Span>, ModuleIdentifier),
 }
 
 struct CompilerFile {
     path: PathBuf,
     content: String,
-    lines: Vec<usize>
+    lines: Vec<usize>,
 }
-
 
 impl CompilerFile {
     fn new(path: PathBuf, content: String) -> Self {
-        let lines = once(0).chain(content.match_indices('\n').map(|(idx, _)| idx + 1)).collect();
+        let lines = once(0)
+            .chain(content.match_indices('\n').map(|(idx, _)| idx + 1))
+            .collect();
         CompilerFile {
             path,
             content,
-            lines
+            lines,
         }
     }
 }
@@ -41,7 +52,7 @@ impl CompilerFile {
 struct CompilerFiles {
     file_map: HashMap<u32, CompilerFile>,
     path_map: HashMap<ModuleIdentifier, u32>,
-    file_id: u32
+    file_id: u32,
 }
 
 impl CompilerFiles {
@@ -49,7 +60,7 @@ impl CompilerFiles {
         CompilerFiles {
             file_map: HashMap::new(),
             path_map: HashMap::new(),
-            file_id: 0
+            file_id: 0,
         }
     }
 
@@ -85,13 +96,17 @@ impl<'a> codespan_reporting::files::Files<'a> for CompilerFiles {
     }
 
     fn line_index(&'a self, id: Self::FileId, byte_index: usize) -> Option<usize> {
-        self.get(id).map(|f| f.lines.binary_search(&byte_index).unwrap_or_else(|x| x - 1))
+        self.get(id)
+            .map(|f| f.lines.binary_search(&byte_index).unwrap_or_else(|x| x - 1))
     }
 
     fn line_range(&'a self, id: Self::FileId, line_index: usize) -> Option<Range<usize>> {
         let file = self.get(id)?;
         let start = *file.lines.get(line_index).or(Some(&file.content.len()))?;
-        let end = *file.lines.get(line_index + 1).or(Some(&file.content.len()))?;
+        let end = *file
+            .lines
+            .get(line_index + 1)
+            .or(Some(&file.content.len()))?;
         Some(start..end)
     }
 }
@@ -102,7 +117,7 @@ pub enum CompilerWarning {}
 pub struct ErrorContext<'a> {
     errors: Vec<CompilerError<'a>>,
     warnings: Vec<CompilerWarning>,
-    files: CompilerFiles
+    files: CompilerFiles,
 }
 
 impl<'a> ErrorContext<'a> {
@@ -110,7 +125,7 @@ impl<'a> ErrorContext<'a> {
         ErrorContext {
             warnings: Vec::new(),
             errors: Vec::new(),
-            files: CompilerFiles::new()
+            files: CompilerFiles::new(),
         }
     }
 
@@ -128,7 +143,7 @@ impl<'a> ErrorContext<'a> {
 
     pub fn handle_errors(&mut self) -> Result<(), ()> {
         if self.errors.is_empty() && self.warnings.is_empty() {
-            return Ok(())
+            return Ok(());
         }
 
         let mut stderr = StandardStream::stderr(ColorChoice::Auto);
@@ -145,79 +160,108 @@ impl<'a> ErrorContext<'a> {
                         ParseError::User { error } => {
                             let message = format!("{}", error.kind);
                             let e = Diagnostic::new(Severity::Error)
-                                .with_labels(vec![
-                                    Label::primary(file_id, error.location.to_range()).with_message(&message)
-                                ])
+                                .with_labels(vec![Label::primary(
+                                    file_id,
+                                    error.location.to_range(),
+                                )
+                                .with_message(&message)])
                                 .with_message(&message);
                             diagnostics.push(e);
-                        },
-                        ParseError::ExtraToken { token: (s, token, e) } => {
+                        }
+                        ParseError::ExtraToken {
+                            token: (s, token, e),
+                        } => {
                             let e = Diagnostic::new(Severity::Error)
                                 .with_message("Parser Error")
-                                .with_labels(vec![
-                                    Label::primary(file_id, s.pos..e.pos+1).with_message(format!("Extra token {} found", token))
-                                ])
-                                .with_notes(vec![ format!("Parser found unexpected token: {}", token) ]);
+                                .with_labels(vec![Label::primary(file_id, s.pos..e.pos + 1)
+                                    .with_message(format!("Extra token {} found", token))])
+                                .with_notes(vec![format!(
+                                    "Parser found unexpected token: {}",
+                                    token
+                                )]);
                             diagnostics.push(e);
-                        },
+                        }
                         ParseError::InvalidToken { location } => {
                             let e = Diagnostic::new(Severity::Error)
                                 .with_message("Parser Error")
-                                .with_labels(vec![
-                                    Label::primary(file_id, location.pos..location.pos+1).with_message(format!("Invalid token found here"))
-                                ])
-                                .with_notes(vec![ format!("Parser found invalid token") ]);
+                                .with_labels(vec![Label::primary(
+                                    file_id,
+                                    location.pos..location.pos + 1,
+                                )
+                                .with_message(format!("Invalid token found here"))])
+                                .with_notes(vec![format!("Parser found invalid token")]);
                             diagnostics.push(e);
-                        },
+                        }
                         ParseError::UnrecognizedEOF { location, expected } => {
                             let expected = expected.join(", ");
                             let e = Diagnostic::new(Severity::Error)
                                 .with_message("Parser error")
-                                .with_labels(vec![
-                                    Label::primary(file_id, location.pos-1..location.pos).with_message(format!("Unrecognized EOF, expected one of: {{{}}}", expected))
-                                ])
-                                .with_notes(vec![ "Parser encountered unexpected EOF".to_string() ]);
+                                .with_labels(vec![Label::primary(
+                                    file_id,
+                                    location.pos - 1..location.pos,
+                                )
+                                .with_message(format!(
+                                    "Unrecognized EOF, expected one of: {{{}}}",
+                                    expected
+                                ))])
+                                .with_notes(vec!["Parser encountered unexpected EOF".to_string()]);
                             diagnostics.push(e);
-                        },
-                        ParseError::UnrecognizedToken { token: (s, token, e), expected } => {
+                        }
+                        ParseError::UnrecognizedToken {
+                            token: (s, token, e),
+                            expected,
+                        } => {
                             let expected = expected.join(", ");
                             let e = Diagnostic::new(Severity::Error)
                                 .with_message("Parser error")
-                                .with_labels(vec![
-                                    Label::primary(file_id, s.pos..e.pos+1).with_message(format!("Unrecognized token {}, expected one of: {{{}}}", token, expected))
-                                ])
-                                .with_notes(vec![ format!("Parser found unrecognized token {}", token) ]);
+                                .with_labels(vec![Label::primary(file_id, s.pos..e.pos + 1)
+                                    .with_message(format!(
+                                        "Unrecognized token {}, expected one of: {{{}}}",
+                                        token, expected
+                                    ))])
+                                .with_notes(vec![format!(
+                                    "Parser found unrecognized token {}",
+                                    token
+                                )]);
                             diagnostics.push(e);
                         }
                     }
-                },
-                CompilerError::ImportError { importing_mod, location, imported, search_dirs, .. } => {
-                    let file_id = self.files.get_module(importing_mod).expect("Error loading file");
+                }
+                CompilerError::ImportError {
+                    importing_mod,
+                    location,
+                    imported,
+                    search_dirs,
+                    ..
+                } => {
+                    let file_id = self
+                        .files
+                        .get_module(importing_mod)
+                        .expect("Error loading file");
                     let mut notes = vec![
-                        format!("Importing module {} into {} failed.", imported, importing_mod),
+                        format!(
+                            "Importing module {} into {} failed.",
+                            imported, importing_mod
+                        ),
                         format!("Reason: Module not found in search paths:"),
                     ];
-                    notes.extend(search_dirs.iter().map(|p| {
-                        match std::fs::canonicalize(p) {
-                            Ok(p) => p.display().to_string(),
-                            Err(_) => p.display().to_string()
-                        }
+                    notes.extend(search_dirs.iter().map(|p| match std::fs::canonicalize(p) {
+                        Ok(p) => p.display().to_string(),
+                        Err(_) => p.display().to_string(),
                     }));
                     let e = Diagnostic::new(Severity::Error)
                         .with_message(format!("Error importing module {}", imported))
-                        .with_labels(vec![
-                            Label::primary(file_id, location.to_range()).with_message(format!("Module {} not found", imported))
-                        ])
+                        .with_labels(vec![Label::primary(file_id, location.to_range())
+                            .with_message(format!("Module {} not found", imported))])
                         .with_notes(notes);
                     diagnostics.push(e);
-                },
+                }
                 CompilerError::TypeError(te, modname) => {
                     let file_id = self.files.get_module(modname).expect("Error loading file");
                     let e = Diagnostic::new(Severity::Error)
                         .with_message(format!("Type error in module {}", modname))
-                        .with_labels(vec![
-                            Label::primary(file_id, te.location.to_range()).with_message(te.message.clone())
-                        ]);
+                        .with_labels(vec![Label::primary(file_id, te.location.to_range())
+                            .with_message(te.message.clone())]);
                     diagnostics.push(e);
                 }
             }
@@ -226,14 +270,19 @@ impl<'a> ErrorContext<'a> {
         //Warnings should be added here as soon as we have them
 
         if !general_errors.is_empty() {
-            stderr.set_color(&ColorSpec::new().set_fg(Some(Color::Red))).expect("Error setting output color");
+            stderr
+                .set_color(&ColorSpec::new().set_fg(Some(Color::Red)))
+                .expect("Error setting output color");
 
             for (source, descr) in general_errors {
                 match source {
-                    None => writeln!(&mut stderr, "Error occured: {}", descr).expect("Error writing to stderr"),
+                    None => writeln!(&mut stderr, "Error occured: {}", descr)
+                        .expect("Error writing to stderr"),
                     Some(source) => {
-                        writeln!(&mut stderr, "Error occured: {}", descr).expect("Error writing to stderr");
-                        writeln!(&mut stderr, "Caused by: {}", source).expect("Error writing to stderr")
+                        writeln!(&mut stderr, "Error occured: {}", descr)
+                            .expect("Error writing to stderr");
+                        writeln!(&mut stderr, "Caused by: {}", source)
+                            .expect("Error writing to stderr")
                     }
                 }
             }
@@ -244,7 +293,8 @@ impl<'a> ErrorContext<'a> {
         if !diagnostics.is_empty() {
             let config = codespan_reporting::term::Config::default();
             for di in diagnostics {
-                emit(&mut stderr.lock(), &config, &self.files, &di).expect("Error writing to stderr");
+                emit(&mut stderr.lock(), &config, &self.files, &di)
+                    .expect("Error writing to stderr");
             }
         }
 

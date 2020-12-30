@@ -1,8 +1,8 @@
-use std::collections::{HashSet, HashMap};
-use std::fmt::{Display, Formatter};
-use crate::formatting::{format_iter, format_iter_end};
 use crate::common::OperatorSpecification;
+use crate::formatting::{format_iter, format_iter_end};
+use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
+use std::fmt::{Display, Formatter};
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct RegionId(pub usize);
@@ -16,29 +16,26 @@ impl Display for RegionId {
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct RegionInstance {
     pub id: usize,
-    pub depth: usize
+    pub depth: usize,
 }
 
 impl RegionInstance {
     pub fn new(id: usize, depth: usize) -> Self {
-        RegionInstance {
-            id,
-            depth
-        }
+        RegionInstance { id, depth }
     }
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Region {
     Var(RegionId),
-    Instance(RegionInstance)
+    Instance(RegionInstance),
 }
 
 impl Display for Region {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Region::Var(rid) => write!(f, "{}", rid),
-            Region::Instance(ri) => write!(f, "@{}", ri.id)
+            Region::Instance(ri) => write!(f, "@{}", ri.id),
         }
     }
 }
@@ -59,7 +56,7 @@ pub enum PrimitiveType {
     Float,
     String,
     Unit,
-    Char
+    Char,
 }
 
 impl TryFrom<&str> for PrimitiveType {
@@ -73,7 +70,7 @@ impl TryFrom<&str> for PrimitiveType {
             "Char" => Ok(PrimitiveType::Char),
             "Bool" => Ok(PrimitiveType::Bool),
             "String" => Ok(PrimitiveType::String),
-            _ => Err(())
+            _ => Err(()),
         }
     }
 }
@@ -86,7 +83,7 @@ impl Display for PrimitiveType {
             PrimitiveType::Int => write!(f, "Int"),
             PrimitiveType::Char => write!(f, "Char"),
             PrimitiveType::Bool => write!(f, "Bool"),
-            PrimitiveType::String => write!(f, "String")
+            PrimitiveType::String => write!(f, "String"),
         }
     }
 }
@@ -94,14 +91,14 @@ impl Display for PrimitiveType {
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum ComplexType {
     Function,
-    Tuple(usize) //TODO: User-defined
+    Tuple(usize), //TODO: User-defined
 }
 
 impl Display for ComplexType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             ComplexType::Function => write!(f, "->"),
-            ComplexType::Tuple(e) => write!(f, "Tuple{}", e)
+            ComplexType::Tuple(e) => write!(f, "Tuple{}", e),
         }
     }
 }
@@ -109,14 +106,14 @@ impl Display for ComplexType {
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum TypeDef {
     Primitive(PrimitiveType),
-    Complex(ComplexType)
+    Complex(ComplexType),
 }
 
 impl Display for TypeDef {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             TypeDef::Primitive(pt) => write!(f, "{}", pt),
-            TypeDef::Complex(pt) => write!(f, "{}", pt)
+            TypeDef::Complex(pt) => write!(f, "{}", pt),
         }
     }
 }
@@ -127,7 +124,7 @@ pub enum Type {
     Parameterized(ComplexType, Vec<Type>),
     Var(GenericId),
     Reference(Region, Box<Type>),
-    Error
+    Error,
 }
 
 impl Display for Type {
@@ -135,9 +132,11 @@ impl Display for Type {
         match self {
             Type::Basic(td) => write!(f, "{}", td),
             Type::Var(id) => write!(f, "{}", id),
-            Type::Parameterized(p, params) => write!(f, "({} {})", p, format_iter(params.iter(), " ")),
+            Type::Parameterized(p, params) => {
+                write!(f, "({} {})", p, format_iter(params.iter(), " "))
+            }
             Type::Reference(reg, tp) => write!(f, "@{} {}", reg, tp),
-            Type::Error => write!(f, "ERROR_TYPE")
+            Type::Error => write!(f, "ERROR_TYPE"),
         }
     }
 }
@@ -156,7 +155,13 @@ impl Display for Scheme {
         if self.0.is_empty() {
             write!(f, "{}", self.2)
         } else {
-            write!(f, "forall {}{}. {}", format_iter_end(self.0.iter(), " "), format_iter(self.1.iter(), " "), self.2)
+            write!(
+                f,
+                "forall {}{}. {}",
+                format_iter_end(self.0.iter(), " "),
+                format_iter(self.1.iter(), " "),
+                self.2
+            )
         }
     }
 }
@@ -183,10 +188,13 @@ pub fn unit() -> Type {
 
 pub fn build_function(params: &[Type], ret: &Type) -> Type {
     match params {
-        [last] => Type::Parameterized(ComplexType::Function, vec![ last.clone(), ret.clone() ]),
+        [last] => Type::Parameterized(ComplexType::Function, vec![last.clone(), ret.clone()]),
         _ => {
             let c = params.first().expect("Error getting parameter");
-            Type::Parameterized(ComplexType::Function, vec![c.clone(), build_function(&params[1..], ret) ])
+            Type::Parameterized(
+                ComplexType::Function,
+                vec![c.clone(), build_function(&params[1..], ret)],
+            )
         }
     }
 }
@@ -194,7 +202,7 @@ pub fn build_function(params: &[Type], ret: &Type) -> Type {
 #[derive(Debug, Clone)]
 pub enum ExportValue {
     Value(Scheme),
-    Operator(OperatorSpecification, Scheme)
+    Operator(OperatorSpecification, Scheme),
 }
 
 //All variables in an Exports map shall be fully substituted to not leave any free variables
@@ -218,7 +226,7 @@ impl<'input> Exports<'input> {
         self.0.insert(name, exp);
     }
 
-    pub fn iter_vars(&self) -> impl Iterator<Item=(&'input str, &ExportValue)> {
+    pub fn iter_vars(&self) -> impl Iterator<Item = (&'input str, &ExportValue)> {
         self.0.iter().map(|(a, b)| (*a, b))
     }
 }

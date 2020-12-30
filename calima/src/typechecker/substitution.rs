@@ -2,13 +2,13 @@ use std::ops::Index;
 
 #[derive(Debug, Clone)]
 pub struct Substitution<T: Clone> {
-    subst: Vec<Option<T>>
+    subst: Vec<Option<T>>,
 }
 
 impl<T: Clone> Substitution<T> {
     pub fn new() -> Self {
         Substitution {
-            subst: (1..10).map(|_| None).collect()
+            subst: (1..10).map(|_| None).collect(),
         }
     }
 

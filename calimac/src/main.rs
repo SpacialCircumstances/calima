@@ -1,12 +1,12 @@
-use clap::Clap;
 use calima::{compile, CompilerArguments};
+use clap::Clap;
 
 #[derive(Clap)]
 #[clap(version = "0.1.0", author = "SpacialCircumstances")]
 struct Options {
     input_file: String,
     #[clap(short, long)]
-    module_paths: Vec<String>
+    module_paths: Vec<String>,
 }
 
 fn main() -> Result<(), ()> {

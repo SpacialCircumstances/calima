@@ -4,7 +4,7 @@ use std::ops::Range;
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum NumberFormat {
     Float,
-    Integer
+    Integer,
 }
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
@@ -45,7 +45,7 @@ pub enum Token<'input> {
     At,
     Apostrophe,
     Infix,
-    Prefix
+    Prefix,
 }
 
 impl<'input> Display for Token<'input> {
@@ -62,7 +62,7 @@ impl<'input> Display for Token<'input> {
             Token::TypeIdentifier(id) => write!(f, "{}", id),
             Token::OperatorIdentifier(id) => write!(f, "{}", id),
             Token::StringLiteral(lit) => write!(f, "{}", lit),
-            Token::NumberLiteral((lit , _)) => write!(f, "{}", lit),
+            Token::NumberLiteral((lit, _)) => write!(f, "{}", lit),
             Token::BooleanLiteral(bool) => write!(f, "{}", bool),
             Token::Do => write!(f, "do"),
             Token::Let => write!(f, "let"),
@@ -87,7 +87,7 @@ impl<'input> Display for Token<'input> {
             Token::At => write!(f, "@"),
             Token::Apostrophe => write!(f, "'"),
             Token::Infix => write!(f, "infix"),
-            Token::Prefix => write!(f, "prefix")
+            Token::Prefix => write!(f, "prefix"),
         }
     }
 }
@@ -108,19 +108,16 @@ impl Display for Location {
 #[derive(Debug, Eq, PartialEq, Clone, Copy, Default)]
 pub struct Span {
     pub left: Location,
-    pub right: Location
+    pub right: Location,
 }
 
 pub fn span(left: Location, right: Location) -> Span {
-    Span {
-        left,
-        right
-    }
+    Span { left, right }
 }
 
 impl Span {
     pub fn to_range(&self) -> Range<usize> {
-        self.left.pos..self.right.pos+1
+        self.left.pos..self.right.pos + 1
     }
 }
 

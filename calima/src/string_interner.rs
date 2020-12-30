@@ -1,15 +1,15 @@
-use std::collections::HashSet;
 use std::cell::RefCell;
+use std::collections::HashSet;
 
 #[derive(Debug, Clone)]
 pub struct StringInterner {
-    strings: RefCell<HashSet<String>>
+    strings: RefCell<HashSet<String>>,
 }
 
 impl StringInterner {
     pub fn new() -> Self {
         StringInterner {
-            strings: RefCell::new(HashSet::new())
+            strings: RefCell::new(HashSet::new()),
         }
     }
 
@@ -20,8 +20,6 @@ impl StringInterner {
         }
         let res = strings.get(string).unwrap().as_str();
         //This should be safe because we never remove values from the map
-        unsafe {
-            std::mem::transmute(res)
-        }
+        unsafe { std::mem::transmute(res) }
     }
 }

@@ -1,27 +1,25 @@
-use std::path::{Path, PathBuf};
-use std::fmt::{Display, Formatter};
 use crate::token::Span;
 use std::convert::TryFrom;
+use std::fmt::{Display, Formatter};
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ModuleIdentifier {
-    full_name: String
+    full_name: String,
 }
 
 impl ModuleIdentifier {
     pub fn from_name(name: &[&str]) -> Self {
         ModuleIdentifier {
-            full_name: name.join(".")
+            full_name: name.join("."),
         }
     }
 
     pub fn from_filename(name: String) -> Self {
-        ModuleIdentifier {
-            full_name: name
-        }
+        ModuleIdentifier { full_name: name }
     }
 
-    pub fn components(&self) -> impl Iterator<Item=&str> {
+    pub fn components(&self) -> impl Iterator<Item = &str> {
         self.full_name.split(".")
     }
 
@@ -54,7 +52,7 @@ pub struct Module<ModuleData> {
 pub enum Associativity {
     Left,
     Right,
-    None
+    None,
 }
 
 impl Display for Associativity {
@@ -62,7 +60,7 @@ impl Display for Associativity {
         match self {
             Associativity::Left => write!(f, "left"),
             Associativity::Right => write!(f, "right"),
-            Associativity::None => write!(f, "none")
+            Associativity::None => write!(f, "none"),
         }
     }
 }
@@ -75,7 +73,7 @@ impl TryFrom<&str> for Associativity {
             "left" => Ok(Associativity::Left),
             "right" => Ok(Associativity::Right),
             "none" => Ok(Associativity::None),
-            _ => Err(())
+            _ => Err(()),
         }
     }
 }
@@ -83,14 +81,14 @@ impl TryFrom<&str> for Associativity {
 #[derive(Debug, PartialEq, Copy, Clone, Eq)]
 pub enum OperatorSpecification {
     Infix(u32, Associativity),
-    Prefix
+    Prefix,
 }
 
 impl Display for OperatorSpecification {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             OperatorSpecification::Infix(prec, assoc) => write!(f, "infix {} {}", prec, assoc),
-            OperatorSpecification::Prefix => write!(f, "prefix")
+            OperatorSpecification::Prefix => write!(f, "prefix"),
         }
     }
 }

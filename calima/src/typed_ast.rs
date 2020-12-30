@@ -1,6 +1,6 @@
-use crate::ast_common::{MatchPattern, Literal, BindPattern};
+use crate::ast_common::{BindPattern, Literal, MatchPattern};
+use crate::types::{Region, Type};
 use std::fmt::{Display, Formatter};
-use crate::types::{Type, Region};
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct Unit(());
@@ -26,8 +26,11 @@ pub enum TExprData<'input> {
     List(Vec<TExpression<'input>>),
     Literal(Literal<'input>),
     Lambda(Vec<BindPattern<'input, Unit, Unit>>, TBlock<'input>),
-    Case(Box<TExpression<'input>>, Vec<(MatchPattern<'input, Unit, Unit>, TBlock<'input>)>),
-    Ref(Region, Box<TExpression<'input>>)
+    Case(
+        Box<TExpression<'input>>,
+        Vec<(MatchPattern<'input, Unit, Unit>, TBlock<'input>)>,
+    ),
+    Ref(Region, Box<TExpression<'input>>),
 }
 
 #[derive(Debug, Clone)]
@@ -42,7 +45,9 @@ impl<'input> TExpression<'input> {
         &self.0
     }
 
-    pub fn typ(&self) -> &Type { &self.1 }
+    pub fn typ(&self) -> &Type {
+        &self.1
+    }
 }
 
 impl<'a> PartialEq for TExpression<'a> {
@@ -54,11 +59,11 @@ impl<'a> PartialEq for TExpression<'a> {
 #[derive(Debug, Clone, PartialEq)]
 pub enum TStatement<'input> {
     Do(TExpression<'input>),
-    Let(TExpression<'input>, BindPattern<'input, Unit, Unit>)
+    Let(TExpression<'input>, BindPattern<'input, Unit, Unit>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TBlock<'input> {
     pub statements: Vec<TStatement<'input>>,
-    pub res: Box<TExpression<'input>>
+    pub res: Box<TExpression<'input>>,
 }
