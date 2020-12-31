@@ -4,7 +4,7 @@ use crate::string_interner::StringInterner;
 use crate::token::{Location, Span, Token};
 use lalrpop_util::ParseError;
 
-lalrpop_mod!(pub calima_parser);
+lalrpop_mod!(#[allow(clippy)] pub calima_parser);
 
 pub fn parse<'source, 'input>(
     code: &'source str,
