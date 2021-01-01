@@ -24,6 +24,7 @@ pub struct TypedModuleData<'input>(Substitution<Type>, TBlock<'input>);
 pub enum UnificationSource {
     TypeAnnotation,
     TypeInference,
+    FunctionCall,
     OperatorConstraint(OperatorSpecification),
     If,
     BlockReturn,
@@ -36,7 +37,7 @@ pub struct TypeError<Data> {
     pub message: String,
 }
 
-impl<Data> TypeError<Data> {
+impl<Data: Copy + Debug> TypeError<Data> {
     fn type_not_found(typename: &str, location: Data) -> Self {
         TypeError {
             location,
@@ -58,7 +59,15 @@ impl<Data> TypeError<Data> {
         }
     }
 
-    fn unification(ue: UnificationError, expected: &Type, actual: &Type, location: Data) -> Self {
+    fn unification(
+        ctx: &Context<Data>,
+        ue: UnificationError,
+        expected: &Type,
+        actual: &Type,
+        location: Data,
+    ) -> Self {
+        let expected = substitute(&ctx.type_subst, expected);
+        let actual = substitute(&ctx.type_subst, actual);
         let message = match ue {
             UnificationError::RecursiveType => String::from("Recursive type detected"),
             UnificationError::UnificationError => format!(
@@ -204,7 +213,7 @@ impl<Data: Copy + Debug> Context<Data> {
 
     fn unify(&mut self, target: &mut Type, with: &Type, source: UnificationSource, loc: Data) {
         if let Err(e) = self.unify_rec(target, with) {
-            self.add_error(TypeError::unification(e, &with, &target, loc));
+            self.add_error(TypeError::unification(self, e, &with, &target, loc));
             *target = Type::Error;
         }
     }
@@ -218,7 +227,7 @@ impl<Data: Copy + Debug> Context<Data> {
         loc: Data,
     ) {
         if let Err(e) = self.unify_rec(unify_target, with) {
-            self.add_error(TypeError::unification(e, &with, &unify_target, loc));
+            self.add_error(TypeError::unification(self, e, &with, &unify_target, loc));
             *target = Type::Error;
         }
     }
@@ -566,7 +575,7 @@ fn function_call<'input, Data: Copy + Debug>(
     ctx.unify(
         &mut arg_fun_type,
         tfunc.typ(),
-        UnificationSource::TypeInference,
+        UnificationSource::FunctionCall,
         loc,
     );
     TExpression::new(TExprData::FunctionCall(tfunc.into(), args), ret)
