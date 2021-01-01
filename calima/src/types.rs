@@ -1,4 +1,5 @@
 use crate::common::OperatorSpecification;
+use crate::formatting::tree::{format_children, TreeFormat};
 use crate::formatting::{format_iter, format_iter_end};
 use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
@@ -127,17 +128,34 @@ pub enum Type {
     Error,
 }
 
+impl TreeFormat for Type {
+    fn get_precedence(&self) -> i32 {
+        match self {
+            Type::Basic(_) => 0,
+            Type::Parameterized(ComplexType::Function, _) => 3,
+            Type::Parameterized(ComplexType::Tuple(_), _) => 2,
+            Type::Var(_) => 0,
+            Type::Reference(_, _) => 4,
+            Type::Error => 0,
+        }
+    }
+
+    fn format(&self) -> String {
+        match self {
+            Type::Basic(td) => format!("{}", td),
+            Type::Var(id) => format!("{}", id),
+            Type::Parameterized(p, params) => {
+                format!("{} {}", p, format_children(self, params.iter(), " "))
+            }
+            Type::Reference(reg, tp) => format!("@{} {}", reg, tp),
+            Type::Error => format!("ERROR_TYPE"),
+        }
+    }
+}
+
 impl Display for Type {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Type::Basic(td) => write!(f, "{}", td),
-            Type::Var(id) => write!(f, "{}", id),
-            Type::Parameterized(p, params) => {
-                write!(f, "({} {})", p, format_iter(params.iter(), " "))
-            }
-            Type::Reference(reg, tp) => write!(f, "@{} {}", reg, tp),
-            Type::Error => write!(f, "ERROR_TYPE"),
-        }
+        write!(f, "{}", self.format())
     }
 }
 
