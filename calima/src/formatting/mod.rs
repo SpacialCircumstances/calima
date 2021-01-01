@@ -1,6 +1,8 @@
 use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter};
 
+pub mod tree;
+
 pub fn group_by<K: Ord, V, I: Iterator<Item = (K, V)>>(iter: I) -> BTreeMap<K, Vec<V>> {
     let mut map = BTreeMap::new();
     iter.for_each(|(k, v)| map.entry(k).or_insert_with(|| Vec::new()).push(v));
