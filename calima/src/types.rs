@@ -144,9 +144,16 @@ impl TreeFormat for Type {
         match self {
             Type::Basic(td) => format!("{}", td),
             Type::Var(id) => format!("{}", id),
-            Type::Parameterized(p, params) => {
-                format!("{} {}", p, format_children(self, params.iter(), " "))
-            }
+            Type::Parameterized(p, params) => match p {
+                ComplexType::Function => format!(
+                    "{} -> {}",
+                    self.format_child(&params[0]),
+                    self.format_child(&params[1])
+                ),
+                ComplexType::Tuple(n) => {
+                    format!("({})", format_children(self, params.iter(), ", "))
+                }
+            },
             Type::Reference(reg, tp) => format!("@{} {}", reg, tp),
             Type::Error => format!("ERROR_TYPE"),
         }
