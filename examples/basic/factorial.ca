@@ -1,5 +1,5 @@
 let rec fac = fun i ->
-    if i == "test" then
+    if i == 0 then
         1
     else
         fac (i - 1)
