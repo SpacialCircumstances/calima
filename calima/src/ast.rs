@@ -370,25 +370,28 @@ impl<'a, Data> TreeFormat for Expr<'a, Data> {
                 if_true,
                 if_false,
             } => {
-                format!("if {} then\n", self.format_child(&*cond));
-                format!("{}\n", *if_true);
-                format!("else\n");
-                format!("{}\n", *if_false);
-                format!("end")
+                format!(
+                    "if {} then\n{}\nelse\n{}\nend",
+                    self.format_child(&*cond),
+                    *if_true,
+                    *if_false
+                )
             }
             Expr::Case {
                 data: _,
                 value,
                 matches,
             } => {
-                format!("case {} of\n", self.format_child(&*value));
+                let mut res = String::new();
+                res.push_str(&*format!("case {} of\n", self.format_child(&*value)));
 
                 for (pat, block) in matches {
-                    format!("| {} ->\n", pat);
-                    format!("{}\n", block);
+                    res.push_str(&*format!("| {} ->\n", pat));
+                    res.push_str(&*format!("{}\n", block));
                 }
 
-                format!("end")
+                res.push_str("end");
+                res
             }
             Expr::Ref(reg, expr, _) => format!("{} {}", reg, self.format_child(expr)),
         }
