@@ -43,7 +43,7 @@ impl<'a, TA: Display, Data> Display for BindPattern<'a, TA, Data> {
                 Some(ta) => write!(f, "({}: {})", id, ta),
             },
             BindPattern::Tuple(elements, _) => format_tuple(elements, f),
-            BindPattern::Record(rows, _) => format_record(rows, f, ":", ", "),
+            BindPattern::Record(rows, _) => write!(f, "{}", format_record(rows, ":", ", ")),
         }
     }
 }
@@ -68,7 +68,7 @@ impl<'a, TA: Display, Data> Display for MatchPattern<'a, TA, Data> {
             },
             MatchPattern::Literal(lit, _) => write!(f, "{}", lit),
             MatchPattern::Tuple(elements, _) => format_tuple(elements, f),
-            MatchPattern::Record(rows, _) => format_record(rows, f, ":", ", "),
+            MatchPattern::Record(rows, _) => write!(f, "{}", format_record(rows, ":", ", ")),
             MatchPattern::SumUnwrap(constr, None, _) => write!(f, "{}", constr),
             MatchPattern::SumUnwrap(constr, Some(pat), _) => write!(f, "{} {}", constr, *pat),
         }

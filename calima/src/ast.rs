@@ -1,5 +1,6 @@
 use crate::ast_common::{BindPattern, Literal, MatchPattern};
 use crate::common::{ModuleIdentifier, OperatorSpecification};
+use crate::formatting::tree::{format_children, TreeFormat};
 use crate::formatting::*;
 use std::fmt::{Debug, Display, Formatter};
 
@@ -76,7 +77,7 @@ impl<'a, Data> Display for TypeDefinition<'a, Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             TypeDefinition::Alias(ta) => write!(f, "{}", ta),
-            TypeDefinition::Record(rows) => format_record(rows, f, ":", ", "),
+            TypeDefinition::Record(rows) => write!(f, "{}", format_record(rows, ":", ", ")),
             TypeDefinition::Sum(rows) => {
                 let str = rows
                     .iter()
@@ -296,52 +297,86 @@ impl<'a, Data> Expr<'a, Data> {
     }
 }
 
-impl<'a, Data> Display for Expr<'a, Data> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+impl<'a, Data> TreeFormat for Expr<'a, Data> {
+    fn get_precedence(&self) -> i32 {
         match self {
-            Expr::Literal(lit, _) => write!(f, "{}", lit),
-            Expr::OperatorAsFunction(name, _) => write!(f, "`{}`", name),
-            Expr::Variable(ident, _) => write!(f, "{}", ident),
-            Expr::List(exprs, _) => write!(f, "[{}]", format_iter(exprs.iter(), ", ")),
-            Expr::Tuple(exprs, _) => write!(f, "({})", format_iter(exprs.iter(), ", ")),
-            Expr::Record(rows, _) => format_record(rows, f, "=", ", "),
+            Expr::Literal(_, _) => 0,
+            Expr::Variable(_, _) => 0,
+            Expr::OperatorAsFunction(_, _) => 0,
+            Expr::Tuple(_, _) => 0,
+            Expr::List(_, _) => 0,
+            Expr::Record(_, _) => 0,
+            Expr::FunctionCall(_, _, _) => 1,
+            Expr::OperatorCall(_, _) => 2,
+            Expr::Lambda { .. } => 3,
+            Expr::Ref(_, _, _) => 3,
+            Expr::If { .. } => 4,
+            Expr::Case { .. } => 4,
+        }
+    }
+
+    fn format(&self) -> String {
+        match self {
+            Expr::Literal(lit, _) => format!("{}", lit),
+            Expr::OperatorAsFunction(name, _) => format!("`{}`", name),
+            Expr::Variable(ident, _) => format!("{}", ident),
+            Expr::List(exprs, _) => format!("[{}]", format_children(self, exprs.iter(), ", ")),
+            Expr::Tuple(exprs, _) => format!("({})", format_children(self, exprs.iter(), ", ")),
+            Expr::Record(rows, _) => format_record(rows, "=", ", "),
             Expr::Lambda {
                 params,
                 body,
                 data: _,
-            } => write!(f, "fun {} -> {}", format_iter(params.iter(), " "), body),
+            } => format!("fun {} -> {}", format_iter(params.iter(), " "), body),
             Expr::FunctionCall(func, args, _) => {
-                write!(f, "{} {}", *func, format_iter(args.iter(), " "))
+                format!("{} {}", *func, format_children(self, args.iter(), " "))
             }
-            Expr::OperatorCall(elements, _) => write!(f, "{}", format_iter(elements.iter(), " ")),
+            Expr::OperatorCall(elements, _) => format!(
+                "{}",
+                format_iter(
+                    elements.iter().map(|el| {
+                        match el {
+                            OperatorElement::Operator(op, _) => op.to_string(),
+                            OperatorElement::Expression(expr) => self.format_child(expr),
+                        }
+                    }),
+                    " "
+                )
+            ),
             Expr::If {
                 data: _,
                 cond,
                 if_true,
                 if_false,
             } => {
-                writeln!(f, "if {} then", *cond)?;
-                writeln!(f, "{}", *if_true)?;
-                writeln!(f, "else")?;
-                writeln!(f, "{}", *if_false)?;
-                write!(f, "end")
+                format!("if {} then\n", self.format_child(&*cond));
+                format!("{}\n", *if_true);
+                format!("else\n");
+                format!("{}\n", *if_false);
+                format!("end")
             }
             Expr::Case {
                 data: _,
                 value,
                 matches,
             } => {
-                writeln!(f, "case {} of", *value)?;
+                format!("case {} of\n", self.format_child(&*value));
 
                 for (pat, block) in matches {
-                    writeln!(f, "| {} ->", pat)?;
-                    writeln!(f, "{}", block)?;
+                    format!("| {} ->\n", pat);
+                    format!("{}\n", block);
                 }
 
-                write!(f, "end")
+                format!("end")
             }
-            Expr::Ref(reg, expr, _) => write!(f, "{} {}", reg, expr),
+            Expr::Ref(reg, expr, _) => format!("{} {}", reg, self.format_child(expr)),
         }
+    }
+}
+
+impl<'a, Data> Display for Expr<'a, Data> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.format())
     }
 }
 
