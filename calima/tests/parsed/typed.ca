@@ -1,6 +1,6 @@
 type Person  = { name: String, age: Int }
 in
 let (p: Person) = { name= "Test", age= 42 }
-let (x: (List Int)) = [2, 3, 4]
-let mapped = map fun i -> i + 2 x
+let (x: List Int) = [2, 3, 4]
+let mapped = map (fun i -> i + 2) x
 in println p.name
