@@ -51,18 +51,39 @@ pub enum TypeAnnotation<'a, Data> {
     Reference(RegionAnnotation<'a, Data>, Box<TypeAnnotation<'a, Data>>),
 }
 
+impl<'a, Data> TreeFormat for TypeAnnotation<'a, Data> {
+    fn get_precedence(&self) -> i32 {
+        match self {
+            TypeAnnotation::Name(_, _) => 0,
+            TypeAnnotation::Generic(_) => 0,
+            TypeAnnotation::Tuple(_) => 0,
+            TypeAnnotation::Function(_, _) => 1,
+            TypeAnnotation::Parameterized(_, _) => 1,
+            TypeAnnotation::Reference(_, _) => 2,
+        }
+    }
+
+    fn format(&self) -> String {
+        match self {
+            TypeAnnotation::Name(name, _) => format!("{}", name),
+            TypeAnnotation::Generic(name) => format!("{}", name),
+            TypeAnnotation::Function(i, o) => {
+                format!("({} -> {})", self.format_child(&*i), self.format_child(&*o))
+            }
+            TypeAnnotation::Parameterized(name, params) => {
+                format!("({} {})", name, format_children(self, params.iter(), " "))
+            }
+            TypeAnnotation::Tuple(elements) => {
+                format!("({})", format_children(self, elements.iter(), ", "))
+            }
+            TypeAnnotation::Reference(reg, tp) => format!("{} {}", reg, self.format_child(&*tp)),
+        }
+    }
+}
+
 impl<'a, Data> Display for TypeAnnotation<'a, Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            TypeAnnotation::Name(name, _) => write!(f, "{}", name),
-            TypeAnnotation::Generic(name) => write!(f, "{}", name),
-            TypeAnnotation::Function(i, o) => write!(f, "({} -> {})", *i, *o),
-            TypeAnnotation::Parameterized(name, params) => {
-                write!(f, "({} {})", name, format_iter(params.iter(), " "))
-            }
-            TypeAnnotation::Tuple(elements) => format_tuple(elements, f),
-            TypeAnnotation::Reference(reg, tp) => write!(f, "{} {}", reg, tp),
-        }
+        write!(f, "{}", self.format())
     }
 }
 
