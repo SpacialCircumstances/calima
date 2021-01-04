@@ -68,10 +68,10 @@ impl<'a, Data> TreeFormat for TypeAnnotation<'a, Data> {
             TypeAnnotation::Name(name, _) => format!("{}", name),
             TypeAnnotation::Generic(name) => format!("{}", name),
             TypeAnnotation::Function(i, o) => {
-                format!("({} -> {})", self.format_child(&*i), self.format_child(&*o))
+                format!("{} -> {}", self.format_child(&*i), self.format_child(&*o))
             }
             TypeAnnotation::Parameterized(name, params) => {
-                format!("({} {})", name, format_children(self, params.iter(), " "))
+                format!("{} {}", name, format_children(self, params.iter(), " "))
             }
             TypeAnnotation::Tuple(elements) => {
                 format!("({})", format_children(self, elements.iter(), ", "))
