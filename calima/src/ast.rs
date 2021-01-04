@@ -338,9 +338,9 @@ impl<'a, Data> TreeFormat for Expr<'a, Data> {
 
     fn format(&self) -> String {
         match self {
-            Expr::Literal(lit, _) => format!("{}", lit),
+            Expr::Literal(lit, _) => lit.to_string(),
             Expr::OperatorAsFunction(name, _) => format!("`{}`", name),
-            Expr::Variable(ident, _) => format!("{}", ident),
+            Expr::Variable(ident, _) => ident.to_string(),
             Expr::List(exprs, _) => format!("[{}]", format_children(self, exprs.iter(), ", ")),
             Expr::Tuple(exprs, _) => format!("({})", format_children(self, exprs.iter(), ", ")),
             Expr::Record(rows, _) => format_record(rows, "=", ", "),

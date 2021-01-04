@@ -1,3 +1,4 @@
+use crate::formatting::tree::{format_children, TreeFormat};
 use crate::formatting::{format_record, format_tuple};
 use std::fmt::{Display, Formatter};
 
@@ -56,6 +57,38 @@ pub enum MatchPattern<'a, TA: Display, Data> {
     Literal(Literal<'a>, Data),
     Record(Vec<(&'a str, MatchPattern<'a, TA, Data>)>, Data),
     SumUnwrap(&'a str, Option<Box<MatchPattern<'a, TA, Data>>>, Data),
+}
+
+impl<'a, TA: Display, Data> TreeFormat for MatchPattern<'a, TA, Data> {
+    fn get_precedence(&self) -> i32 {
+        match self {
+            Self::Any(_) => 0,
+            Self::Name(_, _, _) => 0,
+            Self::Tuple(_, _) => 0,
+            Self::Literal(_, _) => 0,
+            Self::Record(_, _) => 0,
+            Self::SumUnwrap(_, _, _) => 1,
+        }
+    }
+
+    fn format(&self) -> String {
+        match self {
+            MatchPattern::Any(_) => format!("_"),
+            MatchPattern::Name(id, ta, _) => match ta {
+                None => id.to_string(),
+                Some(ta) => format!("({}: {})", id, ta),
+            },
+            MatchPattern::Literal(lit, _) => lit.to_string(),
+            MatchPattern::Tuple(elements, _) => {
+                format!("({})", format_children(self, elements.iter(), ", "))
+            }
+            MatchPattern::Record(rows, _) => format_record(rows, ":", ", "),
+            MatchPattern::SumUnwrap(constr, None, _) => constr.to_string(),
+            MatchPattern::SumUnwrap(constr, Some(pat), _) => {
+                format!("{} {}", constr, self.format_child(&*pat))
+            }
+        }
+    }
 }
 
 impl<'a, TA: Display, Data> Display for MatchPattern<'a, TA, Data> {
