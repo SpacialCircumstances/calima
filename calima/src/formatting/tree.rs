@@ -1,7 +1,7 @@
 pub trait TreeFormat {
     fn get_precedence(&self) -> i32;
     fn format(&self) -> String;
-    fn format_child<C: TreeFormat>(&self, child: &C) -> String {
+    fn format_child(&self, child: &Self) -> String {
         if self.get_precedence() < child.get_precedence() {
             format!("({})", child.format())
         } else {
@@ -10,7 +10,7 @@ pub trait TreeFormat {
     }
 }
 
-pub fn format_children<'a, R: TreeFormat, C: TreeFormat + 'a, I: Iterator<Item = &'a C>>(
+pub fn format_children<'a, R: TreeFormat + 'a, I: Iterator<Item = &'a R>>(
     root: &R,
     iter: I,
     sep: &str,
