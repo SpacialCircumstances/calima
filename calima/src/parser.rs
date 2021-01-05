@@ -25,11 +25,12 @@ pub fn parse<'source, 'input>(
 #[cfg(test)]
 mod tests {
     use crate::ast::Expr::*;
-    use crate::ast::{Block, TopLevelBlock};
-    use crate::ast_common::Literal;
+    use crate::ast::{Block, Let, TopLevelBlock, TopLevelStatement};
+    use crate::ast_common::{BindPattern, Literal};
     use crate::parser::parse;
     use crate::string_interner::StringInterner;
     use crate::token::{Location, Span};
+    use crate::typed_ast::Unit;
     use goldenfile::Mint;
     use std::fs::read_dir;
     use std::io::Write;
@@ -37,7 +38,7 @@ mod tests {
     #[test]
     fn test_hello_world() {
         let interner = StringInterner::new();
-        let code = "println \"Hello World!\"";
+        let code = "let main _ = println \"Hello World!\"";
         let parsed = parse(code, &interner);
         let ast = parsed.expect("Parser error");
         let loc1 = Span {
@@ -68,17 +69,19 @@ mod tests {
             left: loc1.left,
             right: loc2.right,
         };
-        let expected = TopLevelBlock {
-            top_levels: Vec::new(),
-            block: Block {
-                statements: Vec::new(),
-                result: Box::new(FunctionCall(
+        let expected: TopLevelBlock<Span> = TopLevelBlock(vec![TopLevelStatement::Let(
+            None,
+            Let {
+                mods: vec![],
+                pattern: BindPattern::Any(loc1),
+                value: FunctionCall(
                     Box::new(Variable("println", loc1)),
                     vec![Literal(Literal::String("Hello World!"), loc2)],
                     loc3,
-                )),
+                ),
+                data: loc3,
             },
-        };
+        )]);
         assert_eq!(ast, expected);
     }
 
