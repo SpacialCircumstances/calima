@@ -39,15 +39,6 @@ impl Display for ModuleIdentifier {
     }
 }
 
-#[derive(Debug)]
-pub struct Module<ModuleData> {
-    pub data: ModuleData,
-    pub name: ModuleIdentifier,
-    pub path: PathBuf,
-    pub depth: u32,
-    pub deps: Vec<(ModuleIdentifier, Span)>,
-}
-
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum Associativity {
     Left,

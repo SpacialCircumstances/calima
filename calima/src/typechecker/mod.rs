@@ -1,7 +1,7 @@
 use crate::ast::*;
 use crate::ast_common::*;
-use crate::common::{Associativity, Module, ModuleIdentifier, OperatorSpecification};
-use crate::compiler::{ModuleTreeContext, UntypedModuleData};
+use crate::common::{Associativity, ModuleIdentifier, OperatorSpecification};
+use crate::compiler::{ParsedModule, ParsedModuleTree, TypedModule};
 use crate::errors::{CompilerError, ErrorContext};
 use crate::formatting::format_iter;
 use crate::prelude::prelude;
@@ -15,10 +15,8 @@ use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
 use std::fmt::Debug;
 
-mod substitution;
+pub mod substitution;
 mod symbol_table;
-
-pub struct TypedModuleData<'input>(Substitution<Type>, TBlock<'input>);
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum UnificationSource {
@@ -832,41 +830,43 @@ fn infer_top_level_block<'input, Data: Copy + Debug>(
 }
 
 fn typecheck_module<'input>(
-    unchecked: Module<UntypedModuleData<'input>>,
-    deps: Vec<&Module<TypedModuleData<'input>>>,
+    unchecked: ParsedModule<'input>,
+    deps: Vec<&TypedModule<'input>>,
     error_context: &mut ErrorContext<'input>,
-) -> Module<TypedModuleData<'input>> {
+) -> TypedModule<'input> {
     //TODO: Import dependencies into context
     let mut context = Context::new(unchecked.name.clone());
     let mut env = Environment::new();
     let prelude = prelude();
     env.import_module(&mut context, &prelude);
 
-    let tast = infer_top_level_block(&mut env, &mut context, &unchecked.data.0);
+    let tast = infer_top_level_block(&mut env, &mut context, &unchecked.ast);
     let rettype = substitute(&context.type_subst, tast.res.typ());
     context.publish_errors(error_context);
     println!("Return type of program: {}", rettype);
-    Module {
-        data: TypedModuleData(context.type_subst, tast),
+    TypedModule {
         name: unchecked.name,
         path: unchecked.path,
         depth: unchecked.depth,
-        deps: unchecked.deps,
+        deps: deps.iter().map(|m| m.name.clone()).collect(),
+        ir_block: tast,
+        subst: context.type_subst,
+        exports: Exports::new(),
     }
 }
 
 pub struct TypedContext<'input> {
-    pub modules: HashMap<ModuleIdentifier, Module<TypedModuleData<'input>>>,
+    pub modules: HashMap<ModuleIdentifier, TypedModule<'input>>,
 }
 
 pub fn typecheck<'input>(
     errors: &mut ErrorContext<'input>,
-    mut module_ctx: ModuleTreeContext<'input>,
+    mut module_ctx: ParsedModuleTree<'input>,
 ) -> Result<TypedContext<'input>, ()> {
     let mut ctx = TypedContext {
         modules: HashMap::new(),
     };
-    let mut ordered_modules: Vec<Module<UntypedModuleData<'input>>> = module_ctx
+    let mut ordered_modules: Vec<ParsedModule<'input>> = module_ctx
         .modules
         .drain()
         .map(|(_, module)| module)

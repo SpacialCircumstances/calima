@@ -4,6 +4,9 @@ use crate::errors::CompilerError::*;
 use crate::errors::{CompilerError, ErrorContext};
 use crate::string_interner::StringInterner;
 use crate::token::Span;
+use crate::typechecker::substitution::Substitution;
+use crate::typed_ast::TBlock;
+use crate::types::{Exports, Type};
 use crate::{parser, CompilerArguments};
 use std::cmp::min;
 use std::collections::HashMap;
@@ -11,7 +14,25 @@ use std::fs::read_to_string;
 use std::iter::once;
 use std::path::PathBuf;
 
-pub struct UntypedModuleData<'input>(pub TopLevelBlock<'input, Span>);
+#[derive(Debug)]
+pub struct ParsedModule<'input> {
+    pub ast: TopLevelBlock<'input, Span>,
+    pub name: ModuleIdentifier,
+    pub path: PathBuf,
+    pub depth: u32,
+    pub deps: Vec<(ModuleIdentifier, Span)>,
+}
+
+#[derive(Debug)]
+pub struct TypedModule<'input> {
+    pub name: ModuleIdentifier,
+    pub path: PathBuf,
+    pub depth: u32,
+    pub deps: Vec<ModuleIdentifier>,
+    pub ir_block: TBlock<'input>,
+    pub subst: Substitution<Type>,
+    pub exports: Exports<'input>,
+}
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ModuleDescriptor {
@@ -20,14 +41,14 @@ pub struct ModuleDescriptor {
     depth: u32,
 }
 
-pub struct ModuleTreeContext<'input> {
+pub struct ParsedModuleTree<'input> {
     pub search_dirs: Vec<PathBuf>,
-    pub modules: HashMap<ModuleIdentifier, Module<UntypedModuleData<'input>>>,
+    pub modules: HashMap<ModuleIdentifier, ParsedModule<'input>>,
 }
 
 fn try_resolve_module(
     search_dirs: &[PathBuf],
-    from: &Module<UntypedModuleData>,
+    from: &ParsedModule,
     module_ident: &ModuleIdentifier,
 ) -> Result<PathBuf, Vec<PathBuf>> {
     let mut module_dir = from.path.to_path_buf();
@@ -53,7 +74,7 @@ fn parse_module<'a>(
     desc: ModuleDescriptor,
     interner: &'a StringInterner,
     err: &mut ErrorContext<'a>,
-) -> Result<Module<UntypedModuleData<'a>>, CompilerError<'a>> {
+) -> Result<ParsedModule<'a>, CompilerError<'a>> {
     let code = read_to_string(&desc.path).map_err(|e| {
         GeneralError(
             Some(Box::new(e)),
@@ -65,9 +86,9 @@ fn parse_module<'a>(
     let deps = find_imported_modules(&ast);
     err.add_file(&desc.identifier, &desc.path, code);
 
-    Ok(Module {
+    Ok(ParsedModule {
         path: desc.path,
-        data: UntypedModuleData(ast),
+        ast,
         name: desc.identifier.clone(),
         depth: desc.depth,
         deps,
@@ -78,7 +99,7 @@ pub fn parse_all_modules<'input, S: AsRef<str>>(
     string_interner: &'input StringInterner,
     error_context: &mut ErrorContext<'input>,
     args: CompilerArguments<S>,
-) -> Result<ModuleTreeContext<'input>, ()> {
+) -> Result<ParsedModuleTree<'input>, ()> {
     let entrypoint_path = PathBuf::from(args.entrypoint);
     if !entrypoint_path.is_file() {
         error_context.add_error(GeneralError(
@@ -121,7 +142,7 @@ pub fn parse_all_modules<'input, S: AsRef<str>>(
 
     error_context.handle_errors()?;
 
-    let mut modules: HashMap<ModuleIdentifier, Module<UntypedModuleData>> = HashMap::new();
+    let mut modules: HashMap<ModuleIdentifier, ParsedModule> = HashMap::new();
 
     while let Some(next) = module_queue.pop() {
         match parse_module(next, string_interner, error_context) {
@@ -156,7 +177,7 @@ pub fn parse_all_modules<'input, S: AsRef<str>>(
         }
     }
 
-    error_context.handle_errors().map(|()| ModuleTreeContext {
+    error_context.handle_errors().map(|()| ParsedModuleTree {
         search_dirs,
         modules,
     })
