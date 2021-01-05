@@ -72,10 +72,7 @@ Sep2<T, S>: Vec<T> = {
     }
 };
 
-pub TopLevelBlock: TopLevelBlock<'input, Data> = {
-    <top_levels:TopLevelStatement+> "in" <block:Block> => TopLevelBlock { top_levels, block },
-    <Block> => TopLevelBlock { top_levels: Vec::new(), block: <> }
-};
+pub TopLevelBlock: TopLevelBlock<'input, Data> = <top_levels:TopLevelStatement*> => TopLevelBlock(top_levels);
 
 Block: Block<'input, Data> = {
     <sts:Statement+> "in" <e:Expression0> => Block {
@@ -99,19 +96,31 @@ Import: TopLevelStatement<'input, Data> = {
 };
 
 Statement: Statement<'input, Data> = {
-    Let,
+    <Let> => Statement::Let(<>),
     Do,
     Region,
-    LetOperator
+    <LetOperator> => Statement::LetOperator(<>)
 };
 
 Region: Statement<'input, Data> = <posl:@L> "region" <n:"name"> <posr:@R> => Statement::Region(n, to_data(posl, posr));
 
 Do: Statement<'input, Data> = <posl:@L> "do" <e:Expression0> <posr:@R> => Statement::Do(e, to_data(posl, posr));
 
-Let: Statement<'input, Data> = <posl:@L> "let" <mods:Modifiers> <pat:BindPattern0> "=" <expr:Expression0> <posr:@R> => Statement::Let(mods, pat, expr, to_data(posl, posr));
+Let: crate::ast::Let<'input, Data> = <posl:@L> "let" <mods:Modifiers> <pattern:BindPattern0> "=" <value:Expression0> <posr:@R> => crate::ast::Let {
+    mods,
+    pattern,
+    value,
+    data: to_data(posl, posr)
+};
 
-LetOperator: Statement<'input, Data> = <posl:@L> "let" <mods:Modifiers> <op:OperatorSpec> <n:AnnotatedOperator> "=" <expr:Expression0> <posr:@R> => Statement::LetOperator(mods, op, n.0, n.1, expr, to_data(posl, posr));
+LetOperator: crate::ast::LetOperator<'input, Data> = <posl:@L> "let" <mods:Modifiers> <op:OperatorSpec> <n:AnnotatedOperator> "=" <value:Expression0> <posr:@R> => crate::ast::LetOperator {
+    mods,
+    op,
+    name: n.0,
+    ta: n.1,
+    value,
+    data: to_data(posl, posr)
+};
 
 Modifiers: Vec<Modifier> = Modifier*;
 

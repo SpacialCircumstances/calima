@@ -128,6 +128,62 @@ impl Display for Modifier {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub struct Let<'a, Data> {
+    pub mods: Vec<Modifier>,
+    pub pattern: BindPattern<'a, TypeAnnotation<'a, Data>, Data>,
+    pub value: Expr<'a, Data>,
+    pub data: Data,
+}
+
+impl<'a, Data> Display for Let<'a, Data> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "let {}{} = {}",
+            format_iter_end(self.mods.iter(), " "),
+            self.pattern,
+            self.value
+        )
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct LetOperator<'a, Data> {
+    pub mods: Vec<Modifier>,
+    pub op: OperatorSpecification,
+    pub name: &'a str,
+    pub ta: Option<TypeAnnotation<'a, Data>>,
+    pub value: Expr<'a, Data>,
+    pub data: Data,
+}
+
+impl<'a, Data> Display for LetOperator<'a, Data> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "let {}{} {} = {}",
+            format_iter_end(self.mods.iter(), " "),
+            self.op,
+            self.name,
+            self.value
+        )
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum Visibility {
+    Public,
+}
+
+impl Display for Visibility {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Visibility::Public => write!(f, "public"),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum TopLevelStatement<'a, Data> {
     Import(&'a str, Vec<&'a str>, Data),
     Type {
@@ -137,6 +193,8 @@ pub enum TopLevelStatement<'a, Data> {
         type_def: TypeDefinition<'a, Data>,
         data: Data,
     },
+    Let(Option<Visibility>, Let<'a, Data>),
+    LetOperator(Option<Visibility>, LetOperator<'a, Data>),
 }
 
 impl<'a, Data> Display for TopLevelStatement<'a, Data> {
@@ -165,26 +223,22 @@ impl<'a, Data> Display for TopLevelStatement<'a, Data> {
                 format_iter(params.iter(), " "),
                 typedef
             ),
+            TopLevelStatement::Let(vis, lets) => match vis {
+                None => write!(f, "{}", lets),
+                Some(vis) => write!(f, "{}{}", vis, lets),
+            },
+            TopLevelStatement::LetOperator(vis, lets) => match vis {
+                None => write!(f, "{}", lets),
+                Some(vis) => write!(f, "{}{}", vis, lets),
+            },
         }
     }
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement<'a, Data> {
-    Let(
-        Vec<Modifier>,
-        BindPattern<'a, TypeAnnotation<'a, Data>, Data>,
-        Expr<'a, Data>,
-        Data,
-    ),
-    LetOperator(
-        Vec<Modifier>,
-        OperatorSpecification,
-        &'a str,
-        Option<TypeAnnotation<'a, Data>>,
-        Expr<'a, Data>,
-        Data,
-    ),
+    Let(Let<'a, Data>),
+    LetOperator(LetOperator<'a, Data>),
     Do(Expr<'a, Data>, Data),
     Region(&'a str, Data),
 }
@@ -194,42 +248,21 @@ impl<'a, Data> Display for Statement<'a, Data> {
         match self {
             Statement::Region(name, _) => write!(f, "region {}", name),
             Statement::Do(expr, _) => write!(f, "do {}", expr),
-            Statement::Let(mods, pat, expr, _) => write!(
-                f,
-                "let {}{} = {}",
-                format_iter_end(mods.iter(), " "),
-                pat,
-                expr
-            ),
-            Statement::LetOperator(mods, op, name, ta, expr, _) => write!(
-                f,
-                "let {}{} {} = {}",
-                format_iter_end(mods.iter(), " "),
-                op,
-                name,
-                expr
-            ),
+            Statement::Let(lets) => write!(f, "{}", lets),
+            Statement::LetOperator(lets) => write!(f, "{}", lets),
         }
     }
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct TopLevelBlock<'a, Data> {
-    pub top_levels: Vec<TopLevelStatement<'a, Data>>,
-    pub block: Block<'a, Data>,
-}
+pub struct TopLevelBlock<'a, Data>(pub(crate) Vec<TopLevelStatement<'a, Data>>);
 
 impl<'a, Data> Display for TopLevelBlock<'a, Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        if self.top_levels.is_empty() {
-            write!(f, "{}", self.block)
-        } else {
-            for tls in &self.top_levels {
-                writeln!(f, "{}", tls)?;
-            }
-            writeln!(f, "in")?;
-            write!(f, "{}", self.block)
+        for tls in &self.0 {
+            writeln!(f, "{}", tls)?;
         }
+        Ok(())
     }
 }
 
@@ -405,15 +438,13 @@ impl<'a, Data> Display for Expr<'a, Data> {
 }
 
 pub fn find_imported_modules<D: Copy>(ast: &TopLevelBlock<D>) -> Vec<(ModuleIdentifier, D)> {
-    ast.top_levels
-        .iter()
-        .fold(Vec::new(), |mut imports, statement| {
-            match statement {
-                TopLevelStatement::Import(module_id, _, data) => {
-                    imports.push((ModuleIdentifier::from_name(&[module_id]), *data));
-                }
-                _ => (),
+    ast.0.iter().fold(Vec::new(), |mut imports, statement| {
+        match statement {
+            TopLevelStatement::Import(module_id, _, data) => {
+                imports.push((ModuleIdentifier::from_name(&[module_id]), *data));
             }
-            imports
-        })
+            _ => (),
+        }
+        imports
+    })
 }

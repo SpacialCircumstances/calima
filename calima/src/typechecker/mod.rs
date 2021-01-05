@@ -690,7 +690,12 @@ fn infer_statement<'input, Data: Copy + Debug>(
     match statement {
         Statement::Region(name, _) => None,
         Statement::Do(expr, _) => Some(TStatement::Do(infer_expr(env, ctx, expr))),
-        Statement::Let(mods, pattern, value, loc) => {
+        Statement::Let(Let {
+            mods,
+            pattern,
+            value,
+            data: loc,
+        }) => {
             let v = if mods.contains(&Modifier::Rec) {
                 let mut var = ctx.new_generic();
                 let mut body_env = env.clone();
@@ -705,7 +710,14 @@ fn infer_statement<'input, Data: Copy + Debug>(
             ctx.bind_to_pattern(env, pattern, &env.generalize(&v.typ()));
             Some(TStatement::Let(v, map_bind_pattern(pattern)))
         }
-        Statement::LetOperator(mods, op, name, ta, expr, loc) => {
+        Statement::LetOperator(LetOperator {
+            mods,
+            op,
+            name,
+            ta,
+            value: expr,
+            data: loc,
+        }) => {
             let (mut op_type, v) = if mods.contains(&Modifier::Rec) {
                 let recursive_type = ctx.new_generic();
                 let mut body_env = env.clone();
@@ -805,7 +817,8 @@ fn process_top_level<'input, Data: Copy + Debug>(
     env: &mut Environment<'input, Data>,
     ctx: &mut Context<Data>,
     tls: &TopLevelStatement<'input, Data>,
-) {
+) -> Option<TStatement<'input>> {
+    None
 }
 
 fn infer_top_level_block<'input, Data: Copy + Debug>(
@@ -813,19 +826,14 @@ fn infer_top_level_block<'input, Data: Copy + Debug>(
     ctx: &mut Context<Data>,
     tlb: &TopLevelBlock<'input, Data>,
 ) -> TBlock<'input> {
-    tlb.top_levels
-        .iter()
-        .for_each(|st| process_top_level(env, ctx, st));
     let statements = tlb
-        .block
-        .statements
+        .0
         .iter()
-        .filter_map(|st| infer_statement(env, ctx, st))
+        .filter_map(|st| process_top_level(env, ctx, st))
         .collect();
-    let res = infer_expr(env, ctx, &*tlb.block.result);
     TBlock {
         statements,
-        res: res.into(),
+        res: Box::from(TExpression::new(TExprData::Literal(Literal::Unit), unit())),
     }
 }
 
