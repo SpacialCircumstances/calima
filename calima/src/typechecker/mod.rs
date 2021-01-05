@@ -682,6 +682,85 @@ fn get_literal_type(lit: &Literal) -> Type {
     }))
 }
 
+fn infer_let<'input, Data: Copy + Debug>(
+    env: &mut Environment<'input, Data>,
+    ctx: &mut Context<Data>,
+    l: &Let<'input, Data>,
+) -> Option<TStatement<'input>> {
+    let v = if l.mods.contains(&Modifier::Rec) {
+        let mut var = ctx.new_generic();
+        let mut body_env = env.clone();
+        ctx.bind_to_pattern(&mut body_env, &l.pattern, &Scheme::simple(var.clone()));
+        let v = infer_expr(&mut body_env, ctx, &l.value);
+        ctx.unify(&mut var, &v.typ(), UnificationSource::TypeInference, l.data);
+        v
+    } else {
+        let mut body_env = env.clone();
+        infer_expr(&mut body_env, ctx, &l.value)
+    };
+    ctx.bind_to_pattern(env, &l.pattern, &env.generalize(&v.typ()));
+    Some(TStatement::Let(v, map_bind_pattern(&l.pattern)))
+}
+
+fn infer_let_operator<'input, Data: Copy + Debug>(
+    env: &mut Environment<'input, Data>,
+    ctx: &mut Context<Data>,
+    l: &LetOperator<'input, Data>,
+) -> Option<TStatement<'input>> {
+    let (mut op_type, v) = if l.mods.contains(&Modifier::Rec) {
+        let recursive_type = ctx.new_generic();
+        let mut body_env = env.clone();
+        body_env.add_operator(
+            &l.name,
+            Scheme::simple(recursive_type.clone()),
+            l.op.clone(),
+            l.data,
+        );
+        let value = infer_expr(&mut body_env, ctx, &l.value);
+        let mut typ = value.typ().clone();
+        ctx.unify(
+            &mut typ,
+            &value.typ(),
+            UnificationSource::TypeInference,
+            l.data,
+        );
+        (typ, value)
+    } else {
+        let value = infer_expr(env, ctx, &l.value);
+        (value.typ().clone(), value)
+    };
+    if let Some(ta) = &l.ta {
+        let tp = ctx.type_from_annotation(env, &ta);
+        ctx.unify(&mut op_type, &tp, UnificationSource::TypeAnnotation, l.data);
+    }
+    match l.op {
+        OperatorSpecification::Infix(_, _) => {
+            let expected_type =
+                build_function(&[ctx.new_generic(), ctx.new_generic()], &ctx.new_generic());
+            ctx.unify(
+                &mut op_type,
+                &expected_type,
+                UnificationSource::OperatorConstraint(l.op),
+                l.data,
+            );
+        }
+        OperatorSpecification::Prefix => {
+            let expected_type = build_function(&[ctx.new_generic()], &ctx.new_generic());
+            ctx.unify(
+                &mut op_type,
+                &expected_type,
+                UnificationSource::OperatorConstraint(l.op),
+                l.data,
+            );
+        }
+    }
+    env.add_operator(l.name, env.generalize(&op_type), l.op.clone(), l.data);
+    Some(TStatement::Let(
+        v,
+        BindPattern::Name(l.name, None, Unit::unit()),
+    ))
+}
+
 fn infer_statement<'input, Data: Copy + Debug>(
     env: &mut Environment<'input, Data>,
     ctx: &mut Context<Data>,
@@ -690,87 +769,8 @@ fn infer_statement<'input, Data: Copy + Debug>(
     match statement {
         Statement::Region(name, _) => None,
         Statement::Do(expr, _) => Some(TStatement::Do(infer_expr(env, ctx, expr))),
-        Statement::Let(Let {
-            mods,
-            pattern,
-            value,
-            data: loc,
-        }) => {
-            let v = if mods.contains(&Modifier::Rec) {
-                let mut var = ctx.new_generic();
-                let mut body_env = env.clone();
-                ctx.bind_to_pattern(&mut body_env, pattern, &Scheme::simple(var.clone()));
-                let v = infer_expr(&mut body_env, ctx, value);
-                ctx.unify(&mut var, &v.typ(), UnificationSource::TypeInference, *loc);
-                v
-            } else {
-                let mut body_env = env.clone();
-                infer_expr(&mut body_env, ctx, value)
-            };
-            ctx.bind_to_pattern(env, pattern, &env.generalize(&v.typ()));
-            Some(TStatement::Let(v, map_bind_pattern(pattern)))
-        }
-        Statement::LetOperator(LetOperator {
-            mods,
-            op,
-            name,
-            ta,
-            value: expr,
-            data: loc,
-        }) => {
-            let (mut op_type, v) = if mods.contains(&Modifier::Rec) {
-                let recursive_type = ctx.new_generic();
-                let mut body_env = env.clone();
-                body_env.add_operator(
-                    name,
-                    Scheme::simple(recursive_type.clone()),
-                    op.clone(),
-                    *loc,
-                );
-                let value = infer_expr(&mut body_env, ctx, expr);
-                let mut typ = value.typ().clone();
-                ctx.unify(
-                    &mut typ,
-                    &value.typ(),
-                    UnificationSource::TypeInference,
-                    *loc,
-                );
-                (typ, value)
-            } else {
-                let value = infer_expr(env, ctx, expr);
-                (value.typ().clone(), value)
-            };
-            if let Some(ta) = ta {
-                let tp = ctx.type_from_annotation(env, ta);
-                ctx.unify(&mut op_type, &tp, UnificationSource::TypeAnnotation, *loc);
-            }
-            match op {
-                OperatorSpecification::Infix(_, _) => {
-                    let expected_type =
-                        build_function(&[ctx.new_generic(), ctx.new_generic()], &ctx.new_generic());
-                    ctx.unify(
-                        &mut op_type,
-                        &expected_type,
-                        UnificationSource::OperatorConstraint(*op),
-                        *loc,
-                    );
-                }
-                OperatorSpecification::Prefix => {
-                    let expected_type = build_function(&[ctx.new_generic()], &ctx.new_generic());
-                    ctx.unify(
-                        &mut op_type,
-                        &expected_type,
-                        UnificationSource::OperatorConstraint(*op),
-                        *loc,
-                    );
-                }
-            }
-            env.add_operator(name, env.generalize(&op_type), op.clone(), *loc);
-            Some(TStatement::Let(
-                v,
-                BindPattern::Name(name, None, Unit::unit()),
-            ))
-        }
+        Statement::Let(l) => infer_let(env, ctx, l),
+        Statement::LetOperator(l) => infer_let_operator(env, ctx, l),
     }
 }
 
