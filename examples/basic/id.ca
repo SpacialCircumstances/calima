@@ -1,2 +1,2 @@
-let id = fun x -> x in
-id 2
+let id = fun x -> x
+let main = fun _ -> id 2

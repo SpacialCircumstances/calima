@@ -4,4 +4,4 @@ let rec fac = fun i ->
     else
         fac (i - 1)
     end
-in println (fac 5)
+let main = fun _ -> println (fac 5)
