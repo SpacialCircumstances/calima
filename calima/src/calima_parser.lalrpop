@@ -88,7 +88,11 @@ Block: Block<'input, Data> = {
 TopLevelStatement: TopLevelStatement<'input, Data> = {
     Import,
     <posl:@L> "type" <n:"typename"> <regions:RegionVariable*> <params:GenericTypeKind*> "=" <td:TypeDefinition> <posr:@R> => TopLevelStatement::Type { name: n, regions, params, type_def: td, data: to_data(posl, posr) },
+    <vis:Visibility> <lets:Let> => TopLevelStatement::Let(vis, lets),
+    <vis:Visibility> <lets:LetOperator> => TopLevelStatement::LetOperator(vis, lets),
 };
+
+Visibility: Option<Visibility> = <"public"?> => <>.map(|_| Visibility::Public);
 
 Import: TopLevelStatement<'input, Data> = {
     <posl:@L> "import" <m:AnyName> <posr:@R> => TopLevelStatement::Import(m, Vec::new(), to_data(posl, posr)),
