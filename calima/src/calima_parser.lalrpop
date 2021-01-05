@@ -51,7 +51,8 @@ extern {
         "@" => At,
         "'" => Apostrophe,
         "infix" => Infix,
-        "prefix" => Prefix
+        "prefix" => Prefix,
+        "public" => Public
     }
 }
 

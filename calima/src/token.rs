@@ -46,6 +46,7 @@ pub enum Token<'input> {
     Apostrophe,
     Infix,
     Prefix,
+    Public,
 }
 
 impl<'input> Display for Token<'input> {
@@ -88,6 +89,7 @@ impl<'input> Display for Token<'input> {
             Token::Apostrophe => write!(f, "'"),
             Token::Infix => write!(f, "infix"),
             Token::Prefix => write!(f, "prefix"),
+            Token::Public => write!(f, "public"),
         }
     }
 }
