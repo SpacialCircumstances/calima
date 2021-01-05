@@ -36,56 +36,6 @@ mod tests {
     use std::io::Write;
 
     #[test]
-    fn test_hello_world() {
-        let interner = StringInterner::new();
-        let code = "let main _ = println \"Hello World!\"";
-        let parsed = parse(code, &interner);
-        let ast = parsed.expect("Parser error");
-        let loc1 = Span {
-            left: Location {
-                pos: 0,
-                col: 1,
-                line: 1,
-            },
-            right: Location {
-                pos: 6,
-                col: 7,
-                line: 1,
-            },
-        };
-        let loc2 = Span {
-            left: Location {
-                pos: 8,
-                col: 9,
-                line: 1,
-            },
-            right: Location {
-                pos: 21,
-                col: 22,
-                line: 1,
-            },
-        };
-        let loc3 = Span {
-            left: loc1.left,
-            right: loc2.right,
-        };
-        let expected: TopLevelBlock<Span> = TopLevelBlock(vec![TopLevelStatement::Let(
-            None,
-            Let {
-                mods: vec![],
-                pattern: BindPattern::Any(loc1),
-                value: FunctionCall(
-                    Box::new(Variable("println", loc1)),
-                    vec![Literal(Literal::String("Hello World!"), loc2)],
-                    loc3,
-                ),
-                data: loc3,
-            },
-        )]);
-        assert_eq!(ast, expected);
-    }
-
-    #[test]
     fn test_by_comparing_to_parsed() {
         let mut mint_code = Mint::new("tests/parsed/");
         let interner = StringInterner::new();
