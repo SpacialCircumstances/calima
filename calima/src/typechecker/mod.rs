@@ -833,7 +833,7 @@ fn typecheck_module<'input>(
     unchecked: ParsedModule<'input>,
     deps: Vec<&TypedModule<'input>>,
     error_context: &mut ErrorContext<'input>,
-) -> TypedModule<'input> {
+) -> Result<TypedModule<'input>, ()> {
     //TODO: Import dependencies into context
     let mut context = Context::new(unchecked.name.clone());
     let mut env = Environment::new();
@@ -844,7 +844,7 @@ fn typecheck_module<'input>(
     let rettype = substitute(&context.type_subst, tast.res.typ());
     context.publish_errors(error_context);
     println!("Return type of program: {}", rettype);
-    TypedModule {
+    error_context.handle_errors().map(|_| TypedModule {
         name: unchecked.name,
         path: unchecked.path,
         depth: unchecked.depth,
@@ -852,7 +852,7 @@ fn typecheck_module<'input>(
         ir_block: tast,
         subst: context.type_subst,
         exports: Exports::new(),
-    }
+    })
 }
 
 pub struct TypedContext<'input> {
@@ -884,11 +884,15 @@ pub fn typecheck<'input>(
             })
             .collect();
         let name = module.name.clone();
-        let typed_mod = typecheck_module(module, deps, errors);
-        ctx.modules.insert(name, typed_mod);
+        match typecheck_module(module, deps, errors) {
+            Ok(typed_mod) => ctx.modules.insert(name, typed_mod),
+            Err(_) => {
+                println!("Error compiling module {}", name);
+                return Err(());
+            }
+        };
     }
-
-    errors.handle_errors().map(|()| ctx)
+    Ok(ctx)
 }
 
 #[cfg(test)]
