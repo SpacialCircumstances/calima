@@ -5,7 +5,6 @@ use crate::compiler::{ParsedModule, ParsedModuleTree, TypedModule};
 use crate::errors::{CompilerError, ErrorContext};
 use crate::formatting::format_iter;
 use crate::prelude::prelude;
-use crate::string_interner::StringInterner;
 use crate::token::Span;
 use crate::typechecker::substitution::Substitution;
 use crate::typechecker::symbol_table::{Location, SymbolTable};
@@ -361,7 +360,7 @@ impl<Data: Copy + Debug> Context<Data> {
                                             self.add_error(
                                                 TypeError::repeated_unassociative_operators(
                                                     top_location,
-                                                    &vec![*last_op, *name],
+                                                    &[*last_op, *name],
                                                 ),
                                             );
                                         } else if assoc == Associativity::Left {
@@ -553,7 +552,7 @@ impl<'a, Data: Copy + Debug> Environment<'a, Data> {
             ExportValue::Operator(op, tp) => {
                 self.operators.add(
                     name,
-                    (Self::import_scheme(ctx, tp), op.clone()),
+                    (Self::import_scheme(ctx, tp), *op),
                     Location::External,
                 );
             }
@@ -710,12 +709,7 @@ fn infer_let_operator<'input, Data: Copy + Debug>(
     let (mut op_type, v) = if l.mods.contains(&Modifier::Rec) {
         let recursive_type = ctx.new_generic();
         let mut body_env = env.clone();
-        body_env.add_operator(
-            &l.name,
-            Scheme::simple(recursive_type.clone()),
-            l.op.clone(),
-            l.data,
-        );
+        body_env.add_operator(&l.name, Scheme::simple(recursive_type), l.op, l.data);
         let value = infer_expr(&mut body_env, ctx, &l.value);
         let mut typ = value.typ().clone();
         ctx.unify(
@@ -754,7 +748,7 @@ fn infer_let_operator<'input, Data: Copy + Debug>(
             );
         }
     }
-    env.add_operator(l.name, env.generalize(&op_type), l.op.clone(), l.data);
+    env.add_operator(l.name, env.generalize(&op_type), l.op, l.data);
     Some(TStatement::Let(
         v,
         BindPattern::Name(l.name, None, Unit::unit()),
@@ -789,7 +783,7 @@ fn map_match_pattern<'input, Data>(
 ) -> MatchPattern<'input, Unit, Unit> {
     match pattern {
         MatchPattern::Any(_) => MatchPattern::Any(Unit::unit()),
-        MatchPattern::Literal(lit, _) => MatchPattern::Literal(lit.clone(), Unit::unit()),
+        MatchPattern::Literal(lit, _) => MatchPattern::Literal(*lit, Unit::unit()),
         MatchPattern::Name(id, _, _) => MatchPattern::Name(id, None, Unit::unit()),
         _ => unimplemented!(),
     }

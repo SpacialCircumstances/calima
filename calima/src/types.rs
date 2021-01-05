@@ -150,12 +150,12 @@ impl TreeFormat for Type {
                     self.format_child(&params[0]),
                     self.format_child(&params[1])
                 ),
-                ComplexType::Tuple(n) => {
+                ComplexType::Tuple(_) => {
                     format!("({})", format_children(self, params.iter(), ", "))
                 }
             },
             Type::Reference(reg, tp) => format!("@{} {}", reg, tp),
-            Type::Error => format!("ERROR_TYPE"),
+            Type::Error => "ERROR_TYPE".to_string(),
         }
     }
 }

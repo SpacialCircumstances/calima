@@ -1,4 +1,3 @@
-use crate::token::Span;
 use std::convert::TryFrom;
 use std::fmt::{Display, Formatter};
 use std::path::{Path, PathBuf};
@@ -20,7 +19,7 @@ impl ModuleIdentifier {
     }
 
     pub fn components(&self) -> impl Iterator<Item = &str> {
-        self.full_name.split(".")
+        self.full_name.split('.')
     }
 
     pub fn path_relative_to(&self, path: &Path) -> PathBuf {

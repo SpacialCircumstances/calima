@@ -113,10 +113,6 @@ pub struct Span {
     pub right: Location,
 }
 
-pub fn span(left: Location, right: Location) -> Span {
-    Span { left, right }
-}
-
 impl Span {
     pub fn to_range(&self) -> Range<usize> {
         self.left.pos..self.right.pos + 1

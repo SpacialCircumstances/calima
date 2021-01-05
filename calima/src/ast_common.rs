@@ -73,7 +73,7 @@ impl<'a, TA: Display, Data> TreeFormat for MatchPattern<'a, TA, Data> {
 
     fn format(&self) -> String {
         match self {
-            MatchPattern::Any(_) => format!("_"),
+            MatchPattern::Any(_) => "_".to_string(),
             MatchPattern::Name(id, ta, _) => match ta {
                 None => id.to_string(),
                 Some(ta) => format!("({}: {})", id, ta),

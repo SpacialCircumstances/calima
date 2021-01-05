@@ -1,5 +1,5 @@
 use crate::common::ModuleIdentifier;
-use crate::token::{span, Location, Span, Token};
+use crate::token::{Location, Span, Token};
 use crate::typechecker::TypeError;
 use codespan_reporting::diagnostic::{Diagnostic, Label, Severity};
 use codespan_reporting::term::emit;
@@ -188,8 +188,8 @@ impl<'a> ErrorContext<'a> {
                                     file_id,
                                     location.pos..location.pos + 1,
                                 )
-                                .with_message(format!("Invalid token found here"))])
-                                .with_notes(vec![format!("Parser found invalid token")]);
+                                .with_message("Invalid token found here".to_string())])
+                                .with_notes(vec!["Parser found invalid token".to_string()]);
                             diagnostics.push(e);
                         }
                         ParseError::UnrecognizedEOF { location, expected } => {

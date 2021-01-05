@@ -57,7 +57,7 @@ fn try_resolve_module(
         .chain(search_dirs.iter())
         .map(|dir| {
             let mut path = module_ident.path_relative_to(dir);
-            module_ident.path_relative_to(&mut path);
+            module_ident.path_relative_to(&path);
             match path.is_file() {
                 true => Ok(path),
                 false => {

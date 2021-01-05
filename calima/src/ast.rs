@@ -65,8 +65,8 @@ impl<'a, Data> TreeFormat for TypeAnnotation<'a, Data> {
 
     fn format(&self) -> String {
         match self {
-            TypeAnnotation::Name(name, _) => format!("{}", name),
-            TypeAnnotation::Generic(name) => format!("{}", name),
+            TypeAnnotation::Name(name, _) => name.to_string(),
+            TypeAnnotation::Generic(name) => name.to_string(),
             TypeAnnotation::Function(i, o) => {
                 format!("{} -> {}", self.format_child(&*i), self.format_child(&*o))
             }
@@ -103,7 +103,7 @@ impl<'a, Data> Display for TypeDefinition<'a, Data> {
                 let str = rows
                     .iter()
                     .map(|(constr, ta)| match ta {
-                        None => format!("{}", constr),
+                        None => constr.to_string(),
                         Some(ta) => format!("{} {}", constr, ta),
                     })
                     .collect::<Vec<String>>()
@@ -385,17 +385,12 @@ impl<'a, Data> TreeFormat for Expr<'a, Data> {
             Expr::FunctionCall(func, args, _) => {
                 format!("{} {}", *func, format_children(self, args.iter(), " "))
             }
-            Expr::OperatorCall(elements, _) => format!(
-                "{}",
-                format_iter(
-                    elements.iter().map(|el| {
-                        match el {
-                            OperatorElement::Operator(op, _) => op.to_string(),
-                            OperatorElement::Expression(expr) => self.format_child(expr),
-                        }
-                    }),
-                    " "
-                )
+            Expr::OperatorCall(elements, _) => format_iter(
+                elements.iter().map(|el| match el {
+                    OperatorElement::Operator(op, _) => op.to_string(),
+                    OperatorElement::Expression(expr) => self.format_child(expr),
+                }),
+                " ",
             ),
             Expr::If {
                 data: _,
