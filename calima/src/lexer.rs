@@ -104,6 +104,7 @@ fn handle_identifier(ident: &str) -> Token {
         "false" => BooleanLiteral(false),
         "infix" => Infix,
         "prefix" => Prefix,
+        "public" => Public,
         x => {
             let first = x
                 .chars()
