@@ -813,12 +813,17 @@ fn infer_block<'input, Data: Copy + Debug>(
     }
 }
 
-fn process_top_level<'input, Data: Copy + Debug>(
+fn infer_top_level<'input, Data: Copy + Debug>(
     env: &mut Environment<'input, Data>,
     ctx: &mut Context<Data>,
     tls: &TopLevelStatement<'input, Data>,
 ) -> Option<TStatement<'input>> {
-    None
+    match tls {
+        TopLevelStatement::Let(_, l) => infer_let(env, ctx, l),
+        TopLevelStatement::LetOperator(_, l) => infer_let_operator(env, ctx, l),
+        TopLevelStatement::Import(_, _, _) => None, //Imports are resolved before typechecking
+        TopLevelStatement::Type { .. } => unimplemented!(),
+    }
 }
 
 fn infer_top_level_block<'input, Data: Copy + Debug>(
@@ -829,7 +834,7 @@ fn infer_top_level_block<'input, Data: Copy + Debug>(
     let statements = tlb
         .0
         .iter()
-        .filter_map(|st| process_top_level(env, ctx, st))
+        .filter_map(|st| infer_top_level(env, ctx, st))
         .collect();
     TBlock {
         statements,
