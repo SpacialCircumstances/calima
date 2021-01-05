@@ -1,5 +1,4 @@
 type List a = Node ((List a), a)| Empty
-in
 let head = fun list -> case list of
 | Empty ->
 None
@@ -7,4 +6,4 @@ None
 Some e
 end
 let (t1: List Int) = Node (Empty, 2)
-in head t1
+let main = fun _ -> head t1
