@@ -30,6 +30,7 @@ impl<'a> Display for Literal<'a> {
 #[derive(Debug, PartialEq, Clone)]
 pub enum BindPattern<'a, TA: Display, Data> {
     Any(Data),
+    UnitLiteral(Data),
     Name(&'a str, Option<TA>, Data),
     Tuple(Vec<BindPattern<'a, TA, Data>>, Data),
     Record(Vec<(&'a str, BindPattern<'a, TA, Data>)>, Data),
@@ -45,6 +46,7 @@ impl<'a, TA: Display, Data> Display for BindPattern<'a, TA, Data> {
             },
             BindPattern::Tuple(elements, _) => format_tuple(elements, f),
             BindPattern::Record(rows, _) => write!(f, "{}", format_record(rows, ":", ", ")),
+            BindPattern::UnitLiteral(_) => write!(f, "()"),
         }
     }
 }

@@ -216,7 +216,8 @@ BindPattern0: BindPattern<'input, TypeAnnotation<'input, Data>, Data> = {
     <posl:@L> <id:AnnotatedName> <posr:@R> => BindPattern::Name(id.0, id.1, to_data(posl, posr)),
     "(" <BindPattern0> ")" => <>,
     <posl:@L> "{" <rows:Sep1<RecordBindPatternRow, ",">> "}" <posr:@R> => BindPattern::Record(rows, to_data(posl, posr)),
-    <posl:@L> "(" <elements:Sep2<BindPattern0, ",">> ")" <posr:@R> => BindPattern::Tuple(elements, to_data(posl, posr))
+    <posl:@L> "(" <elements:Sep2<BindPattern0, ",">> ")" <posr:@R> => BindPattern::Tuple(elements, to_data(posl, posr)),
+    <posl:@L> "(" ")" <posr:@R> => BindPattern::UnitLiteral(to_data(posl, posr))
 };
 
 MatchPattern0: MatchPattern<'input, TypeAnnotation<'input, Data>, Data> = {
