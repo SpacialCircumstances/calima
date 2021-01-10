@@ -15,7 +15,6 @@ mod token;
 mod typechecker;
 mod typed_ast;
 mod types;
-mod util;
 
 use crate::errors::ErrorContext;
 use string_interner::StringInterner;
