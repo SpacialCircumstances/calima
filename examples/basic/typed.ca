@@ -8,4 +8,4 @@ let (p: Person) = {
 }
 let (x: List Int) = [ 2, 3, 4 ]
 let mapped = map (fun i -> i + 2) x
-let main = fun _ -> println p.name
+let main = fun () -> println p.name

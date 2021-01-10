@@ -1,1 +1,1 @@
-let main = fun _ -> println "Hello World!"
+let main = fun () -> println "Hello World!"

@@ -3,4 +3,4 @@ let rec fac = fun i -> if i == 0 then
 else
 fac (i - 1)
 end
-let main = fun _ -> println fac 5
+let main = fun () -> println fac 5

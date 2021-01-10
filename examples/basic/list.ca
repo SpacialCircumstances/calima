@@ -6,4 +6,4 @@ let head = fun list -> case list of
     | Node (_, e) -> Some e
 end
 let (t1: List Int) = Node (Empty, 2)
-let main = fun _ -> head t1
+let main = fun () -> head t1
