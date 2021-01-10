@@ -1,23 +1,19 @@
 #[macro_use]
 extern crate lalrpop_util;
 
+use crate::errors::ErrorContext;
+use crate::parsing::string_interner::StringInterner;
+
 mod ast;
 mod ast_common;
 mod common;
 mod compiler;
 mod errors;
 mod formatting;
-mod lexer;
-mod parser;
-mod prelude;
-mod string_interner;
-mod token;
+mod parsing;
 mod typechecker;
 mod typed_ast;
 mod types;
-
-use crate::errors::ErrorContext;
-use string_interner::StringInterner;
 
 #[derive(Debug)]
 pub struct CompilerArguments<'a, S: AsRef<str>> {

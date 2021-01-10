@@ -4,16 +4,17 @@ use crate::common::{Associativity, ModuleIdentifier, OperatorSpecification};
 use crate::compiler::{ParsedModule, ParsedModuleTree, TypedModule};
 use crate::errors::{CompilerError, ErrorContext};
 use crate::formatting::format_iter;
-use crate::prelude::prelude;
-use crate::token::Span;
+use crate::parsing::token::Span;
 use crate::typechecker::substitution::Substitution;
 use crate::typechecker::symbol_table::{Location, SymbolTable};
 use crate::typed_ast::*;
 use crate::types::*;
+use prelude::prelude;
 use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
 use std::fmt::Debug;
 
+mod prelude;
 pub mod substitution;
 mod symbol_table;
 
@@ -928,16 +929,17 @@ pub fn typecheck<'input>(
 
 #[cfg(test)]
 mod tests {
+    use std::fmt::Debug;
+
     use crate::ast::OperatorElement::*;
     use crate::ast::{Expr, OperatorElement};
     use crate::ast_common::{Literal, NumberType};
     use crate::common::ModuleIdentifier;
     use crate::errors::ErrorContext;
-    use crate::prelude::prelude;
+    use crate::typechecker::prelude::prelude;
     use crate::typechecker::{Context, Environment};
     use crate::typed_ast::{TExprData, TExpression};
     use crate::types::{int, Type};
-    use std::fmt::Debug;
 
     fn int_lit(lit: &str) -> OperatorElement<()> {
         Expression(Expr::Literal(Literal::Number(lit, NumberType::Integer), ()))

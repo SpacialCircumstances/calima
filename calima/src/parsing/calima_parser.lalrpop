@@ -1,9 +1,9 @@
 use crate::ast_common::{Literal, NumberType, MatchPattern, BindPattern};
 use crate::common::{Associativity, OperatorSpecification};
 use crate::ast::*;
-use crate::token::{Location, Token, Span, NumberFormat};
-use crate::token::Token::*;
-use crate::lexer::{Error, ErrorKind};
+use crate::parsing::token::{Location, Token, Span, NumberFormat};
+use crate::parsing::token::Token::*;
+use crate::parsing::lexer::{Error, ErrorKind};
 use lalrpop_util::ParseError;
 use std::str::FromStr;
 use std::convert::TryFrom;

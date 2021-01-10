@@ -1,10 +1,14 @@
 use crate::ast::*;
-use crate::lexer::*;
-use crate::string_interner::StringInterner;
-use crate::token::{Location, Span, Token};
+use crate::parsing::lexer::{Error, Lexer};
+use crate::parsing::string_interner::StringInterner;
+use crate::parsing::token::{Location, Span, Token};
 use lalrpop_util::ParseError;
 
-lalrpop_mod!(#[allow(clippy::all)] pub calima_parser);
+lalrpop_mod!(
+    #[allow(clippy::all)]
+    calima_parser,
+    "/parsing/calima_parser.rs"
+);
 
 pub fn parse<'source, 'input>(
     code: &'source str,
@@ -27,9 +31,9 @@ mod tests {
     use crate::ast::Expr::*;
     use crate::ast::{Block, Let, TopLevelBlock, TopLevelStatement};
     use crate::ast_common::{BindPattern, Literal};
-    use crate::parser::parse;
-    use crate::string_interner::StringInterner;
-    use crate::token::{Location, Span};
+    use crate::parsing::parser::parse;
+    use crate::parsing::string_interner::StringInterner;
+    use crate::parsing::token::{Location, Span};
     use crate::typed_ast::Unit;
     use goldenfile::Mint;
     use std::fs::read_dir;

@@ -1,6 +1,6 @@
-use crate::string_interner::StringInterner;
-use crate::token::Token::*;
-use crate::token::{Location, NumberFormat, Span, Token};
+use crate::parsing::string_interner::StringInterner;
+use crate::parsing::token::Token::*;
+use crate::parsing::token::{Location, NumberFormat, Span, Token};
 use std::fmt::{Display, Formatter};
 use std::iter::Peekable;
 use std::str::Chars;
@@ -286,10 +286,10 @@ impl<'source, 'input> Iterator for Lexer<'source, 'input> {
 #[cfg(test)]
 mod tests {
     use crate::ast::TypeAnnotation::Name;
-    use crate::lexer::Lexer;
-    use crate::string_interner::StringInterner;
-    use crate::token::Token::*;
-    use crate::token::{Location, NumberFormat, Token};
+    use crate::parsing::lexer::Lexer;
+    use crate::parsing::string_interner::StringInterner;
+    use crate::parsing::token::Token::*;
+    use crate::parsing::token::{NumberFormat, Token};
 
     fn lex_equal(code: &str, tokens: Vec<Token>) {
         let interner = StringInterner::new();

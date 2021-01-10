@@ -1,5 +1,5 @@
 use crate::common::ModuleIdentifier;
-use crate::token::{Location, Span, Token};
+use crate::parsing::token::{Location, Span, Token};
 use crate::typechecker::TypeError;
 use codespan_reporting::diagnostic::{Diagnostic, Label, Severity};
 use codespan_reporting::term::emit;
@@ -18,7 +18,7 @@ use std::path::PathBuf;
 pub enum CompilerError<'a> {
     GeneralError(Option<Box<dyn Error>>, String),
     ParserError(
-        lalrpop_util::ParseError<Location, Token<'a>, crate::lexer::Error>,
+        lalrpop_util::ParseError<Location, Token<'a>, crate::parsing::lexer::Error>,
         ModuleIdentifier,
     ),
     ImportError {
