@@ -25,6 +25,7 @@ pub enum UnificationSource {
     OperatorConstraint(OperatorSpecification),
     If,
     BlockReturn,
+    PatternMatching,
 }
 
 //TODO: Additional information
@@ -313,6 +314,9 @@ impl<Data: Copy + Debug> Context<Data> {
                 }
                 let scheme = to_scheme(&tp, env);
                 env.add(idt, scheme, *loc);
+            }
+            BindPattern::UnitLiteral(loc) => {
+                self.unify(tp, &unit(), UnificationSource::PatternMatching, *loc)
             }
             _ => (),
         }
