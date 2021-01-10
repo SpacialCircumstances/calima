@@ -797,6 +797,7 @@ fn map_bind_pattern<'input, Data>(
     match pattern {
         BindPattern::Any(_) => BindPattern::Any(Unit::unit()),
         BindPattern::Name(id, _, _) => BindPattern::Name(id, None, Unit::unit()),
+        BindPattern::UnitLiteral(_) => BindPattern::UnitLiteral(Unit::unit()),
         _ => unimplemented!(),
     }
 }
