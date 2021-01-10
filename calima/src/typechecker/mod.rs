@@ -294,24 +294,45 @@ impl<Data: Copy + Debug> Context<Data> {
         })
     }
 
-    fn bind_to_pattern<'input>(
+    fn bind_to_pattern_generalized<'input>(
         &mut self,
         env: &mut Environment<'input, Data>,
         pattern: &BindPattern<'input, TypeAnnotation<'input, Data>, Data>,
-        sch: &Scheme,
+        tp: &mut Type,
     ) {
         match pattern {
             BindPattern::Any(_) => (),
             BindPattern::Name(idt, ta, loc) => {
-                let mut sch = sch.clone();
                 match ta {
                     Some(ta) => {
-                        let tp = self.type_from_annotation(env, ta);
-                        self.unify(&mut sch.2, &tp, UnificationSource::TypeAnnotation, *loc);
+                        let annot = self.type_from_annotation(env, ta);
+                        self.unify(tp, &annot, UnificationSource::TypeAnnotation, *loc);
                     }
                     None => (),
                 }
-                env.add(idt, sch, *loc);
+                env.add(idt, env.generalize(&tp), *loc);
+            }
+            _ => (),
+        }
+    }
+
+    fn bind_to_pattern<'input>(
+        &mut self,
+        env: &mut Environment<'input, Data>,
+        pattern: &BindPattern<'input, TypeAnnotation<'input, Data>, Data>,
+        tp: &mut Type,
+    ) {
+        match pattern {
+            BindPattern::Any(_) => (),
+            BindPattern::Name(idt, ta, loc) => {
+                match ta {
+                    Some(ta) => {
+                        let annot = self.type_from_annotation(env, ta);
+                        self.unify(tp, &annot, UnificationSource::TypeAnnotation, *loc);
+                    }
+                    None => (),
+                }
+                env.add(idt, Scheme::simple(tp.clone()), *loc);
             }
             _ => (),
         }
@@ -601,9 +622,8 @@ fn infer_expr<'input, Data: Copy + Debug>(
             for param in params {
                 let gen = ctx.next_id();
                 body_env.add_monomorphic_var(gen);
-                let tp = Type::Var(gen);
-                let param_type = Scheme::simple(tp.clone());
-                ctx.bind_to_pattern(&mut body_env, param, &param_type);
+                let mut tp = Type::Var(gen);
+                ctx.bind_to_pattern(&mut body_env, param, &mut tp);
                 param_types.push(tp);
             }
 
@@ -689,7 +709,7 @@ fn infer_let<'input, Data: Copy + Debug>(
     let v = if l.mods.contains(&Modifier::Rec) {
         let mut var = ctx.new_generic();
         let mut body_env = env.clone();
-        ctx.bind_to_pattern(&mut body_env, &l.pattern, &Scheme::simple(var.clone()));
+        ctx.bind_to_pattern(&mut body_env, &l.pattern, &mut var);
         let v = infer_expr(&mut body_env, ctx, &l.value);
         ctx.unify(&mut var, &v.typ(), UnificationSource::TypeInference, l.data);
         v
@@ -697,7 +717,8 @@ fn infer_let<'input, Data: Copy + Debug>(
         let mut body_env = env.clone();
         infer_expr(&mut body_env, ctx, &l.value)
     };
-    ctx.bind_to_pattern(env, &l.pattern, &env.generalize(&v.typ()));
+    let mut tp = v.typ().clone();
+    ctx.bind_to_pattern_generalized(env, &l.pattern, &mut tp);
     Some(TStatement::Let(v, map_bind_pattern(&l.pattern)))
 }
 
