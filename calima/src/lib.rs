@@ -10,6 +10,7 @@ mod common;
 mod compiler;
 mod errors;
 mod formatting;
+mod modules;
 mod parsing;
 mod typechecker;
 mod typed_ast;
