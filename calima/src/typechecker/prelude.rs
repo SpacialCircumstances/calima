@@ -1,6 +1,6 @@
-use crate::common::Associativity;
-use crate::common::Associativity::Left;
-use crate::common::OperatorSpecification::{Infix, Prefix};
+use crate::ast_common::Associativity;
+use crate::ast_common::Associativity::Left;
+use crate::ast_common::OperatorSpecification::{Infix, Prefix};
 use crate::types::{
     bool, build_function, float, int, string, unit, Exports, GenericId, Scheme, Type,
 };

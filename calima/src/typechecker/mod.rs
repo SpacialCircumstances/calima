@@ -1,6 +1,6 @@
 use crate::ast::*;
 use crate::ast_common::*;
-use crate::common::{Associativity, ModuleIdentifier, OperatorSpecification};
+use crate::common::ModuleIdentifier;
 use crate::compiler::{ParsedModule, ParsedModuleTree, TypedModule};
 use crate::errors::{CompilerError, ErrorContext};
 use crate::formatting::format_iter;

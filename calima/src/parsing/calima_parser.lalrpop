@@ -1,5 +1,4 @@
-use crate::ast_common::{Literal, NumberType, MatchPattern, BindPattern};
-use crate::common::{Associativity, OperatorSpecification};
+use crate::ast_common::{Literal, NumberType, MatchPattern, BindPattern, Associativity, OperatorSpecification};
 use crate::ast::*;
 use crate::parsing::token::{Location, Token, Span, NumberFormat};
 use crate::parsing::token::Token::*;
