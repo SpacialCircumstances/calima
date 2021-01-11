@@ -2,23 +2,19 @@ use std::fmt::{Display, Formatter};
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ModuleIdentifier {
-    full_name: String,
-}
+pub struct ModuleIdentifier(String);
 
 impl ModuleIdentifier {
     pub fn from_name(name: &[&str]) -> Self {
-        ModuleIdentifier {
-            full_name: name.join("."),
-        }
+        Self(name.join("."))
     }
 
     pub fn from_filename(name: String) -> Self {
-        ModuleIdentifier { full_name: name }
+        Self(name)
     }
 
     pub fn components(&self) -> impl Iterator<Item = &str> {
-        self.full_name.split('.')
+        self.0.split('.')
     }
 
     pub fn path_relative_to(&self, path: &Path) -> PathBuf {
@@ -33,6 +29,6 @@ impl ModuleIdentifier {
 
 impl Display for ModuleIdentifier {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.full_name)
+        write!(f, "{}", self.0)
     }
 }
