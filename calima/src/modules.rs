@@ -17,6 +17,12 @@ pub struct UntypedModuleData<'input> {
 
 pub struct UntypedModule<'input>(pub Rc<UntypedModuleData<'input>>);
 
+impl<'input> Clone for UntypedModule<'input> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
 pub struct UntypedModuleTree<'input> {
     pub(crate) search_dirs: Vec<PathBuf>,
     pub(crate) main_module: UntypedModule<'input>,
@@ -32,9 +38,15 @@ pub struct TypedModuleData<'input> {
     pub(crate) exports: Exports<'input>,
 }
 
-pub struct TypedModule<'input>(Rc<TypedModuleData<'input>>);
+pub struct TypedModule<'input>(pub Rc<TypedModuleData<'input>>);
+
+impl<'input> Clone for TypedModule<'input> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 
 pub struct TypedModuleTree<'input> {
     pub(crate) main_module: TypedModule<'input>,
-    pub(crate) lookup: HashMap<ModuleIdentifier, UntypedModule<'input>>,
+    pub(crate) lookup: HashMap<ModuleIdentifier, TypedModule<'input>>,
 }

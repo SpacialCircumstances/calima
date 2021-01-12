@@ -1,9 +1,11 @@
 use crate::ast::*;
 use crate::ast_common::*;
 use crate::common::ModuleIdentifier;
-use crate::compiler::{ParsedModule, ParsedModuleTree, TypedModule};
 use crate::errors::{CompilerError, ErrorContext};
 use crate::formatting::format_iter;
+use crate::modules::{
+    TypedModule, TypedModuleData, TypedModuleTree, UntypedModule, UntypedModuleTree,
+};
 use crate::parsing::token::Span;
 use crate::typechecker::substitution::Substitution;
 use crate::typechecker::symbol_table::{Location, SymbolTable};
@@ -13,6 +15,7 @@ use prelude::prelude;
 use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
 use std::fmt::Debug;
+use std::rc::Rc;
 
 mod prelude;
 pub mod substitution;
@@ -862,69 +865,61 @@ fn infer_top_level_block<'input, Data: Copy + Debug>(
 }
 
 fn typecheck_module<'input>(
-    unchecked: ParsedModule<'input>,
-    deps: Vec<&TypedModule<'input>>,
+    unchecked: &UntypedModule<'input>,
+    deps: Vec<TypedModule<'input>>,
     error_context: &mut ErrorContext<'input>,
 ) -> Result<TypedModule<'input>, ()> {
     //TODO: Import dependencies into context
-    let mut context = Context::new(unchecked.name.clone());
+    let mut context = Context::new(unchecked.0.name.clone());
     let mut env = Environment::new();
     let prelude = prelude();
     env.import_module(&mut context, &prelude);
 
-    let tast = infer_top_level_block(&mut env, &mut context, &unchecked.ast);
+    let tast = infer_top_level_block(&mut env, &mut context, &unchecked.0.ast);
     let rettype = substitute(&context.type_subst, tast.res.typ());
     context.publish_errors(error_context);
     println!("Return type of program: {}", rettype);
-    error_context.handle_errors().map(|_| TypedModule {
-        name: unchecked.name,
-        path: unchecked.path,
-        depth: unchecked.depth,
-        deps: deps.iter().map(|m| m.name.clone()).collect(),
-        ir_block: tast,
-        subst: context.type_subst,
-        exports: Exports::new(),
+    error_context.handle_errors().map(|_| {
+        let mod_data = TypedModuleData {
+            name: unchecked.0.name.clone(),
+            path: unchecked.0.path.clone(),
+            deps,
+            ir_block: tast,
+            subst: context.type_subst,
+            exports: Exports::new(),
+        };
+        TypedModule(Rc::new(mod_data))
     })
 }
 
-pub struct TypedContext<'input> {
-    pub modules: HashMap<ModuleIdentifier, TypedModule<'input>>,
+pub fn typecheck_tree<'input>(
+    tree: &mut HashMap<ModuleIdentifier, TypedModule<'input>>,
+    untyped: &UntypedModule<'input>,
+    err: &mut ErrorContext<'input>,
+) -> Result<TypedModule<'input>, ()> {
+    let dependencies: Result<Vec<TypedModule<'input>>, ()> = untyped
+        .0
+        .dependencies
+        .iter()
+        .map(|ud| match tree.get(&ud.0.name) {
+            Some(d) => Ok(d.clone()),
+            None => typecheck_tree(tree, ud, err),
+        })
+        .collect();
+    dependencies.and_then(|d| typecheck_module(untyped, d, err))
 }
 
 pub fn typecheck<'input>(
     errors: &mut ErrorContext<'input>,
-    mut module_ctx: ParsedModuleTree<'input>,
-) -> Result<TypedContext<'input>, ()> {
-    let mut ctx = TypedContext {
-        modules: HashMap::new(),
-    };
-    let mut ordered_modules: Vec<ParsedModule<'input>> = module_ctx
-        .modules
-        .drain()
-        .map(|(_, module)| module)
-        .collect();
-    ordered_modules.sort_by(|m1, m2| m1.depth.cmp(&m2.depth));
-
-    for module in ordered_modules {
-        let deps = module
-            .deps
-            .iter()
-            .map(|(d, _)| {
-                ctx.modules
-                    .get(d)
-                    .expect("Fatal error: Dependent module not found")
-            })
-            .collect();
-        let name = module.name.clone();
-        match typecheck_module(module, deps, errors) {
-            Ok(typed_mod) => ctx.modules.insert(name, typed_mod),
-            Err(_) => {
-                println!("Error compiling module {}", name);
-                return Err(());
-            }
-        };
-    }
-    Ok(ctx)
+    mut module_ctx: UntypedModuleTree<'input>,
+) -> Result<TypedModuleTree<'input>, ()> {
+    let mut lookup = HashMap::new();
+    let main_mod = typecheck_tree(&mut lookup, &module_ctx.main_module, errors)?;
+    //TODO: Check main module for main function
+    errors.handle_errors().map(|_| TypedModuleTree {
+        main_module: main_mod,
+        lookup,
+    })
 }
 
 #[cfg(test)]

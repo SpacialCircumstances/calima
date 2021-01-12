@@ -2,6 +2,7 @@ use crate::ast::{find_imported_modules, TopLevelBlock};
 use crate::common::*;
 use crate::errors::CompilerError::*;
 use crate::errors::{CompilerError, ErrorContext};
+use crate::modules::{UntypedModule, UntypedModuleData, UntypedModuleTree};
 use crate::parsing::parser;
 use crate::parsing::string_interner::StringInterner;
 use crate::parsing::token::Span;
@@ -14,51 +15,25 @@ use std::collections::HashMap;
 use std::fs::read_to_string;
 use std::iter::once;
 use std::path::PathBuf;
-
-#[derive(Debug)]
-pub struct ParsedModule<'input> {
-    pub ast: TopLevelBlock<'input, Span>,
-    pub name: ModuleIdentifier,
-    pub path: PathBuf,
-    pub depth: u32,
-    pub deps: Vec<(ModuleIdentifier, Span)>,
-}
-
-#[derive(Debug)]
-pub struct TypedModule<'input> {
-    pub name: ModuleIdentifier,
-    pub path: PathBuf,
-    pub depth: u32,
-    pub deps: Vec<ModuleIdentifier>,
-    pub ir_block: TBlock<'input>,
-    pub subst: Substitution<Type>,
-    pub exports: Exports<'input>,
-}
+use std::rc::Rc;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ModuleDescriptor {
     identifier: ModuleIdentifier,
     path: PathBuf,
-    depth: u32,
-}
-
-pub struct ParsedModuleTree<'input> {
-    pub search_dirs: Vec<PathBuf>,
-    pub modules: HashMap<ModuleIdentifier, ParsedModule<'input>>,
 }
 
 fn try_resolve_module(
     search_dirs: &[PathBuf],
-    from: &ParsedModule,
-    module_ident: &ModuleIdentifier,
+    from_path: &PathBuf,
+    name: &ModuleIdentifier,
 ) -> Result<PathBuf, Vec<PathBuf>> {
-    let mut module_dir = from.path.to_path_buf();
+    let mut module_dir = from_path.to_path_buf();
     module_dir.pop();
     once(&module_dir)
         .chain(search_dirs.iter())
         .map(|dir| {
-            let mut path = module_ident.path_relative_to(dir);
-            module_ident.path_relative_to(&path);
+            let mut path = name.path_relative_to(dir);
             match path.is_file() {
                 true => Ok(path),
                 false => {
@@ -71,36 +46,11 @@ fn try_resolve_module(
         .collect()
 }
 
-fn parse_module<'a>(
-    desc: ModuleDescriptor,
-    interner: &'a StringInterner,
-    err: &mut ErrorContext<'a>,
-) -> Result<ParsedModule<'a>, CompilerError<'a>> {
-    let code = read_to_string(&desc.path).map_err(|e| {
-        GeneralError(
-            Some(Box::new(e)),
-            format!("Error opening file {}", &desc.path.display()),
-        )
-    })?;
-    let ast =
-        parser::parse(&code, interner).map_err(|pe| ParserError(pe, desc.identifier.clone()))?;
-    let deps = find_imported_modules(&ast);
-    err.add_file(&desc.identifier, &desc.path, code);
-
-    Ok(ParsedModule {
-        path: desc.path,
-        ast,
-        name: desc.identifier.clone(),
-        depth: desc.depth,
-        deps,
-    })
-}
-
 pub fn parse_all_modules<'input, S: AsRef<str>>(
     string_interner: &'input StringInterner,
     error_context: &mut ErrorContext<'input>,
     args: CompilerArguments<S>,
-) -> Result<ParsedModuleTree<'input>, ()> {
+) -> Result<UntypedModuleTree<'input>, ()> {
     let entrypoint_path = PathBuf::from(args.entrypoint);
     if !entrypoint_path.is_file() {
         error_context.add_error(GeneralError(
@@ -120,11 +70,7 @@ pub fn parse_all_modules<'input, S: AsRef<str>>(
         Some(filename) => filename.to_string_lossy().to_string(),
     };
 
-    let mut module_queue = vec![ModuleDescriptor {
-        identifier: ModuleIdentifier::from_filename(entrypoint_module_name),
-        depth: 0,
-        path: entrypoint_path,
-    }];
+    let entrypoint_mod = ModuleIdentifier::from_filename(entrypoint_module_name);
 
     let (search_dirs, errors): (Vec<PathBuf>, Vec<PathBuf>) = args
         .search_paths
@@ -143,43 +89,80 @@ pub fn parse_all_modules<'input, S: AsRef<str>>(
 
     error_context.handle_errors()?;
 
-    let mut modules: HashMap<ModuleIdentifier, ParsedModule> = HashMap::new();
+    let mut module_lookup = HashMap::new();
 
-    while let Some(next) = module_queue.pop() {
-        match parse_module(next, string_interner, error_context) {
-            Err(e) => error_context.add_error(e),
-            Ok(module) => {
-                for (dep, location) in &module.deps {
-                    match modules.get_mut(dep) {
-                        Some(dep_mod) => dep_mod.depth = min(dep_mod.depth, module.depth + 1),
-                        None => match try_resolve_module(&search_dirs, &module, dep) {
-                            Ok(found_path) => {
-                                let desc = ModuleDescriptor {
-                                    identifier: dep.clone(),
-                                    depth: module.depth + 1,
-                                    path: found_path,
-                                };
-                                module_queue.push(desc);
-                            }
-                            Err(search_dirs) => {
-                                let err = ImportError {
-                                    importing_mod: module.name.clone(),
-                                    imported: dep.clone(),
-                                    search_dirs,
-                                    location: *location,
-                                };
-                                error_context.add_error(err);
-                            }
-                        },
-                    }
-                }
-                modules.insert(module.name.clone(), module);
-            }
+    match parse(
+        &mut module_lookup,
+        &search_dirs,
+        entrypoint_mod,
+        entrypoint_path,
+        string_interner,
+        error_context,
+    ) {
+        Ok(main_module) => error_context.handle_errors().map(|_| UntypedModuleTree {
+            search_dirs,
+            main_module,
+            lookup: module_lookup,
+        }),
+        Err(e) => {
+            error_context.add_error(e);
+            error_context.handle_errors();
+            Err(())
         }
     }
+}
 
-    error_context.handle_errors().map(|()| ParsedModuleTree {
-        search_dirs,
-        modules,
-    })
+pub fn parse<'input>(
+    tree: &mut HashMap<ModuleIdentifier, UntypedModule<'input>>,
+    search_dirs: &Vec<PathBuf>,
+    name: ModuleIdentifier,
+    path: PathBuf,
+    interner: &'input StringInterner,
+    err: &mut ErrorContext<'input>,
+) -> Result<UntypedModule<'input>, CompilerError<'input>> {
+    let code = read_to_string(&path).map_err(|e| {
+        GeneralError(
+            Some(Box::new(e)),
+            format!("Error opening file {}", &path.display()),
+        )
+    })?;
+
+    let ast = parser::parse(&code, interner).map_err(|pe| ParserError(pe, name.clone()))?;
+    let dependencies = find_imported_modules(&ast)
+        .iter()
+        .filter_map(|dep| match try_resolve_module(search_dirs, &path, &dep.0) {
+            Ok(found_path) => {
+                match parse(tree, search_dirs, name.clone(), found_path, interner, err) {
+                    Ok(m) => Some(m),
+                    Err(e) => {
+                        err.add_error(e);
+                        None
+                    }
+                }
+            }
+            Err(search_dirs) => {
+                let e = ImportError {
+                    importing_mod: name.clone(),
+                    imported: dep.0.clone(),
+                    search_dirs,
+                    location: dep.1,
+                };
+                err.add_error(e);
+                None
+            }
+        })
+        .collect();
+
+    err.add_file(&name, &path, code);
+
+    let module_data = UntypedModuleData {
+        name: name.clone(),
+        ast,
+        dependencies,
+        path,
+    };
+
+    let module = UntypedModule(Rc::new(module_data));
+    tree.insert(name, module.clone());
+    Ok(module)
 }
