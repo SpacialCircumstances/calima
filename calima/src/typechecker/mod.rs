@@ -125,6 +125,12 @@ fn substitute(subst: &Substitution<Type>, typ: &Type) -> Type {
     }
 }
 
+fn substitute_scheme(subst: &Substitution<Type>, schem: &Scheme) -> Scheme {
+    //All variables in scheme cannot be substituted, because they should be general
+    let subst_type = substitute(subst, &schem.2);
+    Scheme(schem.0.clone(), schem.1.clone(), subst_type)
+}
+
 pub struct Context<'input, Data: Copy + Debug> {
     generic_id: usize,
     type_subst: Substitution<Type>,
@@ -872,12 +878,22 @@ fn infer_top_level_block<'input, Data: Copy + Debug>(
     }
 }
 
-fn get_exports<'input, Data: Copy + Debug>(
-    ctx: &mut Context<'input, Data>,
-    env: &mut Environment<'input, Data>,
-) -> Exports<'input> {
-    //TODO
-    Exports::new()
+fn get_exports<'input, Data: Copy + Debug>(ctx: &mut Context<'input, Data>) -> Exports<'input> {
+    let mut exports = Exports::new();
+    ctx.exports
+        .iter()
+        .map(|(name, exp)| match exp {
+            ExportValue::Value(schem) => (
+                name,
+                ExportValue::Value(substitute_scheme(&ctx.type_subst, schem)),
+            ),
+            ExportValue::Operator(op, schem) => (
+                name,
+                ExportValue::Operator(*op, substitute_scheme(&ctx.type_subst, schem)),
+            ),
+        })
+        .for_each(|(name, exp)| exports.add(name, exp));
+    exports
 }
 
 fn typecheck_module<'input>(
@@ -895,7 +911,7 @@ fn typecheck_module<'input>(
     let rettype = substitute(&context.type_subst, tast.res.typ());
     context.publish_errors(error_context);
     println!("Return type of program: {}", rettype);
-    let exports = get_exports(&mut context, &mut env);
+    let exports = get_exports(&mut context);
     error_context.handle_errors().map(|_| {
         let mod_data = TypedModuleData {
             name: unchecked.0.name.clone(),
