@@ -125,20 +125,22 @@ fn substitute(subst: &Substitution<Type>, typ: &Type) -> Type {
     }
 }
 
-pub struct Context<Data: Copy + Debug> {
+pub struct Context<'input, Data: Copy + Debug> {
     generic_id: usize,
     type_subst: Substitution<Type>,
     errors: Vec<TypeError<Data>>,
     module: ModuleIdentifier,
+    exports: Exports<'input>,
 }
 
-impl<Data: Copy + Debug> Context<Data> {
+impl<'input, Data: Copy + Debug> Context<'input, Data> {
     pub fn new(module: ModuleIdentifier) -> Self {
         Context {
             generic_id: 0,
             type_subst: Substitution::new(),
             errors: Vec::new(),
             module,
+            exports: Exports::new(),
         }
     }
 
@@ -263,7 +265,7 @@ impl<Data: Copy + Debug> Context<Data> {
         }
     }
 
-    fn type_from_annotation<'input>(
+    fn type_from_annotation(
         &mut self,
         env: &mut Environment<'input, Data>,
         ta: &TypeAnnotation<'input, Data>,
@@ -299,7 +301,7 @@ impl<Data: Copy + Debug> Context<Data> {
         })
     }
 
-    fn bind_to_pattern<'input, F: Fn(&Type, &mut Environment<'input, Data>) -> Scheme>(
+    fn bind_to_pattern<F: Fn(&Type, &mut Environment<'input, Data>) -> Scheme>(
         &mut self,
         env: &mut Environment<'input, Data>,
         pattern: &BindPattern<'input, TypeAnnotation<'input, Data>, Data>,
@@ -326,7 +328,7 @@ impl<Data: Copy + Debug> Context<Data> {
         }
     }
 
-    fn bind_to_pattern_generalized<'input>(
+    fn bind_to_pattern_generalized(
         &mut self,
         env: &mut Environment<'input, Data>,
         pattern: &BindPattern<'input, TypeAnnotation<'input, Data>, Data>,
@@ -335,7 +337,7 @@ impl<Data: Copy + Debug> Context<Data> {
         self.bind_to_pattern(env, pattern, tp, |t, env| env.generalize(t));
     }
 
-    fn bind_to_pattern_directly<'input>(
+    fn bind_to_pattern_directly(
         &mut self,
         env: &mut Environment<'input, Data>,
         pattern: &BindPattern<'input, TypeAnnotation<'input, Data>, Data>,
@@ -344,7 +346,7 @@ impl<Data: Copy + Debug> Context<Data> {
         self.bind_to_pattern(env, pattern, tp, |t, _env| Scheme::simple(t.clone()));
     }
 
-    fn call_operator<'input>(
+    fn call_operator(
         &mut self,
         exprs: &mut Vec<TExpression<'input>>,
         last_name: &'input str,
@@ -358,7 +360,7 @@ impl<Data: Copy + Debug> Context<Data> {
         exprs.push(fc)
     }
 
-    fn transform_operators<'input>(
+    fn transform_operators(
         &mut self,
         env: &mut Environment<'input, Data>,
         elements: &Vec<OperatorElement<'input, Data>>,
@@ -438,7 +440,7 @@ impl<Data: Copy + Debug> Context<Data> {
     }
 }
 
-impl Context<Span> {
+impl<'input> Context<'input, Span> {
     fn publish_errors(&mut self, error_ctx: &mut ErrorContext) {
         let name = self.module.clone();
         self.errors
@@ -588,7 +590,7 @@ impl<'a, Data: Copy + Debug> Environment<'a, Data> {
 }
 
 fn function_call<'input, Data: Copy + Debug>(
-    ctx: &mut Context<Data>,
+    ctx: &mut Context<'input, Data>,
     tfunc: TExpression<'input>,
     args: Vec<TExpression<'input>>,
     loc: Data,
@@ -607,7 +609,7 @@ fn function_call<'input, Data: Copy + Debug>(
 
 fn infer_expr<'input, Data: Copy + Debug>(
     env: &mut Environment<'input, Data>,
-    ctx: &mut Context<Data>,
+    ctx: &mut Context<'input, Data>,
     expr: &Expr<'input, Data>,
 ) -> TExpression<'input> {
     match expr {
@@ -709,7 +711,7 @@ fn get_literal_type(lit: &Literal) -> Type {
 
 fn infer_let<'input, Data: Copy + Debug>(
     env: &mut Environment<'input, Data>,
-    ctx: &mut Context<Data>,
+    ctx: &mut Context<'input, Data>,
     l: &Let<'input, Data>,
 ) -> Option<TStatement<'input>> {
     let v = if l.mods.contains(&Modifier::Rec) {
@@ -730,7 +732,7 @@ fn infer_let<'input, Data: Copy + Debug>(
 
 fn infer_let_operator<'input, Data: Copy + Debug>(
     env: &mut Environment<'input, Data>,
-    ctx: &mut Context<Data>,
+    ctx: &mut Context<'input, Data>,
     l: &LetOperator<'input, Data>,
 ) -> Option<TStatement<'input>> {
     let (mut op_type, v) = if l.mods.contains(&Modifier::Rec) {
@@ -784,7 +786,7 @@ fn infer_let_operator<'input, Data: Copy + Debug>(
 
 fn infer_statement<'input, Data: Copy + Debug>(
     env: &mut Environment<'input, Data>,
-    ctx: &mut Context<Data>,
+    ctx: &mut Context<'input, Data>,
     statement: &Statement<'input, Data>,
 ) -> Option<TStatement<'input>> {
     match statement {
@@ -819,7 +821,7 @@ fn map_match_pattern<'input, Data>(
 
 fn infer_block<'input, Data: Copy + Debug>(
     env: &mut Environment<'input, Data>,
-    ctx: &mut Context<Data>,
+    ctx: &mut Context<'input, Data>,
     block: &Block<'input, Data>,
 ) -> TBlock<'input> {
     let mut block_env = env.clone();
@@ -837,7 +839,7 @@ fn infer_block<'input, Data: Copy + Debug>(
 
 fn infer_top_level<'input, Data: Copy + Debug>(
     env: &mut Environment<'input, Data>,
-    ctx: &mut Context<Data>,
+    ctx: &mut Context<'input, Data>,
     tls: &TopLevelStatement<'input, Data>,
 ) -> Option<TStatement<'input>> {
     match tls {
@@ -850,7 +852,7 @@ fn infer_top_level<'input, Data: Copy + Debug>(
 
 fn infer_top_level_block<'input, Data: Copy + Debug>(
     env: &mut Environment<'input, Data>,
-    ctx: &mut Context<Data>,
+    ctx: &mut Context<'input, Data>,
     tlb: &TopLevelBlock<'input, Data>,
 ) -> TBlock<'input> {
     let statements = tlb
