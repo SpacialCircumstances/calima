@@ -130,7 +130,7 @@ pub struct Context<'input, Data: Copy + Debug> {
     type_subst: Substitution<Type>,
     errors: Vec<TypeError<Data>>,
     module: ModuleIdentifier,
-    exports: Exports<'input>,
+    exports: HashMap<&'input str, ExportValue>,
 }
 
 impl<'input, Data: Copy + Debug> Context<'input, Data> {
@@ -140,7 +140,7 @@ impl<'input, Data: Copy + Debug> Context<'input, Data> {
             type_subst: Substitution::new(),
             errors: Vec::new(),
             module,
-            exports: Exports::new(),
+            exports: HashMap::new(),
         }
     }
 
@@ -713,7 +713,8 @@ fn infer_let<'input, Data: Copy + Debug>(
     env: &mut Environment<'input, Data>,
     ctx: &mut Context<'input, Data>,
     l: &Let<'input, Data>,
-) -> Option<TStatement<'input>> {
+    export: bool,
+) -> TStatement<'input> {
     let v = if l.mods.contains(&Modifier::Rec) {
         let mut var = ctx.new_generic();
         let mut body_env = env.clone();
@@ -727,14 +728,15 @@ fn infer_let<'input, Data: Copy + Debug>(
     };
     let mut tp = v.typ().clone();
     ctx.bind_to_pattern_generalized(env, &l.pattern, &mut tp);
-    Some(TStatement::Let(v, map_bind_pattern(&l.pattern)))
+    TStatement::Let(v, map_bind_pattern(&l.pattern))
 }
 
 fn infer_let_operator<'input, Data: Copy + Debug>(
     env: &mut Environment<'input, Data>,
     ctx: &mut Context<'input, Data>,
     l: &LetOperator<'input, Data>,
-) -> Option<TStatement<'input>> {
+    export: bool,
+) -> TStatement<'input> {
     let (mut op_type, v) = if l.mods.contains(&Modifier::Rec) {
         let recursive_type = ctx.new_generic();
         let mut body_env = env.clone();
@@ -778,10 +780,7 @@ fn infer_let_operator<'input, Data: Copy + Debug>(
         }
     }
     env.add_operator(l.name, env.generalize(&op_type), l.op, l.data);
-    Some(TStatement::Let(
-        v,
-        BindPattern::Name(l.name, None, Unit::unit()),
-    ))
+    TStatement::Let(v, BindPattern::Name(l.name, None, Unit::unit()))
 }
 
 fn infer_statement<'input, Data: Copy + Debug>(
@@ -792,8 +791,8 @@ fn infer_statement<'input, Data: Copy + Debug>(
     match statement {
         Statement::Region(name, _) => None,
         Statement::Do(expr, _) => Some(TStatement::Do(infer_expr(env, ctx, expr))),
-        Statement::Let(l) => infer_let(env, ctx, l),
-        Statement::LetOperator(l) => infer_let_operator(env, ctx, l),
+        Statement::Let(l) => Some(infer_let(env, ctx, l, false)),
+        Statement::LetOperator(l) => Some(infer_let_operator(env, ctx, l, false)),
     }
 }
 
@@ -843,8 +842,15 @@ fn infer_top_level<'input, Data: Copy + Debug>(
     tls: &TopLevelStatement<'input, Data>,
 ) -> Option<TStatement<'input>> {
     match tls {
-        TopLevelStatement::Let(_, l) => infer_let(env, ctx, l),
-        TopLevelStatement::LetOperator(_, l) => infer_let_operator(env, ctx, l),
+        TopLevelStatement::Let(vis, l) => {
+            Some(infer_let(env, ctx, l, vis == &Some(Visibility::Public)))
+        }
+        TopLevelStatement::LetOperator(vis, l) => Some(infer_let_operator(
+            env,
+            ctx,
+            l,
+            vis == &Some(Visibility::Public),
+        )),
         TopLevelStatement::Import(_, _, _) => None, //Imports are resolved before typechecking
         TopLevelStatement::Type { .. } => unimplemented!(),
     }
@@ -866,6 +872,14 @@ fn infer_top_level_block<'input, Data: Copy + Debug>(
     }
 }
 
+fn get_exports<'input, Data: Copy + Debug>(
+    ctx: &mut Context<'input, Data>,
+    env: &mut Environment<'input, Data>,
+) -> Exports<'input> {
+    //TODO
+    Exports::new()
+}
+
 fn typecheck_module<'input>(
     unchecked: &UntypedModule<'input>,
     deps: Vec<TypedModule<'input>>,
@@ -881,6 +895,7 @@ fn typecheck_module<'input>(
     let rettype = substitute(&context.type_subst, tast.res.typ());
     context.publish_errors(error_context);
     println!("Return type of program: {}", rettype);
+    let exports = get_exports(&mut context, &mut env);
     error_context.handle_errors().map(|_| {
         let mod_data = TypedModuleData {
             name: unchecked.0.name.clone(),
@@ -888,7 +903,7 @@ fn typecheck_module<'input>(
             deps,
             ir_block: tast,
             subst: context.type_subst,
-            exports: Exports::new(),
+            exports,
         };
         TypedModule(Rc::new(mod_data))
     })
