@@ -271,6 +271,14 @@ impl<'input, Data: Copy + Debug> Context<'input, Data> {
         }
     }
 
+    fn add_export(&mut self, name: &'input str, exp: ExportValue) {
+        if self.exports.contains_key(name) {
+            //TODO: Error
+        } else {
+            self.exports.insert(name, exp);
+        }
+    }
+
     fn type_from_annotation(
         &mut self,
         env: &mut Environment<'input, Data>,
@@ -313,6 +321,7 @@ impl<'input, Data: Copy + Debug> Context<'input, Data> {
         pattern: &BindPattern<'input, TypeAnnotation<'input, Data>, Data>,
         tp: &mut Type,
         to_scheme: F,
+        export: bool,
     ) {
         match pattern {
             BindPattern::Any(_) => (),
@@ -325,6 +334,9 @@ impl<'input, Data: Copy + Debug> Context<'input, Data> {
                     None => (),
                 }
                 let scheme = to_scheme(&tp, env);
+                if export {
+                    self.add_export(idt, ExportValue::Value(scheme.clone()))
+                }
                 env.add(idt, scheme, *loc);
             }
             BindPattern::UnitLiteral(loc) => {
@@ -339,8 +351,9 @@ impl<'input, Data: Copy + Debug> Context<'input, Data> {
         env: &mut Environment<'input, Data>,
         pattern: &BindPattern<'input, TypeAnnotation<'input, Data>, Data>,
         tp: &mut Type,
+        export: bool,
     ) {
-        self.bind_to_pattern(env, pattern, tp, |t, env| env.generalize(t));
+        self.bind_to_pattern(env, pattern, tp, |t, env| env.generalize(t), export);
     }
 
     fn bind_to_pattern_directly(
@@ -349,7 +362,7 @@ impl<'input, Data: Copy + Debug> Context<'input, Data> {
         pattern: &BindPattern<'input, TypeAnnotation<'input, Data>, Data>,
         tp: &mut Type,
     ) {
-        self.bind_to_pattern(env, pattern, tp, |t, _env| Scheme::simple(t.clone()));
+        self.bind_to_pattern(env, pattern, tp, |t, _env| Scheme::simple(t.clone()), false);
     }
 
     fn call_operator(
@@ -733,7 +746,7 @@ fn infer_let<'input, Data: Copy + Debug>(
         infer_expr(&mut body_env, ctx, &l.value)
     };
     let mut tp = v.typ().clone();
-    ctx.bind_to_pattern_generalized(env, &l.pattern, &mut tp);
+    ctx.bind_to_pattern_generalized(env, &l.pattern, &mut tp, export);
     TStatement::Let(v, map_bind_pattern(&l.pattern))
 }
 
@@ -785,7 +798,11 @@ fn infer_let_operator<'input, Data: Copy + Debug>(
             );
         }
     }
-    env.add_operator(l.name, env.generalize(&op_type), l.op, l.data);
+    let scheme = env.generalize(&op_type);
+    if export {
+        ctx.add_export(l.name, ExportValue::Operator(l.op, scheme.clone()))
+    }
+    env.add_operator(l.name, scheme, l.op, l.data);
     TStatement::Let(v, BindPattern::Name(l.name, None, Unit::unit()))
 }
 
