@@ -254,4 +254,8 @@ impl<'input> Exports<'input> {
     pub fn iter_vars(&self) -> impl Iterator<Item = (&'input str, &ExportValue)> {
         self.0.iter().map(|(a, b)| (*a, b))
     }
+
+    pub fn get_by_name(&self, name: &'input str) -> Option<&ExportValue> {
+        self.0.get(name)
+    }
 }

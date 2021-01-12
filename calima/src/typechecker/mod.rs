@@ -1,7 +1,7 @@
 use crate::ast::*;
 use crate::ast_common::*;
 use crate::common::ModuleIdentifier;
-use crate::errors::{CompilerError, ErrorContext};
+use crate::errors::{CompilerError, ErrorContext, MainFunctionErrorKind};
 use crate::formatting::format_iter;
 use crate::modules::{
     TypedModule, TypedModuleData, TypedModuleTree, UntypedModule, UntypedModuleTree,
@@ -942,7 +942,7 @@ fn typecheck_module<'input>(
     })
 }
 
-pub fn typecheck_tree<'input>(
+fn typecheck_tree<'input>(
     tree: &mut HashMap<ModuleIdentifier, TypedModule<'input>>,
     untyped: &UntypedModule<'input>,
     err: &mut ErrorContext<'input>,
@@ -959,13 +959,30 @@ pub fn typecheck_tree<'input>(
     dependencies.and_then(|d| typecheck_module(untyped, d, err))
 }
 
+fn verify_main_module(main_mod: &TypedModule, errors: &mut ErrorContext) {
+    if let Some(ExportValue::Value(main_type)) = main_mod.0.exports.get_by_name("main") {
+        let mut ctx: Context<Span> = Context::new(main_mod.0.name.clone());
+        if let Err(_e) = ctx.unify_rec(&main_type.2, &build_function(&[unit()], &unit())) {
+            errors.add_error(CompilerError::MainFunctionError(
+                main_mod.0.name.clone(),
+                MainFunctionErrorKind::SignatureWrong,
+            ))
+        }
+    } else {
+        errors.add_error(CompilerError::MainFunctionError(
+            main_mod.0.name.clone(),
+            MainFunctionErrorKind::Missing,
+        ))
+    }
+}
+
 pub fn typecheck<'input>(
     errors: &mut ErrorContext<'input>,
     mut module_ctx: UntypedModuleTree<'input>,
 ) -> Result<TypedModuleTree<'input>, ()> {
     let mut lookup = HashMap::new();
     let main_mod = typecheck_tree(&mut lookup, &module_ctx.main_module, errors)?;
-    //TODO: Check main module for main function
+    verify_main_module(&main_mod, errors);
     errors.handle_errors().map(|_| TypedModuleTree {
         main_module: main_mod,
         lookup,

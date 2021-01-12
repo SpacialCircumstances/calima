@@ -14,6 +14,12 @@ use std::iter::once;
 use std::ops::Range;
 use std::path::PathBuf;
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum MainFunctionErrorKind {
+    Missing,
+    SignatureWrong,
+}
+
 #[derive(Debug)]
 pub enum CompilerError<'a> {
     GeneralError(Option<Box<dyn Error>>, String),
@@ -28,6 +34,7 @@ pub enum CompilerError<'a> {
         search_dirs: Vec<PathBuf>,
     },
     TypeError(TypeError<Span>, ModuleIdentifier),
+    MainFunctionError(ModuleIdentifier, MainFunctionErrorKind),
 }
 
 struct CompilerFile {
@@ -263,6 +270,18 @@ impl<'a> ErrorContext<'a> {
                         .with_labels(vec![Label::primary(file_id, te.location.to_range())
                             .with_message(te.message.clone())]);
                     diagnostics.push(e);
+                }
+                CompilerError::MainFunctionError(name, err) => {
+                    let message = match err {
+                        MainFunctionErrorKind::Missing => {
+                            format!("Missing or non-public main function in module {}", name)
+                        }
+                        MainFunctionErrorKind::SignatureWrong => format!(
+                            "Main function in module {} must have a signature of Unit -> Unit",
+                            name
+                        ),
+                    };
+                    diagnostics.push(Diagnostic::new(Severity::Error).with_message(message));
                 }
             }
         }
