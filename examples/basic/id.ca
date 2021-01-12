@@ -1,2 +1,2 @@
 let id = fun x -> x
-let main = fun () -> id 2
+public let main = fun () -> println (id 2)

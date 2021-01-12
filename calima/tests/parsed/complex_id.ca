@@ -2,4 +2,4 @@ let drop = fun a b -> ()
 let id = fun x -> let rec a = x
 in a
 
-let main = fun () -> drop id true id 2
+publiclet main = fun () -> drop id true id 2

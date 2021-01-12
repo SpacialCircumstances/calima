@@ -2,7 +2,8 @@ import List
 let new = fun _ -> let a = @a Empty
 in a
 
-let main = fun () -> region test
+publiclet main = fun () -> region test
 let (t1: @test List Int) = Node (Empty, 2)
-in head t1
+let h = head t1
+in ()
 
