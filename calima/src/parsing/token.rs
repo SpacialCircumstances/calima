@@ -7,7 +7,7 @@ pub enum NumberFormat {
     Integer,
 }
 
-#[derive(Debug, Eq, PartialEq, Copy, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub enum Token<'input> {
     CurlyBraceOpen,
     CurlyBraceClose,
