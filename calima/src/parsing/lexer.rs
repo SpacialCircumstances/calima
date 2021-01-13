@@ -446,7 +446,11 @@ test #asdf d.
     fn lex10() {
         let code = "a.T.b @reg ++ test";
         let tokens = vec![
-            NameIdentifier("a.T.b"),
+            NameIdentifier("a"),
+            Period,
+            TypeIdentifier("T"),
+            Period,
+            NameIdentifier("b"),
             At,
             NameIdentifier("reg"),
             OperatorIdentifier("++"),
