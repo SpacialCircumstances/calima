@@ -57,7 +57,7 @@ fn is_separator(c: char, is_op: bool) -> bool {
         '}' => true,
         ':' => true,
         '`' => true,
-        '.' => false,
+        '.' => true,
         c if c.is_whitespace() => true,
         _ => is_op ^ c.is_ascii_punctuation(),
     }
@@ -76,6 +76,7 @@ fn single_char_token<'input>(c: char) -> Option<Token<'input>> {
         '`' => Some(Backtick),
         '@' => Some(At),
         '\'' => Some(Apostrophe),
+        '.' => Some(Period),
         _ => None,
     }
 }

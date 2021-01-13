@@ -21,6 +21,7 @@ extern {
         "[" => SquareBracketOpen,
         "]" => SquareBracketClose,
         "," => Comma,
+        "." => Period,
         "name" => NameIdentifier(<&'input str>),
         "typename" => TypeIdentifier(<&'input str>),
         "operator" => OperatorIdentifier(<&'input str>),
