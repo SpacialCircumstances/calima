@@ -1,4 +1,4 @@
-use crate::ast_common::{Literal, NumberType, MatchPattern, BindPattern, Associativity, OperatorSpecification};
+use crate::ast_common::{Name, Literal, NumberType, MatchPattern, BindPattern, Associativity, OperatorSpecification};
 use crate::ast::*;
 use crate::parsing::token::{Location, Token, Span, NumberFormat};
 use crate::parsing::token::Token::*;
@@ -56,6 +56,11 @@ extern {
     }
 }
 
+#[inline]
+Sep1NoEnd<T, S>: Vec<T> = {
+    <v:(<T> S)*> => v
+};
+
 Sep1<T, S>: Vec<T> = {
     <v:(<T> S)*> <e:T> => {
         let mut v = v;
@@ -94,10 +99,7 @@ TopLevelStatement: TopLevelStatement<'input, Data> = {
 
 Visibility: Option<Visibility> = <"public"?> => <>.map(|_| Visibility::Public);
 
-Import: TopLevelStatement<'input, Data> = {
-    <posl:@L> "import" <m:AnyName> <posr:@R> => TopLevelStatement::Import(m, Vec::new(), to_data(posl, posr)),
-    <posl:@L> "import" <m:AnyName> "{" <f:Sep1<"name", ",">> "}" <posr:@R> => TopLevelStatement::Import(m, f, to_data(posl, posr))
-};
+Import: TopLevelStatement<'input, Data> = <posl:@L> "import" <m:TypeName> <posr:@R> => TopLevelStatement::Import(m, to_data(posl, posr));
 
 Statement: Statement<'input, Data> = {
     <Let> => Statement::Let(<>),
@@ -200,11 +202,18 @@ OperatorAsFunction: Expr<'input, Data> = <posl:@L> "backtick" <op:"operator"> "b
 
 TupleConstruct: Expr<'input, Data> = <posl:@L> "(" <exprs:Sep2<Expression1, ",">> ")" <posr:@R> => Expr::Tuple(exprs, to_data(posl, posr));
 
-Variable: Expr<'input, Data> = <posl:@L> <elements:AnyName> <posr:@R> => Expr::Variable(elements, to_data(posl, posr));
+Variable: Expr<'input, Data> = <name:Name> => Expr::Variable(name);
+
+TypeName: Name<'input, Data> = <posl:@L> <mut els:Sep1NoEnd<"typename", ".">> <end:"typename"> <posr:@R> => {
+    els.push(end);
+    Name(els, to_data(posl, posr))
+};
+
+Name: Name<'input, Data> = <posl:@L> <name:Sep1<AnyName, ".">> <posr:@R> => Name(name, to_data(posl, posr));
 
 AnyName: &'input str = {
-    <"name"> => <>,
-    <"typename"> => <>
+    "name",
+    "typename",
 };
 
 LiteralExpr: Expr<'input, Data> = <posl:@L> <lit:Literal> <posr:@R> => Expr::Literal(lit, to_data(posl, posr));
@@ -222,7 +231,7 @@ BindPattern0: BindPattern<'input, TypeAnnotation<'input, Data>, Data> = {
 
 MatchPattern0: MatchPattern<'input, TypeAnnotation<'input, Data>, Data> = {
     MatchPattern1,
-    <posl:@L> <variant:"typename"> <patt:MatchPattern1?> <posr:@R> => MatchPattern::SumUnwrap(variant, patt.map(|p| Box::new(p)), to_data(posl, posr)),
+    <posl:@L> <variant:TypeName> <patt:MatchPattern1?> <posr:@R> => MatchPattern::SumUnwrap(variant, patt.map(|p| Box::new(p)), to_data(posl, posr)),
 };
 
 RecordMatchPatternRow: (&'input str, MatchPattern<'input, TypeAnnotation<'input, Data>, Data>) = <name:"name"> "=" <patt:MatchPattern1> => (name, patt);
@@ -231,7 +240,7 @@ MatchPattern1: MatchPattern<'input, TypeAnnotation<'input, Data>, Data> = {
     <posl:@L> "_" <posr:@R> => MatchPattern::Any(to_data(posl, posr)),
     <posl:@L> <id:AnnotatedName> <posr:@R> => MatchPattern::Name(id.0, id.1, to_data(posl, posr)),
     <posl:@L> <lit:Literal> <posr:@R> => MatchPattern::Literal(lit, to_data(posl, posr)),
-    "(" <MatchPattern0> ")" => <>,
+    "(" <MatchPattern0> ")",
     <posl:@L> "{" <rows:Sep1<RecordMatchPatternRow, ",">> "}" <posr:@R> => MatchPattern::Record(rows, to_data(posl, posr)),
     <posl:@L> "(" <elements:Sep2<MatchPattern1, ",">> ")" <posr:@R> => MatchPattern::Tuple(elements, to_data(posl, posr))
 };
@@ -267,12 +276,12 @@ TypeAnnotation0: TypeAnnotation<'input, Data> = {
 
 TypeAnnotation1: TypeAnnotation<'input, Data> = {
     <inp:TypeAnnotation2> "->" <out:TypeAnnotation1> => TypeAnnotation::Function(Box::new(inp), Box::new(out)),
-    <elements:"typename"> <params:TypeAnnotation2+> => TypeAnnotation::Parameterized(elements, params),
+    <elements:TypeName> <params:TypeAnnotation2+> => TypeAnnotation::Parameterized(elements, params),
     TypeAnnotation2
 };
 
 TypeAnnotation2: TypeAnnotation<'input, Data> = {
-    <posl:@L> <elements:"typename"> <posr:@R> => TypeAnnotation::Name(elements, to_data(posl, posr)),
+    <TypeName> => TypeAnnotation::Name(<>),
     <GenericTypeKind> => TypeAnnotation::Generic(<>),
     "(" <Sep2<TypeAnnotation0, ",">> ")" => TypeAnnotation::Tuple(<>),
     "(" <tk:TypeAnnotation0> ")" => tk,

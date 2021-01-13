@@ -290,9 +290,9 @@ impl<'input, Data: Copy + Debug> Context<'input, Data> {
             ta: &TypeAnnotation<'input, Data>,
         ) -> Result<Type, TypeError<Data>> {
             match ta {
-                TypeAnnotation::Name(name, loc) => match PrimitiveType::try_from(*name) {
+                TypeAnnotation::Name(name) => match PrimitiveType::try_from(name.0[0]) {
                     Ok(pt) => Ok(Type::Basic(TypeDef::Primitive(pt))),
-                    Err(()) => Err(TypeError::type_not_found(name, *loc)),
+                    Err(()) => Err(TypeError::type_not_found(&*name.to_string(), name.1)),
                 },
                 TypeAnnotation::Function(ta1, ta2) => to_type(ctx, env, &*ta1)
                     .and_then(|t1| to_type(ctx, env, &*ta2).map(|t2| (t1, t2)))
@@ -635,9 +635,9 @@ fn infer_expr<'input, Data: Copy + Debug>(
         Expr::Literal(lit, _) => {
             TExpression::new(TExprData::Literal(lit.clone()), get_literal_type(lit))
         }
-        Expr::Variable(varname, loc) => {
-            let vartype = ctx.lookup_var(env, varname, *loc);
-            TExpression::new(TExprData::Variable(varname), vartype)
+        Expr::Variable(varname) => {
+            let vartype = ctx.lookup_var(env, varname.0[0], varname.1);
+            TExpression::new(TExprData::Variable(varname.0[0]), vartype)
         }
         Expr::Lambda {
             params,
@@ -874,7 +874,7 @@ fn infer_top_level<'input, Data: Copy + Debug>(
             l,
             vis == &Some(Visibility::Public),
         )),
-        TopLevelStatement::Import(_, _, _) => None, //Imports are resolved before typechecking
+        TopLevelStatement::Import(_, _) => None, //Imports are resolved before typechecking
         TopLevelStatement::Type { .. } => unimplemented!(),
     }
 }

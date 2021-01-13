@@ -1,7 +1,16 @@
 use crate::formatting::tree::{format_children, TreeFormat};
-use crate::formatting::{format_record, format_tuple};
+use crate::formatting::{format_iter, format_record, format_tuple};
 use std::convert::TryFrom;
 use std::fmt::{Display, Formatter};
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct Name<'a, Data>(pub Vec<&'a str>, pub Data);
+
+impl<'a, Data> Display for Name<'a, Data> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", format_iter(self.0.iter(), "."))
+    }
+}
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum NumberType {
@@ -104,7 +113,11 @@ pub enum MatchPattern<'a, TA: Display, Data> {
     Tuple(Vec<MatchPattern<'a, TA, Data>>, Data),
     Literal(Literal<'a>, Data),
     Record(Vec<(&'a str, MatchPattern<'a, TA, Data>)>, Data),
-    SumUnwrap(&'a str, Option<Box<MatchPattern<'a, TA, Data>>>, Data),
+    SumUnwrap(
+        Name<'a, Data>,
+        Option<Box<MatchPattern<'a, TA, Data>>>,
+        Data,
+    ),
 }
 
 impl<'a, TA: Display, Data> TreeFormat for MatchPattern<'a, TA, Data> {

@@ -1,4 +1,4 @@
-use crate::ast_common::{BindPattern, Literal, MatchPattern, OperatorSpecification};
+use crate::ast_common::{BindPattern, Literal, MatchPattern, Name, OperatorSpecification};
 use crate::common::ModuleIdentifier;
 use crate::formatting::tree::{format_children, TreeFormat};
 use crate::formatting::*;
@@ -43,18 +43,18 @@ impl<'a, Data> Display for GenericTypeKind<'a, Data> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypeAnnotation<'a, Data> {
-    Name(&'a str, Data),
+    Name(Name<'a, Data>),
     Generic(GenericTypeKind<'a, Data>),
     Function(Box<TypeAnnotation<'a, Data>>, Box<TypeAnnotation<'a, Data>>),
     Tuple(Vec<TypeAnnotation<'a, Data>>),
-    Parameterized(&'a str, Vec<TypeAnnotation<'a, Data>>),
+    Parameterized(Name<'a, Data>, Vec<TypeAnnotation<'a, Data>>),
     Reference(RegionAnnotation<'a, Data>, Box<TypeAnnotation<'a, Data>>),
 }
 
 impl<'a, Data> TreeFormat for TypeAnnotation<'a, Data> {
     fn get_precedence(&self) -> i32 {
         match self {
-            TypeAnnotation::Name(_, _) => 0,
+            TypeAnnotation::Name(_) => 0,
             TypeAnnotation::Generic(_) => 0,
             TypeAnnotation::Tuple(_) => 0,
             TypeAnnotation::Function(_, _) => 1,
@@ -65,7 +65,7 @@ impl<'a, Data> TreeFormat for TypeAnnotation<'a, Data> {
 
     fn format(&self) -> String {
         match self {
-            TypeAnnotation::Name(name, _) => name.to_string(),
+            TypeAnnotation::Name(name) => name.to_string(),
             TypeAnnotation::Generic(name) => name.to_string(),
             TypeAnnotation::Function(i, o) => {
                 format!("{} -> {}", self.format_child(&*i), self.format_child(&*o))
@@ -185,7 +185,7 @@ impl Display for Visibility {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum TopLevelStatement<'a, Data> {
-    Import(&'a str, Vec<&'a str>, Data),
+    Import(Name<'a, Data>, Data),
     Type {
         name: &'a str,
         regions: Vec<RegionVariable<'a, Data>>,
@@ -200,15 +200,7 @@ pub enum TopLevelStatement<'a, Data> {
 impl<'a, Data> Display for TopLevelStatement<'a, Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            TopLevelStatement::Import(module, fields, _) => match fields.is_empty() {
-                true => write!(f, "import {}", module),
-                false => write!(
-                    f,
-                    "import {}{{{}}}",
-                    module,
-                    format_iter(fields.iter(), ", ")
-                ),
-            },
+            TopLevelStatement::Import(module, _) => write!(f, "import {}", module),
             TopLevelStatement::Type {
                 name,
                 regions,
@@ -303,7 +295,7 @@ impl<'a, Data> Display for OperatorElement<'a, Data> {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expr<'a, Data> {
     OperatorAsFunction(&'a str, Data),
-    Variable(&'a str, Data),
+    Variable(Name<'a, Data>),
     FunctionCall(Box<Expr<'a, Data>>, Vec<Expr<'a, Data>>, Data),
     OperatorCall(Vec<OperatorElement<'a, Data>>, Data),
     Record(Vec<(&'a str, Expr<'a, Data>)>, Data),
@@ -336,7 +328,7 @@ impl<'a, Data> Expr<'a, Data> {
     pub fn get_location(&self) -> &Data {
         match self {
             Expr::OperatorAsFunction(_, data) => data,
-            Expr::Variable(_, data) => data,
+            Expr::Variable(name) => &name.1,
             Expr::FunctionCall(_, _, data) => data,
             Expr::OperatorCall(_, data) => data,
             Expr::Record(_, data) => data,
@@ -355,7 +347,7 @@ impl<'a, Data> TreeFormat for Expr<'a, Data> {
     fn get_precedence(&self) -> i32 {
         match self {
             Expr::Literal(_, _) => 0,
-            Expr::Variable(_, _) => 0,
+            Expr::Variable(_) => 0,
             Expr::OperatorAsFunction(_, _) => 0,
             Expr::Tuple(_, _) => 0,
             Expr::List(_, _) => 0,
@@ -373,7 +365,7 @@ impl<'a, Data> TreeFormat for Expr<'a, Data> {
         match self {
             Expr::Literal(lit, _) => lit.to_string(),
             Expr::OperatorAsFunction(name, _) => format!("`{}`", name),
-            Expr::Variable(ident, _) => ident.to_string(),
+            Expr::Variable(ident) => ident.to_string(),
             Expr::List(exprs, _) => format!("[{}]", format_children(self, exprs.iter(), ", ")),
             Expr::Tuple(exprs, _) => format!("({})", format_children(self, exprs.iter(), ", ")),
             Expr::Record(rows, _) => format_record(rows, "=", ", "),
@@ -435,8 +427,8 @@ impl<'a, Data> Display for Expr<'a, Data> {
 pub fn find_imported_modules<D: Copy>(ast: &TopLevelBlock<D>) -> Vec<(ModuleIdentifier, D)> {
     ast.0.iter().fold(Vec::new(), |mut imports, statement| {
         match statement {
-            TopLevelStatement::Import(module_id, _, data) => {
-                imports.push((ModuleIdentifier::from_name(&[module_id]), *data));
+            TopLevelStatement::Import(module_id, data) => {
+                imports.push((ModuleIdentifier::from_name(&module_id.0), *data));
             }
             _ => (),
         }
