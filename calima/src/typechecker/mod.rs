@@ -256,6 +256,28 @@ impl<'input, Data: Copy + Debug> Context<'input, Data> {
         }
     }
 
+    fn lookup_name_path(&mut self, env: &Environment<Data>, components: &[&str]) -> Type {
+        match components {
+            [end] => {
+                match env.lookup(end) {
+                    None => {
+                        //TODO: Add error
+                        Type::Error
+                    }
+                    Some(sch) => env.inst(self, sch),
+                }
+            }
+            _ => {
+                //TODO: Error handling
+                self.lookup_name_path(env.lookup_module(components[0]).unwrap(), &components[1..])
+            }
+        }
+    }
+
+    fn lookup_var_name(&mut self, env: &Environment<Data>, name: Name<Data>) -> Type {
+        self.lookup_name_path(env, &name.0)
+    }
+
     fn lookup_operator(
         &mut self,
         env: &Environment<Data>,
@@ -527,6 +549,10 @@ impl<'a, Data: Copy + Debug> Environment<'a, Data> {
 
     fn lookup(&self, name: &'a str) -> Option<&Scheme> {
         self.values.get(name)
+    }
+
+    fn lookup_module(&self, name: &'a str) -> Option<&Environment<'a, Data>> {
+        None
     }
 
     fn lookup_operator(&self, name: &'a str) -> Option<&(Scheme, OperatorSpecification)> {
