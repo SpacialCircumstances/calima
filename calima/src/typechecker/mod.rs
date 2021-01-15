@@ -248,7 +248,7 @@ impl<'input, Data: Copy + Debug> Context<'input, Data> {
 
     fn lookup_var(&mut self, env: &Environment<Data>, name: &str, loc: Data) -> Type {
         match env.lookup(name) {
-            Some(sch) => env.inst(self, sch),
+            Some(sch) => self.inst(sch),
             None => {
                 self.add_error(TypeError::var_not_found(name, loc));
                 Type::Error
@@ -264,7 +264,7 @@ impl<'input, Data: Copy + Debug> Context<'input, Data> {
                         //TODO: Add error
                         Type::Error
                     }
-                    Some(sch) => env.inst(self, sch),
+                    Some(sch) => self.inst(sch),
                 }
             }
             _ => {
@@ -285,7 +285,7 @@ impl<'input, Data: Copy + Debug> Context<'input, Data> {
         loc: Data,
     ) -> (Type, Option<OperatorSpecification>) {
         match env.lookup_operator(name) {
-            Some((tp, op)) => (env.inst(self, tp), Some(*op)),
+            Some((tp, op)) => (self.inst(tp), Some(*op)),
             None => {
                 self.add_error(TypeError::operator_not_found(name, loc));
                 (Type::Error, None)
@@ -337,6 +337,12 @@ impl<'input, Data: Copy + Debug> Context<'input, Data> {
         })
     }
 
+    fn inst(&mut self, sch: &Scheme) -> Type {
+        let mapping: HashMap<GenericId, Type> =
+            sch.1.iter().map(|v| (*v, self.new_generic())).collect();
+        replace(&sch.2, &|id| mapping.get(&id).cloned())
+    }
+
     fn bind_to_pattern<F: Fn(&Type, &mut Environment<'input, Data>) -> Scheme>(
         &mut self,
         env: &mut Environment<'input, Data>,
@@ -375,7 +381,7 @@ impl<'input, Data: Copy + Debug> Context<'input, Data> {
         tp: &mut Type,
         export: bool,
     ) {
-        self.bind_to_pattern(env, pattern, tp, |t, env| env.generalize(t), export);
+        self.bind_to_pattern(env, pattern, tp, |t, env| generalize(env, t), export);
     }
 
     fn bind_to_pattern_directly(
@@ -563,50 +569,10 @@ impl<'a, Data: Copy + Debug> Environment<'a, Data> {
         self.mono_vars.insert(id);
     }
 
-    fn replace<F: Fn(GenericId) -> Option<Type>>(tp: &Type, mapper: &F) -> Type {
-        match tp {
-            Type::Basic(_) => tp.clone(),
-            Type::Parameterized(p, ps) => {
-                Type::Parameterized(*p, ps.iter().map(|p| Self::replace(p, mapper)).collect())
-            }
-            Type::Var(id) => (mapper)(*id).unwrap_or_else(|| tp.clone()),
-            _ => tp.clone(),
-        }
-    }
-
-    fn inst(&self, ctx: &mut Context<Data>, sch: &Scheme) -> Type {
-        let mapping: HashMap<GenericId, Type> =
-            sch.1.iter().map(|v| (*v, ctx.new_generic())).collect();
-        Self::replace(&sch.2, &|id| mapping.get(&id).cloned())
-    }
-
-    fn generalize(&self, tp: &Type) -> Scheme {
-        fn gen_rec(
-            tp: &Type,
-            mono_vars: &HashSet<GenericId>,
-            scheme_vars: &mut HashSet<GenericId>,
-        ) {
-            match tp {
-                Type::Parameterized(_, params) => {
-                    for p in params {
-                        gen_rec(p, mono_vars, scheme_vars);
-                    }
-                }
-                Type::Var(gid) if !mono_vars.contains(gid) => {
-                    scheme_vars.insert(*gid);
-                }
-                _ => (),
-            }
-        }
-        let mut scheme_vars = HashSet::new();
-        gen_rec(tp, &self.mono_vars, &mut scheme_vars);
-        Scheme(HashSet::new(), scheme_vars, tp.clone())
-    }
-
     fn import_scheme(ctx: &mut Context<Data>, tp: &Scheme) -> Scheme {
         let mapping: HashMap<GenericId, GenericId> =
             tp.1.iter().map(|v| (*v, ctx.next_id())).collect();
-        let tp = Self::replace(&tp.2, &|gid| mapping.get(&gid).copied().map(Type::Var));
+        let tp = replace(&tp.2, &|gid| mapping.get(&gid).copied().map(Type::Var));
         let vars = mapping.values().copied().collect();
         Scheme(HashSet::new(), vars, tp)
     }
@@ -631,6 +597,36 @@ impl<'a, Data: Copy + Debug> Environment<'a, Data> {
                 );
             }
         }
+    }
+}
+
+fn generalize<Data: Copy + Debug>(env: &Environment<Data>, tp: &Type) -> Scheme {
+    fn gen_rec(tp: &Type, mono_vars: &HashSet<GenericId>, scheme_vars: &mut HashSet<GenericId>) {
+        match tp {
+            Type::Parameterized(_, params) => {
+                for p in params {
+                    gen_rec(p, mono_vars, scheme_vars);
+                }
+            }
+            Type::Var(gid) if !mono_vars.contains(gid) => {
+                scheme_vars.insert(*gid);
+            }
+            _ => (),
+        }
+    }
+    let mut scheme_vars = HashSet::new();
+    gen_rec(tp, &env.mono_vars, &mut scheme_vars);
+    Scheme(HashSet::new(), scheme_vars, tp.clone())
+}
+
+fn replace<F: Fn(GenericId) -> Option<Type>>(tp: &Type, mapper: &F) -> Type {
+    match tp {
+        Type::Basic(_) => tp.clone(),
+        Type::Parameterized(p, ps) => {
+            Type::Parameterized(*p, ps.iter().map(|p| replace(p, mapper)).collect())
+        }
+        Type::Var(id) => (mapper)(*id).unwrap_or_else(|| tp.clone()),
+        _ => tp.clone(),
     }
 }
 
@@ -824,7 +820,7 @@ fn infer_let_operator<'input, Data: Copy + Debug>(
             );
         }
     }
-    let scheme = env.generalize(&op_type);
+    let scheme = generalize(env, &op_type);
     if export {
         ctx.add_export(l.name, ExportValue::Operator(l.op, scheme.clone()))
     }
