@@ -17,12 +17,6 @@ use std::iter::once;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ModuleDescriptor {
-    identifier: ModuleIdentifier,
-    path: PathBuf,
-}
-
 fn try_resolve_module(
     search_dirs: &[PathBuf],
     from_path: &PathBuf,
