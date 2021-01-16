@@ -97,6 +97,7 @@ fn handle_identifier(ident: &str) -> Token {
         "type" => Type,
         "region" => Region,
         "import" => Import,
+        "opening" => Opening,
         "->" => Arrow,
         "=" => Equal,
         "|" => Pipe,

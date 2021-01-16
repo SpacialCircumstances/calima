@@ -187,7 +187,7 @@ impl Display for Visibility {
 pub enum TopLevelStatement<'a, Data> {
     Import {
         module: Name<'a, Data>,
-        opens: Vec<&'a str>,
+        opens: Vec<(&'a str, Data)>,
         data: Data,
     },
     Type {

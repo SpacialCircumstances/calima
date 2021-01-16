@@ -45,6 +45,7 @@ extern {
         "=" => Equal,
         "|" => Pipe,
         "import" => Import,
+        "opening" => Opening,
         ":" => Colon,
         "->" => Arrow,
         "backtick" => Backtick,
@@ -99,10 +100,20 @@ TopLevelStatement: TopLevelStatement<'input, Data> = {
 
 Visibility: Option<Visibility> = <"public"?> => <>.map(|_| Visibility::Public);
 
-Import: TopLevelStatement<'input, Data> = <posl:@L> "import" <m:ModuleName> <posr:@R> => TopLevelStatement::Import {
+Import: TopLevelStatement<'input, Data> = <posl:@L> "import" <m:ModuleName> <opens:Opening?> <posr:@R> => TopLevelStatement::Import {
     module: m,
     data: to_data(posl, posr),
-    opens: Vec::new()
+    opens: opens.unwrap_or_default()
+};
+
+Opening: Vec<(&'input str, Data)> = "opening" <items:Sep1<OpeningItem, ",">> => items;
+
+OpeningItem: (&'input str, Data) = <posl:@L> <ident:AnyIdentifier> <posr:@R> => (ident, to_data(posl, posr));
+
+AnyIdentifier: &'input str = {
+    "name",
+    "typename",
+    "operator"
 };
 
 Statement: Statement<'input, Data> = {
