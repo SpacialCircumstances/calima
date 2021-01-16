@@ -127,7 +127,10 @@ pub fn parse<'input>(
         )
     })?;
 
-    let ast = parser::parse(&code, interner).map_err(|pe| ParserError(pe, name.clone()))?;
+    let ast_res = parser::parse(&code, interner);
+    err.add_file(&name, &path, code);
+    let ast = ast_res.map_err(|pe| ParserError(pe, name.clone()))?;
+
     let dependencies = find_imported_modules(&ast)
         .iter()
         .filter_map(|dep| match try_resolve_module(search_dirs, &path, &dep.0) {
@@ -152,8 +155,6 @@ pub fn parse<'input>(
             }
         })
         .collect();
-
-    err.add_file(&name, &path, code);
 
     let module_data = UntypedModuleData {
         name: name.clone(),
