@@ -99,7 +99,7 @@ TopLevelStatement: TopLevelStatement<'input, Data> = {
 
 Visibility: Option<Visibility> = <"public"?> => <>.map(|_| Visibility::Public);
 
-Import: TopLevelStatement<'input, Data> = <posl:@L> "import" <m:TypeName> <posr:@R> => TopLevelStatement::Import(m, to_data(posl, posr));
+Import: TopLevelStatement<'input, Data> = <posl:@L> "import" <m:ModuleName> <posr:@R> => TopLevelStatement::Import(m, to_data(posl, posr));
 
 Statement: Statement<'input, Data> = {
     <Let> => Statement::Let(<>),
@@ -203,6 +203,8 @@ OperatorAsFunction: Expr<'input, Data> = <posl:@L> "backtick" <op:"operator"> "b
 TupleConstruct: Expr<'input, Data> = <posl:@L> "(" <exprs:Sep2<Expression1, ",">> ")" <posr:@R> => Expr::Tuple(exprs, to_data(posl, posr));
 
 Variable: Expr<'input, Data> = <name:Name> => Expr::Variable(name);
+
+ModuleName: Name<'input, Data> = <posl:@L> <name:Sep1<"typename", ".">> <posr:@R> => Name(name, to_data(posl, posr));
 
 TypeName: Name<'input, Data> = <posl:@L> <mut els:Sep1NoEnd<"typename", ".">> <end:"typename"> <posr:@R> => {
     els.push(end);
