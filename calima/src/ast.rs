@@ -185,7 +185,11 @@ impl Display for Visibility {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum TopLevelStatement<'a, Data> {
-    Import(Name<'a, Data>, Data),
+    Import {
+        module: Name<'a, Data>,
+        opens: Vec<&'a str>,
+        data: Data,
+    },
     Type {
         name: &'a str,
         regions: Vec<RegionVariable<'a, Data>>,
@@ -200,7 +204,7 @@ pub enum TopLevelStatement<'a, Data> {
 impl<'a, Data> Display for TopLevelStatement<'a, Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            TopLevelStatement::Import(module, _) => write!(f, "import {}", module),
+            TopLevelStatement::Import { module, .. } => write!(f, "import {}", module),
             TopLevelStatement::Type {
                 name,
                 regions,
@@ -427,8 +431,8 @@ impl<'a, Data> Display for Expr<'a, Data> {
 pub fn find_imported_modules<D: Copy>(ast: &TopLevelBlock<D>) -> Vec<(ModuleIdentifier, D)> {
     ast.0.iter().fold(Vec::new(), |mut imports, statement| {
         match statement {
-            TopLevelStatement::Import(module_id, data) => {
-                imports.push((ModuleIdentifier::from_name(&module_id.0), *data));
+            TopLevelStatement::Import { module, data, .. } => {
+                imports.push((ModuleIdentifier::from_name(&module.0), *data));
             }
             _ => (),
         }

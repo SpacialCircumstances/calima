@@ -99,7 +99,11 @@ TopLevelStatement: TopLevelStatement<'input, Data> = {
 
 Visibility: Option<Visibility> = <"public"?> => <>.map(|_| Visibility::Public);
 
-Import: TopLevelStatement<'input, Data> = <posl:@L> "import" <m:ModuleName> <posr:@R> => TopLevelStatement::Import(m, to_data(posl, posr));
+Import: TopLevelStatement<'input, Data> = <posl:@L> "import" <m:ModuleName> <posr:@R> => TopLevelStatement::Import {
+    module: m,
+    data: to_data(posl, posr),
+    opens: Vec::new()
+};
 
 Statement: Statement<'input, Data> = {
     <Let> => Statement::Let(<>),

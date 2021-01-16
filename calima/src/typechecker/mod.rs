@@ -896,7 +896,7 @@ fn infer_top_level<'input, Data: Copy + Debug>(
             l,
             vis == &Some(Visibility::Public),
         )),
-        TopLevelStatement::Import(_, _) => None, //Imports are resolved before typechecking
+        TopLevelStatement::Import { .. } => None, //Imports are resolved before typechecking
         TopLevelStatement::Type { .. } => unimplemented!(),
     }
 }
