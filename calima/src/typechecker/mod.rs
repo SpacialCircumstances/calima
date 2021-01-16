@@ -17,6 +17,7 @@ use std::convert::TryFrom;
 use std::fmt::Debug;
 use std::rc::Rc;
 
+mod env;
 mod prelude;
 pub mod substitution;
 mod symbol_table;
