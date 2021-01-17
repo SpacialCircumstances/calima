@@ -33,7 +33,7 @@ impl<'a, T, Data: Copy> SymbolTable<'a, T, Data> {
         self.0.insert(key, Element::new(value, def_loc));
     }
 
-    pub fn get(&self, key: &'a str) -> Option<&T> {
+    pub fn get(&self, key: &str) -> Option<&T> {
         self.0.get(key).map(|e| &e.data)
     }
 }

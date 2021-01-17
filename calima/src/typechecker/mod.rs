@@ -7,6 +7,7 @@ use crate::modules::{
     TypedModule, TypedModuleData, TypedModuleTree, UntypedModule, UntypedModuleTree,
 };
 use crate::parsing::token::Span;
+use crate::typechecker::env::Environment;
 use crate::typechecker::substitution::Substitution;
 use crate::typechecker::symbol_table::{Location, SymbolTable};
 use crate::typed_ast::*;
@@ -248,35 +249,13 @@ impl<'input, Data: Copy + Debug> Context<'input, Data> {
     }
 
     fn lookup_var(&mut self, env: &LocalEnvironment<Data>, name: &str, loc: Data) -> Type {
-        match env.lookup(name) {
+        match env.lookup_name(name) {
             Some(sch) => self.inst(sch),
             None => {
                 self.add_error(TypeError::var_not_found(name, loc));
                 Type::Error
             }
         }
-    }
-
-    fn lookup_name_path(&mut self, env: &LocalEnvironment<Data>, components: &[&str]) -> Type {
-        match components {
-            [end] => {
-                match env.lookup(end) {
-                    None => {
-                        //TODO: Add error
-                        Type::Error
-                    }
-                    Some(sch) => self.inst(sch),
-                }
-            }
-            _ => {
-                //TODO: Error handling
-                self.lookup_name_path(env.lookup_module(components[0]).unwrap(), &components[1..])
-            }
-        }
-    }
-
-    fn lookup_var_name(&mut self, env: &LocalEnvironment<Data>, name: Name<Data>) -> Type {
-        self.lookup_name_path(env, &name.0)
     }
 
     fn lookup_operator(
@@ -554,18 +533,6 @@ impl<'a, Data: Copy + Debug> LocalEnvironment<'a, Data> {
         self.values.add(name, sch, Location::Local(location));
     }
 
-    fn lookup(&self, name: &'a str) -> Option<&Scheme> {
-        self.values.get(name)
-    }
-
-    fn lookup_module(&self, name: &'a str) -> Option<&LocalEnvironment<'a, Data>> {
-        None
-    }
-
-    fn lookup_operator(&self, name: &'a str) -> Option<&(Scheme, OperatorSpecification)> {
-        self.operators.get(name)
-    }
-
     fn add_monomorphic_var(&mut self, id: GenericId) {
         self.mono_vars.insert(id);
     }
@@ -598,6 +565,21 @@ impl<'a, Data: Copy + Debug> LocalEnvironment<'a, Data> {
                 );
             }
         }
+    }
+}
+
+impl<'a, Data: Copy + Debug> Environment for LocalEnvironment<'a, Data> {
+    fn lookup_name(&self, name: &str) -> Option<&Scheme> {
+        self.values.get(name)
+    }
+
+    fn lookup_operator(&self, name: &str) -> Option<&(Scheme, OperatorSpecification)> {
+        self.operators.get(name)
+    }
+
+    fn lookup_module(&self, name: &str) -> Option<&Box<dyn Environment>> {
+        //TODO
+        None
     }
 }
 
@@ -1021,6 +1003,7 @@ mod tests {
     use crate::ast_common::{Literal, NumberType};
     use crate::common::ModuleIdentifier;
     use crate::errors::ErrorContext;
+    use crate::typechecker::env::Environment;
     use crate::typechecker::prelude::prelude;
     use crate::typechecker::{Context, LocalEnvironment};
     use crate::typed_ast::{TExprData, TExpression};

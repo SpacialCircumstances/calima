@@ -10,7 +10,7 @@ pub trait Environment {
 
 pub struct ModuleEnvironment<'a> {
     names: HashMap<&'a str, Scheme>,
-    modules: HashMap<&'a str, Box<dyn Environment<'a>>>,
+    modules: HashMap<&'a str, Box<dyn Environment>>,
     operators: HashMap<&'a str, (Scheme, OperatorSpecification)>,
 }
 
@@ -34,7 +34,7 @@ impl<'a> Environment for ModuleEnvironment<'a> {
         self.operators.get(name)
     }
 
-    fn lookup_module(&self, name: &str) -> Option<&Box<dyn Environment<'a>>> {
+    fn lookup_module(&self, name: &str) -> Option<&Box<dyn Environment>> {
         self.modules.get(name)
     }
 }
