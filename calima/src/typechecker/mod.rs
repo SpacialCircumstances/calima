@@ -138,7 +138,7 @@ pub struct Context<'input, Data: Copy + Debug> {
     type_subst: Substitution<Type>,
     errors: Vec<TypeError<Data>>,
     module: ModuleIdentifier,
-    exports: HashMap<&'input str, ExportValue>,
+    mod_env: ModuleEnvironment<'input>,
 }
 
 impl<'input, Data: Copy + Debug> Context<'input, Data> {
@@ -148,7 +148,7 @@ impl<'input, Data: Copy + Debug> Context<'input, Data> {
             type_subst: Substitution::new(),
             errors: Vec::new(),
             module,
-            exports: HashMap::new(),
+            mod_env: ModuleEnvironment::empty(),
         }
     }
 
@@ -273,12 +273,14 @@ impl<'input, Data: Copy + Debug> Context<'input, Data> {
         }
     }
 
-    fn add_export(&mut self, name: &'input str, exp: ExportValue) {
-        if self.exports.contains_key(name) {
-            //TODO: Error
-        } else {
-            self.exports.insert(name, exp);
-        }
+    fn export_value(&mut self, name: &'input str, typ: Scheme) {
+        //TODO: Error if exists
+        self.mod_env.add_value(name, typ);
+    }
+
+    fn export_operator(&mut self, name: &'input str, typ: Scheme, ops: OperatorSpecification) {
+        //TODO: Error if exists
+        self.mod_env.add_operator(name, typ, ops);
     }
 
     fn type_from_annotation(
@@ -343,7 +345,7 @@ impl<'input, Data: Copy + Debug> Context<'input, Data> {
                 }
                 let scheme = to_scheme(&tp, env);
                 if export {
-                    self.add_export(idt, ExportValue::Value(scheme.clone()))
+                    self.export_value(idt, scheme.clone());
                 }
                 env.add(idt, scheme, *loc);
             }
@@ -805,7 +807,7 @@ fn infer_let_operator<'input, Data: Copy + Debug>(
     }
     let scheme = generalize(env, &op_type);
     if export {
-        ctx.add_export(l.name, ExportValue::Operator(l.op, scheme.clone()))
+        ctx.export_operator(l.name, scheme.clone(), l.op);
     }
     env.add_operator(l.name, scheme, l.op, l.data);
     TStatement::Let(v, BindPattern::Name(l.name, None, Unit::unit()))
@@ -900,24 +902,6 @@ fn infer_top_level_block<'input, Data: Copy + Debug>(
     }
 }
 
-fn get_exports<'input, Data: Copy + Debug>(ctx: &mut Context<'input, Data>) -> Exports<'input> {
-    let mut exports = Exports::new();
-    ctx.exports
-        .iter()
-        .map(|(name, exp)| match exp {
-            ExportValue::Value(schem) => (
-                name,
-                ExportValue::Value(substitute_scheme(&ctx.type_subst, schem)),
-            ),
-            ExportValue::Operator(op, schem) => (
-                name,
-                ExportValue::Operator(*op, substitute_scheme(&ctx.type_subst, schem)),
-            ),
-        })
-        .for_each(|(name, exp)| exports.add(name, exp));
-    exports
-}
-
 fn typecheck_module<'input>(
     unchecked: &UntypedModule<'input>,
     deps: Vec<TypedModule<'input>>,
@@ -933,7 +917,6 @@ fn typecheck_module<'input>(
     let rettype = substitute(&context.type_subst, tast.res.typ());
     context.publish_errors(error_context);
     println!("Return type of program: {}", rettype);
-    let exports = get_exports(&mut context);
     error_context.handle_errors().map(|_| {
         let mod_data = TypedModuleData {
             name: unchecked.0.name.clone(),
@@ -941,7 +924,7 @@ fn typecheck_module<'input>(
             deps,
             ir_block: tast,
             subst: context.type_subst,
-            env: Rc::new(ModuleEnvironment::empty()),
+            env: Rc::new(context.mod_env),
         };
         TypedModule(Rc::new(mod_data))
     })
