@@ -7,7 +7,7 @@ use crate::modules::{
     TypedModule, TypedModuleData, TypedModuleTree, UntypedModule, UntypedModuleTree,
 };
 use crate::parsing::token::Span;
-use crate::typechecker::env::Environment;
+use crate::typechecker::env::{Environment, ModuleEnvironment};
 use crate::typechecker::substitution::Substitution;
 use crate::typechecker::symbol_table::{Location, SymbolTable};
 use crate::typed_ast::*;
@@ -18,7 +18,7 @@ use std::convert::TryFrom;
 use std::fmt::Debug;
 use std::rc::Rc;
 
-mod env;
+pub mod env;
 mod prelude;
 pub mod substitution;
 mod symbol_table;
@@ -941,7 +941,7 @@ fn typecheck_module<'input>(
             deps,
             ir_block: tast,
             subst: context.type_subst,
-            exports,
+            env: Rc::new(ModuleEnvironment::empty()),
         };
         TypedModule(Rc::new(mod_data))
     })
@@ -965,7 +965,7 @@ fn typecheck_tree<'input>(
 }
 
 fn verify_main_module(main_mod: &TypedModule, errors: &mut ErrorContext) {
-    if let Some(ExportValue::Value(main_type)) = main_mod.0.exports.get_by_name("main") {
+    if let Some(main_type) = main_mod.0.env.lookup_name("main") {
         let mut ctx: Context<Span> = Context::new(main_mod.0.name.clone());
         if let Err(_e) = ctx.unify_rec(&main_type.2, &build_function(&[unit()], &unit())) {
             errors.add_error(CompilerError::MainFunctionError(

@@ -15,12 +15,11 @@ pub struct ModuleEnvironment<'a> {
 }
 
 impl<'a> ModuleEnvironment<'a> {
-    pub fn from_exports(exports: Exports<'a>) -> Self {
-        //TODO
+    pub fn empty() -> Self {
         Self {
-            names: HashMap::new(),
-            modules: HashMap::new(),
-            operators: HashMap::new(),
+            names: Default::default(),
+            modules: Default::default(),
+            operators: Default::default(),
         }
     }
 }

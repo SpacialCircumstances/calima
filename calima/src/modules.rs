@@ -1,6 +1,7 @@
 use crate::ast::TopLevelBlock;
 use crate::common::ModuleIdentifier;
 use crate::parsing::token::Span;
+use crate::typechecker::env::ModuleEnvironment;
 use crate::typechecker::substitution::Substitution;
 use crate::typed_ast::TBlock;
 use crate::types::{Exports, Type};
@@ -35,7 +36,7 @@ pub struct TypedModuleData<'input> {
     pub(crate) deps: Vec<TypedModule<'input>>,
     pub(crate) ir_block: TBlock<'input>,
     pub(crate) subst: Substitution<Type>,
-    pub(crate) exports: Exports<'input>,
+    pub(crate) env: Rc<ModuleEnvironment<'input>>,
 }
 
 pub struct TypedModule<'input>(pub Rc<TypedModuleData<'input>>);
