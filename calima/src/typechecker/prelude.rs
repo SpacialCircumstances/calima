@@ -2,9 +2,7 @@ use crate::ast_common::Associativity;
 use crate::ast_common::Associativity::Left;
 use crate::ast_common::OperatorSpecification::{Infix, Prefix};
 use crate::typechecker::env::ModuleEnvironment;
-use crate::types::{
-    bool, build_function, float, int, string, unit, Exports, GenericId, Scheme, Type,
-};
+use crate::types::{bool, build_function, float, int, string, unit, GenericId, Scheme, Type};
 use std::collections::HashSet;
 use std::rc::Rc;
 

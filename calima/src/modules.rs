@@ -4,7 +4,7 @@ use crate::parsing::token::Span;
 use crate::typechecker::env::ModuleEnvironment;
 use crate::typechecker::substitution::Substitution;
 use crate::typed_ast::TBlock;
-use crate::types::{Exports, Type};
+use crate::types::Type;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::rc::Rc;

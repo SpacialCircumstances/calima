@@ -223,39 +223,3 @@ pub fn build_function(params: &[Type], ret: &Type) -> Type {
         }
     }
 }
-
-#[derive(Debug, Clone)]
-pub enum ExportValue {
-    Value(Scheme),
-    Operator(OperatorSpecification, Scheme),
-}
-
-//All variables in an Exports map shall be fully substituted to not leave any free variables
-#[derive(Debug, Clone)]
-pub struct Exports<'input>(HashMap<&'input str, ExportValue>);
-
-impl<'input> Exports<'input> {
-    pub fn new() -> Self {
-        Exports(HashMap::new())
-    }
-
-    pub fn add_operator(&mut self, name: &'input str, sch: Scheme, op: OperatorSpecification) {
-        self.add(name, ExportValue::Operator(op, sch))
-    }
-
-    pub fn add_value(&mut self, name: &'input str, sch: Scheme) {
-        self.add(name, ExportValue::Value(sch));
-    }
-
-    pub fn add(&mut self, name: &'input str, exp: ExportValue) {
-        self.0.insert(name, exp);
-    }
-
-    pub fn iter_vars(&self) -> impl Iterator<Item = (&'input str, &ExportValue)> {
-        self.0.iter().map(|(a, b)| (*a, b))
-    }
-
-    pub fn get_by_name(&self, name: &'input str) -> Option<&ExportValue> {
-        self.0.get(name)
-    }
-}

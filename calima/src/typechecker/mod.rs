@@ -545,28 +545,6 @@ impl<'a, Data: Copy + Debug> LocalEnvironment<'a, Data> {
         let vars = mapping.values().copied().collect();
         Scheme(HashSet::new(), vars, tp)
     }
-
-    fn import_module(&mut self, ctx: &mut Context<Data>, exports: &Exports<'a>) {
-        exports
-            .iter_vars()
-            .for_each(|(name, tp)| self.import(ctx, name, tp));
-    }
-
-    fn import<'b: 'a>(&mut self, ctx: &mut Context<Data>, name: &'b str, exv: &ExportValue) {
-        match exv {
-            ExportValue::Value(tp) => {
-                self.values
-                    .add(name, Self::import_scheme(ctx, tp), Location::External)
-            }
-            ExportValue::Operator(op, tp) => {
-                self.operators.add(
-                    name,
-                    (Self::import_scheme(ctx, tp), *op),
-                    Location::External,
-                );
-            }
-        }
-    }
 }
 
 impl<'a, Data: Copy + Debug> Environment for LocalEnvironment<'a, Data> {

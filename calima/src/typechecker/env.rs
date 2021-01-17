@@ -1,5 +1,5 @@
 use crate::ast_common::OperatorSpecification;
-use crate::types::{Exports, Scheme};
+use crate::types::Scheme;
 use std::collections::HashMap;
 
 pub trait Environment {
