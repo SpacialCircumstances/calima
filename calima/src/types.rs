@@ -1,11 +1,12 @@
 use crate::ast_common::OperatorSpecification;
 use crate::formatting::tree::{format_children, TreeFormat};
 use crate::formatting::{format_iter, format_iter_end};
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
 use std::fmt::{Display, Formatter};
 
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Serialize, Deserialize)]
 pub struct RegionId(pub usize);
 
 impl Display for RegionId {
@@ -14,7 +15,7 @@ impl Display for RegionId {
     }
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Serialize, Deserialize)]
 pub struct RegionInstance {
     pub id: usize,
     pub depth: usize,
@@ -26,7 +27,7 @@ impl RegionInstance {
     }
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum Region {
     Var(RegionId),
     Instance(RegionInstance),
@@ -41,7 +42,7 @@ impl Display for Region {
     }
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Serialize, Deserialize)]
 pub struct GenericId(pub usize);
 
 impl Display for GenericId {
@@ -50,7 +51,7 @@ impl Display for GenericId {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub enum PrimitiveType {
     Bool,
     Int,
@@ -89,7 +90,7 @@ impl Display for PrimitiveType {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub enum ComplexType {
     Function,
     Tuple(usize), //TODO: User-defined
@@ -104,7 +105,7 @@ impl Display for ComplexType {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub enum TypeDef {
     Primitive(PrimitiveType),
     Complex(ComplexType),
@@ -119,7 +120,7 @@ impl Display for TypeDef {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub enum Type {
     Basic(TypeDef),
     Parameterized(ComplexType, Vec<Type>),
@@ -166,7 +167,7 @@ impl Display for Type {
     }
 }
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
 pub struct Scheme(pub HashSet<RegionId>, pub HashSet<GenericId>, pub Type);
 
 impl Scheme {
