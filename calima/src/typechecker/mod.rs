@@ -132,6 +132,12 @@ fn substitute_scheme(subst: &Substitution<Type>, schem: &Scheme) -> Scheme {
     Scheme(schem.0.clone(), schem.1.clone(), subst_type)
 }
 
+#[derive(Clone, Eq, PartialEq)]
+enum Opening<'a> {
+    All,
+    Identifiers(Vec<&'a str>),
+}
+
 pub struct Context<'input, Data: Copy + Debug> {
     generic_id: usize,
     type_subst: Substitution<Type>,
@@ -478,10 +484,11 @@ impl<'input> Context<'input, Span> {
 }
 
 //TODO: Immutable environments or something similar to allow variable shadowing?
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 struct LocalEnvironment<'a, Data: Copy + Debug> {
     values: SymbolTable<'a, Scheme, Data>,
     operators: SymbolTable<'a, (Scheme, OperatorSpecification), Data>,
+    modules: SymbolTable<'a, Rc<ModuleEnvironment<'a>>, Data>,
     mono_vars: HashSet<GenericId>,
     named_generics: SymbolTable<'a, GenericId, Data>,
     depth: usize,
@@ -494,6 +501,7 @@ impl<'a, Data: Copy + Debug> LocalEnvironment<'a, Data> {
             operators: SymbolTable::new(),
             mono_vars: HashSet::new(),
             named_generics: SymbolTable::new(),
+            modules: SymbolTable::new(),
             depth: 0,
         }
     }
@@ -544,6 +552,19 @@ impl<'a, Data: Copy + Debug> LocalEnvironment<'a, Data> {
         let tp = replace(&tp.2, &|gid| mapping.get(&gid).copied().map(Type::Var));
         let vars = mapping.values().copied().collect();
         Scheme(HashSet::new(), vars, tp)
+    }
+
+    fn import(
+        &mut self,
+        name: &'a str,
+        module: &Rc<ModuleEnvironment<'a>>,
+        opening: Opening<'a>,
+        location: Location<Data>,
+    ) {
+        let module = module.clone();
+        self.modules.add(name, module.clone(), location);
+
+        //TODO: Open
     }
 }
 
@@ -887,9 +908,9 @@ fn typecheck_module<'input>(
     //TODO: Import dependencies into context
     let mut context = Context::new(unchecked.0.name.clone());
     let mut env = LocalEnvironment::new();
+
     let prelude = prelude::prelude();
-    //TODO
-    //env.import_module(&mut context, &prelude);
+    env.import("Prelude", &prelude, Opening::All, Location::External);
 
     let tast = infer_top_level_block(&mut env, &mut context, &unchecked.0.ast);
     let rettype = substitute(&context.type_subst, tast.res.typ());

@@ -21,7 +21,7 @@ impl<T, Data: Copy> Element<T, Data> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct SymbolTable<'a, T, Data: Copy>(HashMap<&'a str, Element<T, Data>>);
 
 impl<'a, T, Data: Copy> SymbolTable<'a, T, Data> {
