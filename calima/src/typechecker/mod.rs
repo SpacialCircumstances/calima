@@ -248,7 +248,7 @@ impl<'input, Data: Copy + Debug> Context<'input, Data> {
     }
 
     fn lookup_var(&mut self, env: &LocalEnvironment<Data>, name: &str, loc: Data) -> Type {
-        match env.lookup_name(name) {
+        match env.lookup_value(name) {
             Some(sch) => self.inst(sch),
             None => {
                 self.add_error(TypeError::var_not_found(name, loc));
@@ -548,7 +548,7 @@ impl<'a, Data: Copy + Debug> LocalEnvironment<'a, Data> {
 }
 
 impl<'a, Data: Copy + Debug> Environment for LocalEnvironment<'a, Data> {
-    fn lookup_name(&self, name: &str) -> Option<&Scheme> {
+    fn lookup_value(&self, name: &str) -> Option<&Scheme> {
         self.values.get(name)
     }
 
@@ -926,7 +926,7 @@ fn typecheck_tree<'input>(
 }
 
 fn verify_main_module(main_mod: &TypedModule, errors: &mut ErrorContext) {
-    if let Some(main_type) = main_mod.0.env.lookup_name("main") {
+    if let Some(main_type) = main_mod.0.env.lookup_value("main") {
         let mut ctx: Context<Span> = Context::new(main_mod.0.name.clone());
         if let Err(_e) = ctx.unify_rec(&main_type.2, &build_function(&[unit()], &unit())) {
             errors.add_error(CompilerError::MainFunctionError(
