@@ -12,7 +12,6 @@ use crate::typechecker::substitution::Substitution;
 use crate::typechecker::symbol_table::{Location, SymbolTable};
 use crate::typed_ast::*;
 use crate::types::*;
-use prelude::prelude;
 use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
 use std::fmt::Debug;
@@ -148,7 +147,7 @@ impl<'input, Data: Copy + Debug> Context<'input, Data> {
             type_subst: Substitution::new(),
             errors: Vec::new(),
             module,
-            mod_env: ModuleEnvironment::empty(),
+            mod_env: ModuleEnvironment::new(),
         }
     }
 
@@ -910,8 +909,9 @@ fn typecheck_module<'input>(
     //TODO: Import dependencies into context
     let mut context = Context::new(unchecked.0.name.clone());
     let mut env = LocalEnvironment::new();
-    let prelude = prelude();
-    env.import_module(&mut context, &prelude);
+    let prelude = prelude::prelude();
+    //TODO
+    //env.import_module(&mut context, &prelude);
 
     let tast = infer_top_level_block(&mut env, &mut context, &unchecked.0.ast);
     let rettype = substitute(&context.type_subst, tast.res.typ());

@@ -15,7 +15,7 @@ pub struct ModuleEnvironment<'a> {
 }
 
 impl<'a> ModuleEnvironment<'a> {
-    pub fn empty() -> Self {
+    pub fn new() -> Self {
         Self {
             names: Default::default(),
             modules: Default::default(),
