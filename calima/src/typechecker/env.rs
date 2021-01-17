@@ -2,13 +2,13 @@ use crate::ast_common::OperatorSpecification;
 use crate::types::{Exports, Scheme};
 use std::collections::HashMap;
 
-trait Environment<'a> {
-    fn lookup_name(&self, name: &'a str) -> Option<&Scheme>;
-    fn lookup_operator(&self, name: &'a str) -> Option<&(Scheme, OperatorSpecification)>;
-    fn lookup_module(&self, name: &'a str) -> Option<&Box<dyn Environment<'a>>>;
+pub trait Environment {
+    fn lookup_name(&self, name: &str) -> Option<&Scheme>;
+    fn lookup_operator(&self, name: &str) -> Option<&(Scheme, OperatorSpecification)>;
+    fn lookup_module(&self, name: &str) -> Option<&Box<dyn Environment>>;
 }
 
-struct ModuleEnvironment<'a> {
+pub struct ModuleEnvironment<'a> {
     names: HashMap<&'a str, Scheme>,
     modules: HashMap<&'a str, Box<dyn Environment<'a>>>,
     operators: HashMap<&'a str, (Scheme, OperatorSpecification)>,
@@ -25,16 +25,16 @@ impl<'a> ModuleEnvironment<'a> {
     }
 }
 
-impl<'a> Environment<'a> for ModuleEnvironment<'a> {
-    fn lookup_name(&self, name: &'a str) -> Option<&Scheme> {
+impl<'a> Environment for ModuleEnvironment<'a> {
+    fn lookup_name(&self, name: &str) -> Option<&Scheme> {
         self.names.get(name)
     }
 
-    fn lookup_operator(&self, name: &'a str) -> Option<&(Scheme, OperatorSpecification)> {
+    fn lookup_operator(&self, name: &str) -> Option<&(Scheme, OperatorSpecification)> {
         self.operators.get(name)
     }
 
-    fn lookup_module(&self, name: &'a str) -> Option<&Box<dyn Environment<'a>>> {
+    fn lookup_module(&self, name: &str) -> Option<&Box<dyn Environment<'a>>> {
         self.modules.get(name)
     }
 }
