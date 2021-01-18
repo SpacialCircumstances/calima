@@ -79,6 +79,10 @@ impl<'a> Environment for ModuleEnvironment<'a> {
     }
 
     fn opened_operators(&self, opening: Opening<'_>) -> Vec<(&str, Scheme, OperatorSpecification)> {
-        unimplemented!()
+        self.operators
+            .iter()
+            .filter(|(k, op)| opening.contains(k))
+            .map(|(name, (scheme, op))| (*name, scheme.clone(), *op))
+            .collect()
     }
 }

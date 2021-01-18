@@ -577,11 +577,13 @@ impl<'a, Data: Copy + Debug> Environment for LocalEnvironment<'a, Data> {
     }
 
     fn opened_values(&self, opening: Opening<'_>) -> Vec<(&str, Scheme)> {
-        unimplemented!()
+        //Of course, we could implement this, but it should never be called anyways.
+        //Maybe we should not put these methods into the trait?
+        panic!("Not implemented")
     }
 
     fn opened_operators(&self, opening: Opening<'_>) -> Vec<(&str, Scheme, OperatorSpecification)> {
-        unimplemented!()
+        panic!("Not implemented")
     }
 }
 
