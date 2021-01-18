@@ -7,7 +7,7 @@ use crate::modules::{
     TypedModule, TypedModuleData, TypedModuleTree, UntypedModule, UntypedModuleTree,
 };
 use crate::parsing::token::Span;
-use crate::typechecker::env::{Environment, ModuleEnvironment};
+use crate::typechecker::env::{Environment, ModuleEnvironment, Opening};
 use crate::typechecker::substitution::Substitution;
 use crate::typechecker::symbol_table::{Location, SymbolTable};
 use crate::typed_ast::*;
@@ -130,12 +130,6 @@ fn substitute_scheme(subst: &Substitution<Type>, schem: &Scheme) -> Scheme {
     //All variables in scheme cannot be substituted, because they should be general
     let subst_type = substitute(subst, &schem.2);
     Scheme(schem.0.clone(), schem.1.clone(), subst_type)
-}
-
-#[derive(Clone, Eq, PartialEq)]
-enum Opening<'a> {
-    All,
-    Identifiers(Vec<&'a str>),
 }
 
 pub struct Context<'input, Data: Copy + Debug> {
@@ -580,6 +574,14 @@ impl<'a, Data: Copy + Debug> Environment for LocalEnvironment<'a, Data> {
     fn lookup_module(&self, name: &str) -> Option<&Box<dyn Environment>> {
         //TODO
         None
+    }
+
+    fn opened_values(&self, opening: Opening<'_>) -> Vec<(&str, Scheme)> {
+        unimplemented!()
+    }
+
+    fn opened_operators(&self, opening: Opening<'_>) -> Vec<(&str, Scheme, OperatorSpecification)> {
+        unimplemented!()
     }
 }
 
