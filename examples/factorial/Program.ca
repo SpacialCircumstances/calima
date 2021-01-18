@@ -1,0 +1,3 @@
+import AdvancedMath opening fac
+
+public let main = fun () -> println (fac 4)
