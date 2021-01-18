@@ -38,7 +38,7 @@ impl<'a> ModuleEnvironment<'a> {
         }
     }
 
-    pub fn opened_values(&self, opening: &Opening<'_>) -> Vec<(&str, Scheme)> {
+    pub fn opened_values(&self, opening: &Opening<'_>) -> Vec<(&'a str, Scheme)> {
         self.values
             .iter()
             .filter(|(k, sch)| opening.contains(k))
@@ -49,7 +49,7 @@ impl<'a> ModuleEnvironment<'a> {
     pub fn opened_operators(
         &self,
         opening: &Opening<'_>,
-    ) -> Vec<(&str, Scheme, OperatorSpecification)> {
+    ) -> Vec<(&'a str, Scheme, OperatorSpecification)> {
         self.operators
             .iter()
             .filter(|(k, op)| opening.contains(k))
