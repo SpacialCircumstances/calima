@@ -539,14 +539,6 @@ impl<'a, Data: Copy + Debug> LocalEnvironment<'a, Data> {
         self.mono_vars.insert(id);
     }
 
-    fn import_scheme(ctx: &mut Context<Data>, tp: &Scheme) -> Scheme {
-        let mapping: HashMap<GenericId, GenericId> =
-            tp.1.iter().map(|v| (*v, ctx.next_id())).collect();
-        let tp = replace(&tp.2, &|gid| mapping.get(&gid).copied().map(Type::Var));
-        let vars = mapping.values().copied().collect();
-        Scheme(HashSet::new(), vars, tp)
-    }
-
     fn import(
         &mut self,
         name: &'a str,
