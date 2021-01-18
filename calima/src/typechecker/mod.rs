@@ -555,9 +555,17 @@ impl<'a, Data: Copy + Debug> LocalEnvironment<'a, Data> {
         location: Location<Data>,
     ) {
         let module = module.clone();
-        self.modules.add(name, module.clone(), location);
 
-        //TODO: Open
+        for (name, scheme) in module.opened_values(&opening) {
+            //TODO: Cause error if exists
+            self.add(name, scheme, location);
+        }
+
+        for (name, scheme, op) in module.opened_operators(&opening) {
+            self.add_operator(name, scheme, op, location)
+        }
+
+        self.modules.add(name, module, location);
     }
 }
 
