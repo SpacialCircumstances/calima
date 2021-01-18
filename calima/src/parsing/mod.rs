@@ -128,7 +128,7 @@ pub fn parse<'input>(
         .iter()
         .filter_map(|dep| match try_resolve_module(search_dirs, &path, &dep.0) {
             Ok(found_path) => {
-                match parse(tree, search_dirs, name.clone(), found_path, interner, err) {
+                match parse(tree, search_dirs, dep.0.clone(), found_path, interner, err) {
                     Ok(m) => Some(m),
                     Err(e) => {
                         err.add_error(e);
