@@ -21,10 +21,6 @@ pub trait Environment {
     fn lookup_value(&self, name: &str) -> Option<&Scheme>;
     fn lookup_operator(&self, name: &str) -> Option<&(Scheme, OperatorSpecification)>;
     fn lookup_module(&self, name: &str) -> Option<&Box<dyn Environment>>;
-    //This is a bit inefficient, because it causes a bit more allocation than using iterators, but at least lifetimes and ownership work properly.
-    //Improve this later.
-    fn opened_values(&self, opening: Opening) -> Vec<(&str, Scheme)>;
-    fn opened_operators(&self, opening: Opening) -> Vec<(&str, Scheme, OperatorSpecification)>;
 }
 
 pub struct ModuleEnvironment<'a> {
@@ -40,6 +36,25 @@ impl<'a> ModuleEnvironment<'a> {
             modules: Default::default(),
             operators: Default::default(),
         }
+    }
+
+    pub fn opened_values(&self, opening: &Opening<'_>) -> Vec<(&str, Scheme)> {
+        self.values
+            .iter()
+            .filter(|(k, sch)| opening.contains(k))
+            .map(|(name, scheme)| (*name, scheme.clone()))
+            .collect()
+    }
+
+    pub fn opened_operators(
+        &self,
+        opening: &Opening<'_>,
+    ) -> Vec<(&str, Scheme, OperatorSpecification)> {
+        self.operators
+            .iter()
+            .filter(|(k, op)| opening.contains(k))
+            .map(|(name, (scheme, op))| (*name, scheme.clone(), *op))
+            .collect()
     }
 }
 
@@ -68,21 +83,5 @@ impl<'a> Environment for ModuleEnvironment<'a> {
 
     fn lookup_module(&self, name: &str) -> Option<&Box<dyn Environment>> {
         self.modules.get(name)
-    }
-
-    fn opened_values(&self, opening: Opening<'_>) -> Vec<(&str, Scheme)> {
-        self.values
-            .iter()
-            .filter(|(k, sch)| opening.contains(k))
-            .map(|(name, scheme)| (*name, scheme.clone()))
-            .collect()
-    }
-
-    fn opened_operators(&self, opening: Opening<'_>) -> Vec<(&str, Scheme, OperatorSpecification)> {
-        self.operators
-            .iter()
-            .filter(|(k, op)| opening.contains(k))
-            .map(|(name, (scheme, op))| (*name, scheme.clone(), *op))
-            .collect()
     }
 }

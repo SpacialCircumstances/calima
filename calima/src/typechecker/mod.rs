@@ -346,7 +346,7 @@ impl<'input, Data: Copy + Debug> Context<'input, Data> {
                 if export {
                     self.export_value(idt, scheme.clone());
                 }
-                env.add(idt, scheme, *loc);
+                env.add(idt, scheme, Location::Local(*loc));
             }
             BindPattern::UnitLiteral(loc) => {
                 self.unify(tp, &unit(), UnificationSource::PatternMatching, *loc)
@@ -526,14 +526,13 @@ impl<'a, Data: Copy + Debug> LocalEnvironment<'a, Data> {
         name: &'a str,
         sch: Scheme,
         op: OperatorSpecification,
-        location: Data,
+        location: Location<Data>,
     ) {
-        self.operators
-            .add(name, (sch, op), Location::Local(location));
+        self.operators.add(name, (sch, op), location);
     }
 
-    fn add(&mut self, name: &'a str, sch: Scheme, location: Data) {
-        self.values.add(name, sch, Location::Local(location));
+    fn add(&mut self, name: &'a str, sch: Scheme, location: Location<Data>) {
+        self.values.add(name, sch, location);
     }
 
     fn add_monomorphic_var(&mut self, id: GenericId) {
@@ -574,16 +573,6 @@ impl<'a, Data: Copy + Debug> Environment for LocalEnvironment<'a, Data> {
     fn lookup_module(&self, name: &str) -> Option<&Box<dyn Environment>> {
         //TODO
         None
-    }
-
-    fn opened_values(&self, opening: Opening<'_>) -> Vec<(&str, Scheme)> {
-        //Of course, we could implement this, but it should never be called anyways.
-        //Maybe we should not put these methods into the trait?
-        panic!("Not implemented")
-    }
-
-    fn opened_operators(&self, opening: Opening<'_>) -> Vec<(&str, Scheme, OperatorSpecification)> {
-        panic!("Not implemented")
     }
 }
 
@@ -768,7 +757,12 @@ fn infer_let_operator<'input, Data: Copy + Debug>(
     let (mut op_type, v) = if l.mods.contains(&Modifier::Rec) {
         let recursive_type = ctx.new_generic();
         let mut body_env = env.clone();
-        body_env.add_operator(&l.name, Scheme::simple(recursive_type), l.op, l.data);
+        body_env.add_operator(
+            &l.name,
+            Scheme::simple(recursive_type),
+            l.op,
+            Location::Local(l.data),
+        );
         let value = infer_expr(&mut body_env, ctx, &l.value);
         let mut typ = value.typ().clone();
         ctx.unify(
@@ -811,7 +805,7 @@ fn infer_let_operator<'input, Data: Copy + Debug>(
     if export {
         ctx.export_operator(l.name, scheme.clone(), l.op);
     }
-    env.add_operator(l.name, scheme, l.op, l.data);
+    env.add_operator(l.name, scheme, l.op, Location::Local(l.data));
     TStatement::Let(v, BindPattern::Name(l.name, None, Unit::unit()))
 }
 
