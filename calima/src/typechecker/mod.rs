@@ -482,7 +482,7 @@ impl<'input> Context<'input, Span> {
 struct LocalEnvironment<'a, Data: Copy + Debug> {
     values: SymbolTable<'a, Scheme, Data>,
     operators: SymbolTable<'a, (Scheme, OperatorSpecification), Data>,
-    modules: SymbolTable<'a, Rc<ModuleEnvironment<'a>>, Data>,
+    modules: HashMap<ModuleIdentifier, Rc<ModuleEnvironment<'a>>>,
     mono_vars: HashSet<GenericId>,
     named_generics: SymbolTable<'a, GenericId, Data>,
     depth: usize,
@@ -495,7 +495,7 @@ impl<'a, Data: Copy + Debug> LocalEnvironment<'a, Data> {
             operators: SymbolTable::new(),
             mono_vars: HashSet::new(),
             named_generics: SymbolTable::new(),
-            modules: SymbolTable::new(),
+            modules: HashMap::new(),
             depth: 0,
         }
     }
@@ -541,7 +541,7 @@ impl<'a, Data: Copy + Debug> LocalEnvironment<'a, Data> {
 
     fn import(
         &mut self,
-        name: &'a str,
+        name: &ModuleIdentifier,
         module: &Rc<ModuleEnvironment<'a>>,
         opening: Opening<'a>,
         location: Location<Data>,
@@ -557,7 +557,7 @@ impl<'a, Data: Copy + Debug> LocalEnvironment<'a, Data> {
             self.add_operator(name, scheme, op, location)
         }
 
-        self.modules.add(name, module, location);
+        self.modules.insert(name.clone(), module);
     }
 }
 
@@ -903,12 +903,21 @@ fn typecheck_module<'input>(
     deps: Vec<TypedModule<'input>>,
     error_context: &mut ErrorContext<'input>,
 ) -> Result<TypedModule<'input>, ()> {
-    //TODO: Import dependencies into context
     let mut context = Context::new(unchecked.0.name.clone());
     let mut env = LocalEnvironment::new();
 
     let prelude = prelude::prelude();
-    env.import("Prelude", &prelude, Opening::All, Location::External);
+    env.import(
+        &ModuleIdentifier::from_filename("Prelude".into()),
+        &prelude,
+        Opening::All,
+        Location::External,
+    );
+
+    for dep in &deps {
+        //TODO
+        env.import(&dep.0.name, &dep.0.env, Opening::All, Location::External)
+    }
 
     let tast = infer_top_level_block(&mut env, &mut context, &unchecked.0.ast);
     let rettype = substitute(&context.type_subst, tast.res.typ());
