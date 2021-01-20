@@ -286,7 +286,7 @@ SumRow: (&'input str, Option<TypeAnnotation<'input, Data>>) = {
 
 RecordTypeRow: (&'input str, TypeAnnotation<'input, Data>) = <n:"name"> ":" <ta:TypeAnnotation0> => (n, ta);
 
-TypeAnnotation0: TypeAnnotation<'input, Data> = {
+pub TypeAnnotation0: TypeAnnotation<'input, Data> = {
     <reg:RegionAnnotation> <ta:TypeAnnotation1> => TypeAnnotation::Reference(reg, Box::new(ta)),
     TypeAnnotation1
 };
