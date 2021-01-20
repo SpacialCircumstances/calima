@@ -219,7 +219,7 @@ impl<'source, 'input> Lexer<'source, 'input> {
         };
         let lit = self.interner.intern(&self.input[start_idx..end_idx]);
         let end = self.token_start_pos();
-        let format = match lit.contains(".") {
+        let format = match lit.contains('.') {
             true => NumberFormat::Float,
             false => NumberFormat::Integer,
         };

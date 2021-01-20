@@ -1,8 +1,7 @@
-use crate::ast_common::OperatorSpecification;
 use crate::formatting::tree::{format_children, TreeFormat};
 use crate::formatting::{format_iter, format_iter_end};
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::convert::TryFrom;
 use std::fmt::{Display, Formatter};
 

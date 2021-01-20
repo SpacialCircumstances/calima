@@ -250,7 +250,7 @@ impl<'a> ErrorContext<'a> {
                             "Importing module {} into {} failed.",
                             imported, importing_mod
                         ),
-                        format!("Reason: Module not found in search paths:"),
+                        "Reason: Module not found in search paths:".to_string(),
                     ];
                     notes.extend(search_dirs.iter().map(|p| match std::fs::canonicalize(p) {
                         Ok(p) => p.display().to_string(),

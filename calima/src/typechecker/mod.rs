@@ -117,10 +117,9 @@ fn substitute(subst: &Substitution<Type>, typ: &Type) -> Type {
             Some(t) => substitute(subst, t),
             None => typ.clone(),
         },
-        Type::Parameterized(t, params) => Type::Parameterized(
-            t.clone(),
-            params.into_iter().map(|t| substitute(subst, t)).collect(),
-        ),
+        Type::Parameterized(t, params) => {
+            Type::Parameterized(*t, params.iter().map(|t| substitute(subst, t)).collect())
+        }
         Type::Error => Type::Error,
         _ => unimplemented!(),
     }
@@ -214,8 +213,7 @@ impl<'input, Data: Copy + Debug> Context<'input, Data> {
                     params1
                         .iter()
                         .zip(params2.iter())
-                        .map(|(p1, p2)| self.unify_rec(p1, p2))
-                        .collect()
+                        .try_for_each(|(p1, p2)| self.unify_rec(p1, p2))
                 }
             }
             _ => unimplemented!(),
@@ -630,9 +628,7 @@ fn infer_expr<'input, Data: Copy + Debug>(
     expr: &Expr<'input, Data>,
 ) -> TExpression<'input> {
     match expr {
-        Expr::Literal(lit, _) => {
-            TExpression::new(TExprData::Literal(lit.clone()), get_literal_type(lit))
-        }
+        Expr::Literal(lit, _) => TExpression::new(TExprData::Literal(*lit), get_literal_type(lit)),
         Expr::Variable(varname) => {
             let vartype = ctx.lookup_var(env, varname.0[0], varname.1);
             TExpression::new(TExprData::Variable(varname.0[0]), vartype)
@@ -972,7 +968,7 @@ fn verify_main_module(main_mod: &TypedModule, errors: &mut ErrorContext) {
 
 pub fn typecheck<'input>(
     errors: &mut ErrorContext<'input>,
-    mut module_ctx: UntypedModuleTree<'input>,
+    module_ctx: UntypedModuleTree<'input>,
 ) -> Result<TypedModuleTree<'input>, ()> {
     let mut lookup = HashMap::new();
     let main_mod = typecheck_tree(&mut lookup, &module_ctx.main_module, errors)?;

@@ -26,7 +26,7 @@ fn try_resolve_module(
     once(&module_dir)
         .chain(search_dirs.iter())
         .map(|dir| {
-            let mut path = name.path_relative_to(dir);
+            let path = name.path_relative_to(dir);
             match path.is_file() {
                 true => Ok(path),
                 false => {
@@ -99,7 +99,7 @@ pub fn parse_all_modules<'input, S: AsRef<str>>(
         }),
         Err(e) => {
             error_context.add_error(e);
-            error_context.handle_errors();
+            error_context.handle_errors().unwrap_err();
             Err(())
         }
     }

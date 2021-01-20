@@ -31,14 +31,13 @@ pub fn parse<'source, 'input>(
 ) -> Result<TopLevelBlock<'input, Span>, ParseError<Location, Token<'input>, Error>> {
     let lexer = Lexer::new(code, interner);
     let parser = calima_parser::TopLevelBlockParser::new();
-    let ast = parser.parse(
+    parser.parse(
         &|left_loc, right_loc| Span {
             left: left_loc,
             right: right_loc,
         },
         lexer,
-    )?;
-    Ok(ast)
+    )
 }
 
 #[cfg(test)]
