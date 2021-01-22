@@ -107,6 +107,7 @@ fn handle_identifier(ident: &str) -> Token {
         "infix" => Infix,
         "prefix" => Prefix,
         "public" => Public,
+        "module" => Module,
         x => {
             let first = x
                 .chars()

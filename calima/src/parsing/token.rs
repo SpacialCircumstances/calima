@@ -49,6 +49,7 @@ pub enum Token<'input> {
     Infix,
     Prefix,
     Public,
+    Module,
 }
 
 impl<'input> Display for Token<'input> {
@@ -94,6 +95,7 @@ impl<'input> Display for Token<'input> {
             Token::Infix => write!(f, "infix"),
             Token::Prefix => write!(f, "prefix"),
             Token::Public => write!(f, "public"),
+            Token::Module => write!(f, "module"),
         }
     }
 }

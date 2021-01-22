@@ -53,7 +53,8 @@ extern {
         "'" => Apostrophe,
         "infix" => Infix,
         "prefix" => Prefix,
-        "public" => Public
+        "public" => Public,
+        "module" => Module
     }
 }
 
