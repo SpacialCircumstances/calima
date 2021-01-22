@@ -251,14 +251,14 @@ impl<'a, Data> Display for Statement<'a, Data> {
 }
 
 #[derive(Debug, Clone)]
-pub enum ModuleDefinition<'a, Data> {
+pub enum ModuleDeclaration<'a, Data> {
     File(&'a str, Data),
     Module(&'a str, ModuleInstance<'a, Data>, Data),
 }
 
 #[derive(Debug, Clone)]
 pub struct ModuleInstance<'a, Data> {
-    pub modules: Vec<ModuleDefinition<'a, Data>>,
+    pub modules: Vec<ModuleDeclaration<'a, Data>>,
     pub block: TopLevelBlock<'a, Data>,
 }
 

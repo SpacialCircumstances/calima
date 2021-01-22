@@ -79,9 +79,14 @@ Sep2<T, S>: Vec<T> = {
     }
 };
 
-pub Module: ModuleInstance<'input, Data> = <tlb:TopLevelBlock> => ModuleInstance {
-    modules: Vec::new(),
+pub Module: ModuleInstance<'input, Data> = <modules:ModuleDeclaration*> <tlb:TopLevelBlock> => ModuleInstance {
+    modules,
     block: tlb
+};
+
+ModuleDeclaration: ModuleDeclaration<'input, Data> = {
+    <posl:@L> "module" <mn:"typename"> <posr:@R> => ModuleDeclaration::File(mn, to_data(posl, posr)),
+    <posl:@L> "module" <mn:"typename"> <posr:@R> "=" <module:Module> "end" => ModuleDeclaration::Module(mn, module, to_data(posl, posr))
 };
 
 TopLevelBlock: TopLevelBlock<'input, Data> = <top_levels:TopLevelStatement*> => TopLevelBlock(top_levels);
