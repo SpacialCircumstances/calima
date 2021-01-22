@@ -256,10 +256,38 @@ pub enum ModuleDeclaration<'a, Data> {
     Module(&'a str, ModuleInstance<'a, Data>, Data),
 }
 
+impl<'a, Data> Display for ModuleDeclaration<'a, Data> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::File(modname, _) => write!(f, "module {}", modname),
+            Self::Module(modname, module, _) => {
+                writeln!(f, "module {} =", modname)?;
+                write!(f, "{}", module)?;
+                writeln!(f, "end")
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ModuleInstance<'a, Data> {
     pub modules: Vec<ModuleDeclaration<'a, Data>>,
     pub block: TopLevelBlock<'a, Data>,
+}
+
+impl<'a, Data> Display for ModuleInstance<'a, Data> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        if self.modules.is_empty() {
+            write!(f, "{}", self.block)
+        } else {
+            write!(
+                f,
+                "{}\n{}",
+                format_iter(self.modules.iter(), "\n"),
+                self.block
+            )
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
