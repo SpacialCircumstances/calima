@@ -537,6 +537,16 @@ impl<'a, Data: Copy + Debug> LocalEnvironment<'a, Data> {
         self.mono_vars.insert(id);
     }
 
+    fn import_prelude(&mut self) {
+        let prelude = prelude::prelude();
+        self.import(
+            &ModuleIdentifier::from_filename("Prelude".into()),
+            &prelude,
+            Opening::All,
+            Location::External,
+        );
+    }
+
     fn import(
         &mut self,
         name: &ModuleIdentifier,
@@ -901,14 +911,7 @@ fn typecheck_module<'input>(
 ) -> Result<TypedModule<'input>, ()> {
     let mut context = Context::new(unchecked.0.name.clone());
     let mut env = LocalEnvironment::new();
-
-    let prelude = prelude::prelude();
-    env.import(
-        &ModuleIdentifier::from_filename("Prelude".into()),
-        &prelude,
-        Opening::All,
-        Location::External,
-    );
+    env.import_prelude();
 
     for dep in &deps {
         //TODO
@@ -1010,8 +1013,8 @@ mod tests {
         ctx: &mut Context<Data>,
         name: &str,
     ) -> Type {
-        let sch = env.lookup(name).unwrap();
-        env.inst(ctx, sch)
+        let sch = env.lookup_value(name).unwrap();
+        ctx.inst(sch)
     }
 
     fn lookup_operator<Data: Copy + Debug>(
@@ -1020,7 +1023,7 @@ mod tests {
         name: &str,
     ) -> Type {
         let (sch, _) = env.lookup_operator(name).unwrap();
-        env.inst(ctx, sch)
+        ctx.inst(sch)
     }
 
     fn add_op<'a, Data: Copy + Debug>(
@@ -1059,7 +1062,7 @@ mod tests {
     fn op_transform_simple_binary() {
         let mut ctx = Context::new(ModuleIdentifier::from_filename(String::from("Test")));
         let mut env = LocalEnvironment::new();
-        env.import_module(&mut ctx, &prelude());
+        env.import_prelude();
         let ops = vec![int_lit("1"), Operator("+", ()), int_lit("2")];
         let exprs = TExpression::new(
             TExprData::FunctionCall(
@@ -1077,7 +1080,7 @@ mod tests {
     fn op_transform_binary_precedence() {
         let mut ctx = Context::new(ModuleIdentifier::from_filename(String::from("Test")));
         let mut env = LocalEnvironment::new();
-        env.import_module(&mut ctx, &prelude());
+        env.import_prelude();
         let ops = vec![
             int_lit("2"),
             Operator("+", ()),
@@ -1110,7 +1113,7 @@ mod tests {
     fn op_transform_unary_simple() {
         let mut ctx = Context::new(ModuleIdentifier::from_filename(String::from("Test")));
         let mut env = LocalEnvironment::new();
-        env.import_module(&mut ctx, &prelude());
+        env.import_prelude();
         let ops = vec![Operator("~", ()), Operator("~", ()), int_lit("1")];
         let e1 = neg_expr(&env, &mut ctx, int_lit_typed("1"));
         let exprs = neg_expr(&env, &mut ctx, e1);
@@ -1123,7 +1126,7 @@ mod tests {
     fn op_transform_unary_binary() {
         let mut ctx = Context::new(ModuleIdentifier::from_filename(String::from("Test")));
         let mut env = LocalEnvironment::new();
-        env.import_module(&mut ctx, &prelude());
+        env.import_prelude();
         let ops = vec![
             Operator("~", ()),
             int_lit("1"),
@@ -1152,7 +1155,7 @@ mod tests {
     fn op_transform_complex() {
         let mut ctx = Context::new(ModuleIdentifier::from_filename(String::from("Test")));
         let mut env = LocalEnvironment::new();
-        env.import_module(&mut ctx, &prelude());
+        env.import_prelude();
         let ops = vec![
             Operator("~", ()),
             int_lit("1"),
@@ -1191,7 +1194,7 @@ mod tests {
     fn op_transform_bin_assoc() {
         let mut ctx = Context::new(ModuleIdentifier::from_filename(String::from("Test")));
         let mut env = LocalEnvironment::new();
-        env.import_module(&mut ctx, &prelude());
+        env.import_prelude();
         let ops = vec![
             int_lit("4"),
             Operator("+", ()),
