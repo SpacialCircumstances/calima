@@ -79,7 +79,12 @@ Sep2<T, S>: Vec<T> = {
     }
 };
 
-pub TopLevelBlock: TopLevelBlock<'input, Data> = <top_levels:TopLevelStatement*> => TopLevelBlock(top_levels);
+pub Module: ModuleInstance<'input, Data> = <tlb:TopLevelBlock> => ModuleInstance {
+    modules: Vec::new(),
+    block: tlb
+};
+
+TopLevelBlock: TopLevelBlock<'input, Data> = <top_levels:TopLevelStatement*> => TopLevelBlock(top_levels);
 
 Block: Block<'input, Data> = {
     <sts:Statement+> "in" <e:Expression0> => Block {

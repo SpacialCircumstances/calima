@@ -915,7 +915,7 @@ fn typecheck_module<'input>(
         env.import(&dep.0.name, &dep.0.env, Opening::All, Location::External)
     }
 
-    let tast = infer_top_level_block(&mut env, &mut context, &unchecked.0.ast);
+    let tast = infer_top_level_block(&mut env, &mut context, &unchecked.0.ast.block);
     let rettype = substitute(&context.type_subst, tast.res.typ());
     context.publish_errors(error_context);
     println!("Return type of program: {}", rettype);

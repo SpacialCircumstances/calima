@@ -1,4 +1,4 @@
-use crate::ast::TopLevelBlock;
+use crate::ast::ModuleInstance;
 use crate::common::ModuleIdentifier;
 use crate::parsing::token::Span;
 use crate::typechecker::env::ModuleEnvironment;
@@ -11,7 +11,7 @@ use std::rc::Rc;
 
 pub struct UntypedModuleData<'input> {
     pub(crate) name: ModuleIdentifier,
-    pub(crate) ast: TopLevelBlock<'input, Span>,
+    pub(crate) ast: ModuleInstance<'input, Span>,
     pub(crate) dependencies: Vec<UntypedModule<'input>>,
     pub(crate) path: PathBuf,
 }

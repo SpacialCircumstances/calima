@@ -28,9 +28,9 @@ pub fn parse_type<'source, 'input>(
 pub fn parse<'source, 'input>(
     code: &'source str,
     interner: &'input StringInterner,
-) -> Result<TopLevelBlock<'input, Span>, ParseError<Location, Token<'input>, Error>> {
+) -> Result<ModuleInstance<'input, Span>, ParseError<Location, Token<'input>, Error>> {
     let lexer = Lexer::new(code, interner);
-    let parser = calima_parser::TopLevelBlockParser::new();
+    let parser = calima_parser::ModuleParser::new();
     parser.parse(
         &|left_loc, right_loc| Span {
             left: left_loc,

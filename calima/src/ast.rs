@@ -250,6 +250,18 @@ impl<'a, Data> Display for Statement<'a, Data> {
     }
 }
 
+#[derive(Debug, Clone)]
+pub enum ModuleDefinition<'a, Data> {
+    File(&'a str, Data),
+    Module(&'a str, ModuleInstance<'a, Data>, Data),
+}
+
+#[derive(Debug, Clone)]
+pub struct ModuleInstance<'a, Data> {
+    pub modules: Vec<ModuleDefinition<'a, Data>>,
+    pub block: TopLevelBlock<'a, Data>,
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct TopLevelBlock<'a, Data>(pub(crate) Vec<TopLevelStatement<'a, Data>>);
 

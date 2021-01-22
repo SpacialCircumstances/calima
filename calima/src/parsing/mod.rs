@@ -124,7 +124,7 @@ pub fn parse<'input>(
     err.add_file(&name, &path, code);
     let ast = ast_res.map_err(|pe| ParserError(pe, name.clone()))?;
 
-    let dependencies = find_imported_modules(&ast)
+    let dependencies = find_imported_modules(&ast.block)
         .iter()
         .filter_map(|dep| match try_resolve_module(search_dirs, &path, &dep.0) {
             Ok(found_path) => {
