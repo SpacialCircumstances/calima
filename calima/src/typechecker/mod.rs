@@ -983,7 +983,7 @@ pub fn typecheck<'input>(
 }
 
 #[cfg(test)]
-mod tests {
+mod operator_tests {
     use std::fmt::Debug;
 
     use crate::ast::OperatorElement::*;
@@ -991,11 +991,16 @@ mod tests {
     use crate::ast_common::{Literal, NumberType};
     use crate::common::ModuleIdentifier;
     use crate::errors::ErrorContext;
+    use crate::modules::{UntypedModule, UntypedModuleData};
+    use crate::parsing::parser::parse;
+    use crate::parsing::string_interner::StringInterner;
     use crate::typechecker::env::Environment;
     use crate::typechecker::prelude::prelude;
-    use crate::typechecker::{Context, LocalEnvironment};
+    use crate::typechecker::{infer_top_level_block, typecheck_module, Context, LocalEnvironment};
     use crate::typed_ast::{TExprData, TExpression};
     use crate::types::{int, Type};
+    use std::fs::read_to_string;
+    use std::rc::Rc;
 
     fn int_lit(lit: &str) -> OperatorElement<()> {
         Expression(Expr::Literal(Literal::Number(lit, NumberType::Integer), ()))
@@ -1221,5 +1226,46 @@ mod tests {
         let res = ctx.transform_operators(&mut env, &ops, ());
         ctx.unify_rec(exprs.typ(), res.typ()).unwrap();
         assert_eq!(exprs.data(), res.data())
+    }
+}
+
+#[cfg(test)]
+mod typecheck_tests {
+    use crate::common::ModuleIdentifier;
+    use crate::errors::ErrorContext;
+    use crate::parsing::parser::{parse, parse_type};
+    use crate::parsing::string_interner::StringInterner;
+    use crate::parsing::token::Span;
+    use crate::typechecker::env::Environment;
+    use crate::typechecker::{generalize, infer_top_level_block, Context, LocalEnvironment};
+    use std::fmt::Debug;
+    use std::fs::read_to_string;
+
+    fn assert_value_type<'a>(
+        ctx: &mut Context<'a, Span>,
+        string_interner: &'a StringInterner,
+        env: &mut LocalEnvironment<'a, Span>,
+        value: &str,
+        expected_type: &str,
+    ) {
+        let value_scheme = ctx.mod_env.lookup_value(value).unwrap().clone();
+        let value_type = ctx.inst(&value_scheme);
+        let expected_ta = parse_type(expected_type, string_interner).unwrap();
+        let expected_tp = ctx.type_from_annotation(env, &expected_ta);
+        ctx.unify_rec(&value_type, &expected_tp).unwrap();
+    }
+
+    #[test]
+    fn simple_types() {
+        let content = read_to_string("tests/typechecking/simple.ca").unwrap();
+        let interner = StringInterner::new();
+        let parsed = parse(&content, &interner).unwrap();
+        let mut error_context = ErrorContext::new();
+        let mut env = LocalEnvironment::new();
+        let mut ctx = Context::new(ModuleIdentifier::from_filename(String::from("Simple")));
+        env.import_prelude();
+        let typed = infer_top_level_block(&mut env, &mut ctx, &parsed);
+        assert_value_type(&mut ctx, &interner, &mut env, "fac", "Int -> Int");
+        error_context.handle_errors().unwrap();
     }
 }

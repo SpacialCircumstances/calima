@@ -1,0 +1,14 @@
+public let rec fac = fun i  ->
+    if i == 0 then
+        1
+    else
+        fac (i - 1)
+    end
+public let prefix ~ = fun a -> not a
+public let infix none 30 ||| = fun a b -> a && !b || !a && b
+public let add = fun a b -> a + b
+public let isEq = fun a b -> a == b
+public let unit = ()
+public let str = "Test"
+public let id = fun a -> a
+public let str2 = id str
