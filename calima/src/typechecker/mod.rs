@@ -1231,6 +1231,7 @@ mod operator_tests {
 
 #[cfg(test)]
 mod typecheck_tests {
+    use crate::ast_common::{Associativity, OperatorSpecification};
     use crate::common::ModuleIdentifier;
     use crate::errors::ErrorContext;
     use crate::parsing::parser::{parse, parse_type};
@@ -1255,6 +1256,22 @@ mod typecheck_tests {
         ctx.unify_rec(&value_type, &expected_tp).unwrap();
     }
 
+    fn assert_operator_type<'a>(
+        ctx: &mut Context<'a, Span>,
+        string_interner: &'a StringInterner,
+        env: &mut LocalEnvironment<'a, Span>,
+        name: &str,
+        expected_type: &str,
+        expected_spec: OperatorSpecification,
+    ) {
+        let (op_scheme, op_spec) = ctx.mod_env.lookup_operator(name).unwrap().clone();
+        let op_type = ctx.inst(&op_scheme);
+        let expected_ta = parse_type(expected_type, string_interner).unwrap();
+        let expected_tp = ctx.type_from_annotation(env, &expected_ta);
+        assert_eq!(op_spec, expected_spec);
+        ctx.unify_rec(&op_type, &expected_tp).unwrap();
+    }
+
     #[test]
     fn simple_types() {
         let content = read_to_string("tests/typechecking/simple.ca").unwrap();
@@ -1266,6 +1283,28 @@ mod typecheck_tests {
         env.import_prelude();
         let typed = infer_top_level_block(&mut env, &mut ctx, &parsed);
         assert_value_type(&mut ctx, &interner, &mut env, "fac", "Int -> Int");
+        assert_operator_type(
+            &mut ctx,
+            &interner,
+            &mut env,
+            "~",
+            "Bool -> Bool",
+            OperatorSpecification::Prefix,
+        );
+        assert_operator_type(
+            &mut ctx,
+            &interner,
+            &mut env,
+            "|||",
+            "Bool -> Bool -> Bool",
+            OperatorSpecification::Infix(30, Associativity::None),
+        );
+        assert_value_type(&mut ctx, &interner, &mut env, "add", "Int -> Int -> Int");
+        assert_value_type(&mut ctx, &interner, &mut env, "isEq", "a -> a -> bool");
+        assert_value_type(&mut ctx, &interner, &mut env, "unit", "Unit");
+        assert_value_type(&mut ctx, &interner, &mut env, "str", "String");
+        assert_value_type(&mut ctx, &interner, &mut env, "id", "a -> a");
+        assert_value_type(&mut ctx, &interner, &mut env, "str2", "String");
         error_context.handle_errors().unwrap();
     }
 }
