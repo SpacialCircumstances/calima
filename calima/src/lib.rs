@@ -20,13 +20,19 @@ mod types;
 pub struct CompilerArguments<'a, S: AsRef<str>> {
     entrypoint: &'a str,
     search_paths: &'a Vec<S>,
+    project_root_name: Option<&'a str>,
 }
 
 impl<'a, S: AsRef<str>> CompilerArguments<'a, S> {
-    pub fn new(entrypoint: &'a str, search_paths: &'a Vec<S>) -> Self {
+    pub fn new(
+        entrypoint: &'a str,
+        search_paths: &'a Vec<S>,
+        project_root_name: Option<&'a str>,
+    ) -> Self {
         CompilerArguments {
             entrypoint,
             search_paths,
+            project_root_name,
         }
     }
 }

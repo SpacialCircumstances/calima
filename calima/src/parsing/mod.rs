@@ -63,6 +63,9 @@ pub fn parse_all_modules<'input, S: AsRef<str>>(
         Some(filename) => filename.to_string_lossy().to_string(),
     };
 
+    let project_name = args
+        .project_root_name
+        .map_or_else(|| entrypoint_module_name.clone(), |s| String::from(s));
     let entrypoint_mod = ModuleIdentifier::from_filename(entrypoint_module_name);
 
     let (search_dirs, errors): (Vec<PathBuf>, Vec<PathBuf>) = args
