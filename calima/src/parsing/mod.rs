@@ -117,6 +117,7 @@ pub fn parse<'input>(
             format!("Error opening file {}", &path.display()),
         )
     })?;
+    unimplemented!();
 
     let ast_res = parser::parse(&code);
     err.add_file(&name, &path, code);
