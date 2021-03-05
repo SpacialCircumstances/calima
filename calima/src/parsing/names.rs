@@ -115,3 +115,20 @@ impl NameInterner {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::parsing::names::NameInterner;
+    use std::rc::Rc;
+
+    #[test]
+    fn test_names() {
+        let names = NameInterner::new();
+        let n1 = names.intern("Test");
+        let n2 = names.intern("Test2");
+        assert_ne!(n1, n2);
+        let n3 = names.intern("Test");
+        assert_eq!(n1, n3);
+        assert_eq!(Rc::strong_count(&n1.0 .0), 3);
+    }
+}
