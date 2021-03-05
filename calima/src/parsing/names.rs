@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::collections::hash_map::{DefaultHasher, Entry};
 use std::collections::{HashMap, HashSet};
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::process::exit;
 use std::rc::Rc;
@@ -69,6 +69,12 @@ impl PartialEq<str> for &Name {
 impl Hash for Name {
     fn hash<H: Hasher>(&self, state: &mut H) {
         state.write_u64(self.1)
+    }
+}
+
+impl Display for Name {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0 .0.as_str())
     }
 }
 
