@@ -35,19 +35,40 @@ impl<T: Eq + Debug> Debug for TRc<T> {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct Name(TRc<String>);
+#[derive(Debug, Clone)]
+pub struct Name(TRc<String>, u64);
 
 impl Name {
     fn new(value: String) -> Self {
-        Self(TRc(Rc::new(value)))
+        let mut hasher = DefaultHasher::new();
+        value.hash(&mut hasher);
+        let hash = hasher.finish();
+        Self(TRc(Rc::new(value)), hash)
     }
 }
+
+impl PartialEq for Name {
+    fn eq(&self, other: &Self) -> bool {
+        if self.1 != other.1 {
+            false
+        } else {
+            self.0 == other.0
+        }
+    }
+}
+
+impl Eq for Name {}
 
 impl PartialEq<str> for &Name {
     fn eq(&self, other: &str) -> bool {
         let self_str = self.0 .0.as_ref();
         self_str == other
+    }
+}
+
+impl Hash for Name {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        state.write_u64(self.1)
     }
 }
 
