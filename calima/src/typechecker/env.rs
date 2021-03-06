@@ -1,15 +1,16 @@
 use crate::ast_common::OperatorSpecification;
+use crate::parsing::names::SymbolName;
 use crate::types::Scheme;
 use std::collections::HashMap;
 
 #[derive(Clone, Eq, PartialEq)]
-pub enum Opening<'a> {
+pub enum Opening {
     All,
-    Identifiers(Vec<&'a str>),
+    Identifiers(Vec<SymbolName>),
 }
 
-impl<'a> Opening<'a> {
-    fn contains(&self, name: &str) -> bool {
+impl Opening {
+    fn contains(&self, name: &SymbolName) -> bool {
         match self {
             Self::All => true,
             Self::Identifiers(idents) => idents.contains(&name),
@@ -18,18 +19,18 @@ impl<'a> Opening<'a> {
 }
 
 pub trait Environment {
-    fn lookup_value(&self, name: &str) -> Option<&Scheme>;
-    fn lookup_operator(&self, name: &str) -> Option<&(Scheme, OperatorSpecification)>;
-    fn lookup_module(&self, name: &str) -> Option<&Box<dyn Environment>>;
+    fn lookup_value(&self, name: &SymbolName) -> Option<&Scheme>;
+    fn lookup_operator(&self, name: &SymbolName) -> Option<&(Scheme, OperatorSpecification)>;
+    fn lookup_module(&self, name: &SymbolName) -> Option<&Box<dyn Environment>>;
 }
 
-pub struct ModuleEnvironment<'a> {
-    values: HashMap<&'a str, Scheme>,
-    modules: HashMap<&'a str, Box<dyn Environment>>,
-    operators: HashMap<&'a str, (Scheme, OperatorSpecification)>,
+pub struct ModuleEnvironment {
+    values: HashMap<SymbolName, Scheme>,
+    modules: HashMap<SymbolName, Box<dyn Environment>>,
+    operators: HashMap<SymbolName, (Scheme, OperatorSpecification)>,
 }
 
-impl<'a> ModuleEnvironment<'a> {
+impl ModuleEnvironment {
     pub fn new() -> Self {
         Self {
             values: Default::default(),
@@ -38,50 +39,50 @@ impl<'a> ModuleEnvironment<'a> {
         }
     }
 
-    pub fn opened_values(&self, opening: &Opening<'_>) -> Vec<(&'a str, Scheme)> {
+    pub fn opened_values(&self, opening: &Opening) -> Vec<(SymbolName, Scheme)> {
         self.values
             .iter()
             .filter(|(k, sch)| opening.contains(k))
-            .map(|(name, scheme)| (*name, scheme.clone()))
+            .map(|(name, scheme)| (name.clone(), scheme.clone()))
             .collect()
     }
 
     pub fn opened_operators(
         &self,
-        opening: &Opening<'_>,
-    ) -> Vec<(&'a str, Scheme, OperatorSpecification)> {
+        opening: &Opening,
+    ) -> Vec<(SymbolName, Scheme, OperatorSpecification)> {
         self.operators
             .iter()
             .filter(|(k, op)| opening.contains(k))
-            .map(|(name, (scheme, op))| (*name, scheme.clone(), *op))
+            .map(|(name, (scheme, op))| (name.clone(), scheme.clone(), *op))
             .collect()
     }
 }
 
-impl<'a> ModuleEnvironment<'a> {
-    pub fn add_value(&mut self, name: &'a str, sch: Scheme) {
+impl ModuleEnvironment {
+    pub fn add_value(&mut self, name: SymbolName, sch: Scheme) {
         self.values.insert(name, sch);
     }
 
-    pub fn add_operator(&mut self, name: &'a str, sch: Scheme, ops: OperatorSpecification) {
+    pub fn add_operator(&mut self, name: SymbolName, sch: Scheme, ops: OperatorSpecification) {
         self.operators.insert(name, (sch, ops));
     }
 
-    pub fn add_module(&mut self, name: &'a str, module: Box<dyn Environment>) {
+    pub fn add_module(&mut self, name: SymbolName, module: Box<dyn Environment>) {
         self.modules.insert(name, module);
     }
 }
 
-impl<'a> Environment for ModuleEnvironment<'a> {
-    fn lookup_value(&self, name: &str) -> Option<&Scheme> {
+impl<'a> Environment for ModuleEnvironment {
+    fn lookup_value(&self, name: &SymbolName) -> Option<&Scheme> {
         self.values.get(name)
     }
 
-    fn lookup_operator(&self, name: &str) -> Option<&(Scheme, OperatorSpecification)> {
+    fn lookup_operator(&self, name: &SymbolName) -> Option<&(Scheme, OperatorSpecification)> {
         self.operators.get(name)
     }
 
-    fn lookup_module(&self, name: &str) -> Option<&Box<dyn Environment>> {
+    fn lookup_module(&self, name: &SymbolName) -> Option<&Box<dyn Environment>> {
         self.modules.get(name)
     }
 }

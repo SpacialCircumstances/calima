@@ -9,45 +9,45 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-pub struct UntypedModuleData<'input> {
+pub struct UntypedModuleData {
     pub(crate) name: ModuleIdentifier,
-    pub(crate) ast: TopLevelBlock<'input, Span>,
-    pub(crate) dependencies: Vec<UntypedModule<'input>>,
+    pub(crate) ast: TopLevelBlock<Span>,
+    pub(crate) dependencies: Vec<UntypedModule>,
     pub(crate) path: PathBuf,
 }
 
-pub struct UntypedModule<'input>(pub Rc<UntypedModuleData<'input>>);
+pub struct UntypedModule(pub Rc<UntypedModuleData>);
 
-impl<'input> Clone for UntypedModule<'input> {
+impl Clone for UntypedModule {
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
 }
 
-pub struct UntypedModuleTree<'input> {
+pub struct UntypedModuleTree {
     pub(crate) search_dirs: Vec<PathBuf>,
-    pub(crate) main_module: UntypedModule<'input>,
-    pub(crate) lookup: HashMap<ModuleIdentifier, UntypedModule<'input>>,
+    pub(crate) main_module: UntypedModule,
+    pub(crate) lookup: HashMap<ModuleIdentifier, UntypedModule>,
 }
 
-pub struct TypedModuleData<'input> {
+pub struct TypedModuleData {
     pub(crate) name: ModuleIdentifier,
     pub(crate) path: PathBuf,
-    pub(crate) deps: Vec<TypedModule<'input>>,
-    pub(crate) ir_block: TBlock<'input>,
+    pub(crate) deps: Vec<TypedModule>,
+    pub(crate) ir_block: TBlock,
     pub(crate) subst: Substitution<Type>,
-    pub(crate) env: Rc<ModuleEnvironment<'input>>,
+    pub(crate) env: Rc<ModuleEnvironment>,
 }
 
-pub struct TypedModule<'input>(pub Rc<TypedModuleData<'input>>);
+pub struct TypedModule(pub Rc<TypedModuleData>);
 
-impl<'input> Clone for TypedModule<'input> {
+impl Clone for TypedModule {
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
 }
 
-pub struct TypedModuleTree<'input> {
-    pub(crate) main_module: TypedModule<'input>,
-    pub(crate) lookup: HashMap<ModuleIdentifier, TypedModule<'input>>,
+pub struct TypedModuleTree {
+    pub(crate) main_module: TypedModule,
+    pub(crate) lookup: HashMap<ModuleIdentifier, TypedModule>,
 }

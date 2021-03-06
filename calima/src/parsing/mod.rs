@@ -8,6 +8,7 @@ use crate::common::*;
 use crate::errors::CompilerError::*;
 use crate::errors::{CompilerError, ErrorContext};
 use crate::modules::{UntypedModule, UntypedModuleData, UntypedModuleTree};
+use crate::parsing::names::SymbolNameInterner;
 use crate::CompilerArguments;
 use std::collections::HashMap;
 use std::fs::read_to_string;
@@ -40,8 +41,9 @@ fn try_resolve_module(
 
 pub fn parse_all_modules<'input, S: AsRef<str>>(
     error_context: &mut ErrorContext<'input>,
+    interner: &SymbolNameInterner,
     args: CompilerArguments<S>,
-) -> Result<UntypedModuleTree<'input>, ()> {
+) -> Result<UntypedModuleTree, ()> {
     let entrypoint_path = PathBuf::from(args.entrypoint);
     if !entrypoint_path.is_file() {
         error_context.add_error(GeneralError(
@@ -91,6 +93,7 @@ pub fn parse_all_modules<'input, S: AsRef<str>>(
         entrypoint_mod,
         entrypoint_path,
         error_context,
+        interner,
     ) {
         Ok(main_module) => error_context.handle_errors().map(|_| UntypedModuleTree {
             search_dirs,
@@ -106,12 +109,13 @@ pub fn parse_all_modules<'input, S: AsRef<str>>(
 }
 
 pub fn parse<'input>(
-    tree: &mut HashMap<ModuleIdentifier, UntypedModule<'input>>,
+    tree: &mut HashMap<ModuleIdentifier, UntypedModule>,
     search_dirs: &Vec<PathBuf>,
     name: ModuleIdentifier,
     path: PathBuf,
     err: &mut ErrorContext<'input>,
-) -> Result<UntypedModule<'input>, CompilerError<'input>> {
+    interner: &SymbolNameInterner,
+) -> Result<UntypedModule, CompilerError<'input>> {
     let code = read_to_string(&path).map_err(|e| {
         GeneralError(
             Some(Box::new(e)),
@@ -120,20 +124,22 @@ pub fn parse<'input>(
     })?;
     unimplemented!();
 
-    let ast_res = parser::parse(&code);
+    let ast_res = parser::parse(&code, &interner);
     err.add_file(&name, &path, code);
     let ast = ast_res.map_err(|pe| ParserError(pe, name.clone()))?;
 
     let dependencies = find_imported_modules(&ast)
         .iter()
         .filter_map(|dep| match try_resolve_module(search_dirs, &path, &dep.0) {
-            Ok(found_path) => match parse(tree, search_dirs, dep.0.clone(), found_path, err) {
-                Ok(m) => Some(m),
-                Err(e) => {
-                    err.add_error(e);
-                    None
+            Ok(found_path) => {
+                match parse(tree, search_dirs, dep.0.clone(), found_path, err, interner) {
+                    Ok(m) => Some(m),
+                    Err(e) => {
+                        err.add_error(e);
+                        None
+                    }
                 }
-            },
+            }
             Err(search_dirs) => {
                 let e = ImportError {
                     importing_mod: name.clone(),

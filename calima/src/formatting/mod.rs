@@ -1,3 +1,4 @@
+use crate::parsing::names::SymbolName;
 use std::fmt::{Display, Formatter};
 
 pub mod tree;
@@ -16,7 +17,7 @@ pub fn format_iter_end<T: Display, I: Iterator<Item = T>>(iter: I, sep: &str) ->
     str
 }
 
-pub fn format_record<T>(elements: &Vec<(&str, T)>, sep: &str, element_sep: &str) -> String
+pub fn format_record<T>(elements: &Vec<(SymbolName, T)>, sep: &str, element_sep: &str) -> String
 where
     T: Display,
 {

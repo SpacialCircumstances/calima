@@ -2,26 +2,27 @@ use crate::ast_common::{BindPattern, Literal, MatchPattern, Name, OperatorSpecif
 use crate::common::ModuleIdentifier;
 use crate::formatting::tree::{format_children, TreeFormat};
 use crate::formatting::*;
+use crate::parsing::names::SymbolName;
 use std::fmt::{Debug, Display, Formatter};
 
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub struct RegionVariable<'a, Data>(pub &'a str, pub Data);
+#[derive(Debug, Clone, PartialEq)]
+pub struct RegionVariable<Data>(pub SymbolName, pub Data);
 
-impl<'a, Data> Display for RegionVariable<'a, Data> {
+impl<Data> Display for RegionVariable<Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "'{}", self.0)
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum RegionAnnotation<'a, Data> {
+#[derive(Debug, Clone, PartialEq)]
+pub enum RegionAnnotation<Data> {
     Anonymous,
     Stack,
-    Named(&'a str, Data),
-    Var(RegionVariable<'a, Data>),
+    Named(SymbolName, Data),
+    Var(RegionVariable<Data>),
 }
 
-impl<'a, Data> Display for RegionAnnotation<'a, Data> {
+impl<Data> Display for RegionAnnotation<Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             RegionAnnotation::Stack => write!(f, "@."),
@@ -33,25 +34,25 @@ impl<'a, Data> Display for RegionAnnotation<'a, Data> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct GenericTypeKind<'a, Data>(pub &'a str, pub Data);
+pub struct GenericTypeKind<Data>(pub SymbolName, pub Data);
 
-impl<'a, Data> Display for GenericTypeKind<'a, Data> {
+impl<Data> Display for GenericTypeKind<Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum TypeAnnotation<'a, Data> {
-    Name(Name<'a, Data>),
-    Generic(GenericTypeKind<'a, Data>),
-    Function(Box<TypeAnnotation<'a, Data>>, Box<TypeAnnotation<'a, Data>>),
-    Tuple(Vec<TypeAnnotation<'a, Data>>),
-    Parameterized(Name<'a, Data>, Vec<TypeAnnotation<'a, Data>>),
-    Reference(RegionAnnotation<'a, Data>, Box<TypeAnnotation<'a, Data>>),
+pub enum TypeAnnotation<Data> {
+    Name(Name<Data>),
+    Generic(GenericTypeKind<Data>),
+    Function(Box<TypeAnnotation<Data>>, Box<TypeAnnotation<Data>>),
+    Tuple(Vec<TypeAnnotation<Data>>),
+    Parameterized(Name<Data>, Vec<TypeAnnotation<Data>>),
+    Reference(RegionAnnotation<Data>, Box<TypeAnnotation<Data>>),
 }
 
-impl<'a, Data> TreeFormat for TypeAnnotation<'a, Data> {
+impl<Data> TreeFormat for TypeAnnotation<Data> {
     fn get_precedence(&self) -> i32 {
         match self {
             TypeAnnotation::Name(_) => 0,
@@ -81,20 +82,20 @@ impl<'a, Data> TreeFormat for TypeAnnotation<'a, Data> {
     }
 }
 
-impl<'a, Data> Display for TypeAnnotation<'a, Data> {
+impl<Data> Display for TypeAnnotation<Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.format())
     }
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum TypeDefinition<'a, Data> {
-    Alias(TypeAnnotation<'a, Data>),
-    Record(Vec<(&'a str, TypeAnnotation<'a, Data>)>),
-    Sum(Vec<(&'a str, Option<TypeAnnotation<'a, Data>>)>),
+pub enum TypeDefinition<Data> {
+    Alias(TypeAnnotation<Data>),
+    Record(Vec<(SymbolName, TypeAnnotation<Data>)>),
+    Sum(Vec<(SymbolName, Option<TypeAnnotation<Data>>)>),
 }
 
-impl<'a, Data> Display for TypeDefinition<'a, Data> {
+impl<Data> Display for TypeDefinition<Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             TypeDefinition::Alias(ta) => write!(f, "{}", ta),
@@ -128,14 +129,14 @@ impl Display for Modifier {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Let<'a, Data> {
+pub struct Let<Data> {
     pub mods: Vec<Modifier>,
-    pub pattern: BindPattern<'a, TypeAnnotation<'a, Data>, Data>,
-    pub value: Expr<'a, Data>,
+    pub pattern: BindPattern<TypeAnnotation<Data>, Data>,
+    pub value: Expr<Data>,
     pub data: Data,
 }
 
-impl<'a, Data> Display for Let<'a, Data> {
+impl<Data> Display for Let<Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -148,16 +149,16 @@ impl<'a, Data> Display for Let<'a, Data> {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct LetOperator<'a, Data> {
+pub struct LetOperator<Data> {
     pub mods: Vec<Modifier>,
     pub op: OperatorSpecification,
-    pub name: &'a str,
-    pub ta: Option<TypeAnnotation<'a, Data>>,
-    pub value: Expr<'a, Data>,
+    pub name: SymbolName,
+    pub ta: Option<TypeAnnotation<Data>>,
+    pub value: Expr<Data>,
     pub data: Data,
 }
 
-impl<'a, Data> Display for LetOperator<'a, Data> {
+impl<Data> Display for LetOperator<Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -184,24 +185,24 @@ impl Display for Visibility {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum TopLevelStatement<'a, Data> {
+pub enum TopLevelStatement<Data> {
     Import {
-        module: Name<'a, Data>,
-        opens: Vec<(&'a str, Data)>,
+        module: Name<Data>,
+        opens: Vec<(SymbolName, Data)>,
         data: Data,
     },
     Type {
-        name: &'a str,
-        regions: Vec<RegionVariable<'a, Data>>,
-        params: Vec<GenericTypeKind<'a, Data>>,
-        type_def: TypeDefinition<'a, Data>,
+        name: SymbolName,
+        regions: Vec<RegionVariable<Data>>,
+        params: Vec<GenericTypeKind<Data>>,
+        type_def: TypeDefinition<Data>,
         data: Data,
     },
-    Let(Option<Visibility>, Let<'a, Data>),
-    LetOperator(Option<Visibility>, LetOperator<'a, Data>),
+    Let(Option<Visibility>, Let<Data>),
+    LetOperator(Option<Visibility>, LetOperator<Data>),
 }
 
-impl<'a, Data> Display for TopLevelStatement<'a, Data> {
+impl<Data> Display for TopLevelStatement<Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             TopLevelStatement::Import { module, .. } => write!(f, "import {}", module),
@@ -232,14 +233,14 @@ impl<'a, Data> Display for TopLevelStatement<'a, Data> {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum Statement<'a, Data> {
-    Let(Let<'a, Data>),
-    LetOperator(LetOperator<'a, Data>),
-    Do(Expr<'a, Data>, Data),
-    Region(&'a str, Data),
+pub enum Statement<Data> {
+    Let(Let<Data>),
+    LetOperator(LetOperator<Data>),
+    Do(Expr<Data>, Data),
+    Region(SymbolName, Data),
 }
 
-impl<'a, Data> Display for Statement<'a, Data> {
+impl<Data> Display for Statement<Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Statement::Region(name, _) => write!(f, "region {}", name),
@@ -251,9 +252,9 @@ impl<'a, Data> Display for Statement<'a, Data> {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct TopLevelBlock<'a, Data>(pub(crate) Vec<TopLevelStatement<'a, Data>>);
+pub struct TopLevelBlock<Data>(pub(crate) Vec<TopLevelStatement<Data>>);
 
-impl<'a, Data> Display for TopLevelBlock<'a, Data> {
+impl<Data> Display for TopLevelBlock<Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         for tls in &self.0 {
             writeln!(f, "{}", tls)?;
@@ -263,12 +264,12 @@ impl<'a, Data> Display for TopLevelBlock<'a, Data> {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Block<'a, Data> {
-    pub statements: Vec<Statement<'a, Data>>,
-    pub result: Box<Expr<'a, Data>>,
+pub struct Block<Data> {
+    pub statements: Vec<Statement<Data>>,
+    pub result: Box<Expr<Data>>,
 }
 
-impl<'a, Data> Display for Block<'a, Data> {
+impl<Data> Display for Block<Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         if self.statements.is_empty() {
             write!(f, "{}", self.result)
@@ -282,12 +283,12 @@ impl<'a, Data> Display for Block<'a, Data> {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum OperatorElement<'a, Data> {
-    Operator(&'a str, Data),
-    Expression(Expr<'a, Data>),
+pub enum OperatorElement<Data> {
+    Operator(SymbolName, Data),
+    Expression(Expr<Data>),
 }
 
-impl<'a, Data> Display for OperatorElement<'a, Data> {
+impl<Data> Display for OperatorElement<Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             OperatorElement::Expression(expr) => write!(f, "{}", expr),
@@ -297,38 +298,35 @@ impl<'a, Data> Display for OperatorElement<'a, Data> {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum Expr<'a, Data> {
-    OperatorAsFunction(&'a str, Data),
-    Variable(Name<'a, Data>),
-    FunctionCall(Box<Expr<'a, Data>>, Vec<Expr<'a, Data>>, Data),
-    OperatorCall(Vec<OperatorElement<'a, Data>>, Data),
-    Record(Vec<(&'a str, Expr<'a, Data>)>, Data),
-    Tuple(Vec<Expr<'a, Data>>, Data),
-    Literal(Literal<'a>, Data),
+pub enum Expr<Data> {
+    OperatorAsFunction(SymbolName, Data),
+    Variable(Name<Data>),
+    FunctionCall(Box<Expr<Data>>, Vec<Expr<Data>>, Data),
+    OperatorCall(Vec<OperatorElement<Data>>, Data),
+    Record(Vec<(SymbolName, Expr<Data>)>, Data),
+    Tuple(Vec<Expr<Data>>, Data),
+    Literal(Literal, Data),
     Lambda {
-        params: Vec<BindPattern<'a, TypeAnnotation<'a, Data>, Data>>,
-        body: Block<'a, Data>,
+        params: Vec<BindPattern<TypeAnnotation<Data>, Data>>,
+        body: Block<Data>,
         data: Data,
     },
     If {
         data: Data,
-        cond: Box<Expr<'a, Data>>,
-        if_true: Block<'a, Data>,
-        if_false: Block<'a, Data>,
+        cond: Box<Expr<Data>>,
+        if_true: Block<Data>,
+        if_false: Block<Data>,
     },
     Case {
         data: Data,
-        value: Box<Expr<'a, Data>>,
-        matches: Vec<(
-            MatchPattern<'a, TypeAnnotation<'a, Data>, Data>,
-            Block<'a, Data>,
-        )>,
+        value: Box<Expr<Data>>,
+        matches: Vec<(MatchPattern<TypeAnnotation<Data>, Data>, Block<Data>)>,
     },
-    List(Vec<Expr<'a, Data>>, Data),
-    Ref(RegionAnnotation<'a, Data>, Box<Expr<'a, Data>>, Data),
+    List(Vec<Expr<Data>>, Data),
+    Ref(RegionAnnotation<Data>, Box<Expr<Data>>, Data),
 }
 
-impl<'a, Data> Expr<'a, Data> {
+impl<Data> Expr<Data> {
     pub fn get_location(&self) -> &Data {
         match self {
             Expr::OperatorAsFunction(_, data) => data,
@@ -347,7 +345,7 @@ impl<'a, Data> Expr<'a, Data> {
     }
 }
 
-impl<'a, Data> TreeFormat for Expr<'a, Data> {
+impl<Data> TreeFormat for Expr<Data> {
     fn get_precedence(&self) -> i32 {
         match self {
             Expr::Literal(_, _) => 0,
@@ -422,7 +420,7 @@ impl<'a, Data> TreeFormat for Expr<'a, Data> {
     }
 }
 
-impl<'a, Data> Display for Expr<'a, Data> {
+impl<Data> Display for Expr<Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.format())
     }
@@ -431,9 +429,7 @@ impl<'a, Data> Display for Expr<'a, Data> {
 pub fn find_imported_modules<D: Copy>(ast: &TopLevelBlock<D>) -> Vec<(ModuleIdentifier, D)> {
     ast.0.iter().fold(Vec::new(), |mut imports, statement| {
         match statement {
-            TopLevelStatement::Import { module, data, .. } => {
-                imports.push((ModuleIdentifier::from_name(&module.0), *data));
-            }
+            TopLevelStatement::Import { module, data, .. } => {}
             _ => (),
         }
         imports

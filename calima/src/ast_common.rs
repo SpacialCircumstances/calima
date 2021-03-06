@@ -1,12 +1,13 @@
 use crate::formatting::tree::{format_children, TreeFormat};
 use crate::formatting::{format_iter, format_record, format_tuple};
+use crate::parsing::names::SymbolName;
 use std::convert::TryFrom;
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct Name<'a, Data>(pub Vec<&'a str>, pub Data);
+pub struct Name<Data>(pub Vec<SymbolName>, pub Data);
 
-impl<'a, Data> Display for Name<'a, Data> {
+impl<Data> Display for Name<Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", format_iter(self.0.iter(), "."))
     }
@@ -63,15 +64,15 @@ impl Display for OperatorSpecification {
     }
 }
 
-#[derive(Debug, PartialEq, Copy, Clone)]
-pub enum Literal<'a> {
-    String(&'a str),
-    Number(&'a str, NumberType),
+#[derive(Debug, PartialEq, Clone)]
+pub enum Literal {
+    String(String),
+    Number(String, NumberType),
     Unit,
     Boolean(bool),
 }
 
-impl<'a> Display for Literal<'a> {
+impl Display for Literal {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Literal::String(string) => write!(f, "\"{}\"", string),
@@ -83,15 +84,15 @@ impl<'a> Display for Literal<'a> {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum BindPattern<'a, TA: Display, Data> {
+pub enum BindPattern<TA: Display, Data> {
     Any(Data),
     UnitLiteral(Data),
-    Name(&'a str, Option<TA>, Data),
-    Tuple(Vec<BindPattern<'a, TA, Data>>, Data),
-    Record(Vec<(&'a str, BindPattern<'a, TA, Data>)>, Data),
+    Name(SymbolName, Option<TA>, Data),
+    Tuple(Vec<BindPattern<TA, Data>>, Data),
+    Record(Vec<(SymbolName, BindPattern<TA, Data>)>, Data),
 }
 
-impl<'a, TA: Display, Data> Display for BindPattern<'a, TA, Data> {
+impl<TA: Display, Data> Display for BindPattern<TA, Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             BindPattern::Any(_) => write!(f, "_"),
@@ -107,20 +108,16 @@ impl<'a, TA: Display, Data> Display for BindPattern<'a, TA, Data> {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum MatchPattern<'a, TA: Display, Data> {
+pub enum MatchPattern<TA: Display, Data> {
     Any(Data),
-    Name(&'a str, Option<TA>, Data),
-    Tuple(Vec<MatchPattern<'a, TA, Data>>, Data),
-    Literal(Literal<'a>, Data),
-    Record(Vec<(&'a str, MatchPattern<'a, TA, Data>)>, Data),
-    SumUnwrap(
-        Name<'a, Data>,
-        Option<Box<MatchPattern<'a, TA, Data>>>,
-        Data,
-    ),
+    Name(SymbolName, Option<TA>, Data),
+    Tuple(Vec<MatchPattern<TA, Data>>, Data),
+    Literal(Literal, Data),
+    Record(Vec<(SymbolName, MatchPattern<TA, Data>)>, Data),
+    SumUnwrap(Name<Data>, Option<Box<MatchPattern<TA, Data>>>, Data),
 }
 
-impl<'a, TA: Display, Data> TreeFormat for MatchPattern<'a, TA, Data> {
+impl<TA: Display, Data> TreeFormat for MatchPattern<TA, Data> {
     fn get_precedence(&self) -> i32 {
         match self {
             Self::Any(_) => 0,
@@ -152,7 +149,7 @@ impl<'a, TA: Display, Data> TreeFormat for MatchPattern<'a, TA, Data> {
     }
 }
 
-impl<'a, TA: Display, Data> Display for MatchPattern<'a, TA, Data> {
+impl<TA: Display, Data> Display for MatchPattern<TA, Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             MatchPattern::Any(_) => write!(f, "_"),

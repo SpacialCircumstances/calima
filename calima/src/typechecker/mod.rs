@@ -6,6 +6,7 @@ use crate::formatting::format_iter;
 use crate::modules::{
     TypedModule, TypedModuleData, TypedModuleTree, UntypedModule, UntypedModuleTree,
 };
+use crate::parsing::names::{SymbolName, SymbolNameInterner};
 use crate::parsing::token::Span;
 use crate::typechecker::env::{Environment, ModuleEnvironment, Opening};
 use crate::typechecker::substitution::Substitution;
@@ -41,21 +42,21 @@ pub struct TypeError<Data> {
 }
 
 impl<Data: Copy + Debug> TypeError<Data> {
-    fn type_not_found(typename: &str, location: Data) -> Self {
+    fn type_not_found(typename: &SymbolName, location: Data) -> Self {
         TypeError {
             location,
             message: format!("Type {} not defined or imported", typename),
         }
     }
 
-    fn var_not_found(varname: &str, location: Data) -> Self {
+    fn var_not_found(varname: &SymbolName, location: Data) -> Self {
         TypeError {
             location,
             message: format!("Variable {} not defined or imported", varname),
         }
     }
 
-    fn operator_not_found(opname: &str, location: Data) -> Self {
+    fn operator_not_found(opname: &SymbolName, location: Data) -> Self {
         TypeError {
             location,
             message: format!("Operator {} is not defined or imported", opname),
@@ -82,7 +83,7 @@ impl<Data: Copy + Debug> TypeError<Data> {
         TypeError { location, message }
     }
 
-    fn repeated_unassociative_operators(location: Data, ops: &[&str]) -> Self {
+    fn repeated_unassociative_operators(location: Data, ops: &[&SymbolName]) -> Self {
         TypeError {
             location,
             message: format!(
@@ -92,7 +93,7 @@ impl<Data: Copy + Debug> TypeError<Data> {
         }
     }
 
-    fn remaining_unary_operators(location: Data, ops: &[&str]) -> Self {
+    fn remaining_unary_operators(location: Data, ops: &[&SymbolName]) -> Self {
         TypeError {
             location,
             message: format!(
@@ -131,15 +132,15 @@ fn substitute_scheme(subst: &Substitution<Type>, schem: &Scheme) -> Scheme {
     Scheme(schem.0.clone(), schem.1.clone(), subst_type)
 }
 
-pub struct Context<'input, Data: Copy + Debug> {
+pub struct Context<Data: Copy + Debug> {
     generic_id: usize,
     type_subst: Substitution<Type>,
     errors: Vec<TypeError<Data>>,
     module: ModuleIdentifier,
-    mod_env: ModuleEnvironment<'input>,
+    mod_env: ModuleEnvironment,
 }
 
-impl<'input, Data: Copy + Debug> Context<'input, Data> {
+impl<Data: Copy + Debug> Context<Data> {
     pub fn new(module: ModuleIdentifier) -> Self {
         Context {
             generic_id: 0,
@@ -245,7 +246,7 @@ impl<'input, Data: Copy + Debug> Context<'input, Data> {
         self.errors.push(te);
     }
 
-    fn lookup_var(&mut self, env: &LocalEnvironment<Data>, name: &str, loc: Data) -> Type {
+    fn lookup_var(&mut self, env: &LocalEnvironment<Data>, name: &SymbolName, loc: Data) -> Type {
         match env.lookup_value(name) {
             Some(sch) => self.inst(sch),
             None => {
@@ -258,7 +259,7 @@ impl<'input, Data: Copy + Debug> Context<'input, Data> {
     fn lookup_operator(
         &mut self,
         env: &LocalEnvironment<Data>,
-        name: &str,
+        name: &SymbolName,
         loc: Data,
     ) -> (Type, Option<OperatorSpecification>) {
         match env.lookup_operator(name) {
@@ -270,36 +271,36 @@ impl<'input, Data: Copy + Debug> Context<'input, Data> {
         }
     }
 
-    fn export_value(&mut self, name: &'input str, typ: Scheme) {
+    fn export_value(&mut self, name: SymbolName, typ: Scheme) {
         //TODO: Error if exists
         self.mod_env.add_value(name, typ);
     }
 
-    fn export_operator(&mut self, name: &'input str, typ: Scheme, ops: OperatorSpecification) {
+    fn export_operator(&mut self, name: SymbolName, typ: Scheme, ops: OperatorSpecification) {
         //TODO: Error if exists
         self.mod_env.add_operator(name, typ, ops);
     }
 
     fn type_from_annotation(
         &mut self,
-        env: &mut LocalEnvironment<'input, Data>,
-        ta: &TypeAnnotation<'input, Data>,
+        env: &mut LocalEnvironment<Data>,
+        ta: &TypeAnnotation<Data>,
     ) -> Type {
-        fn to_type<'input, Data: Copy + Debug>(
+        fn to_type<Data: Copy + Debug>(
             ctx: &mut Context<Data>,
-            env: &mut LocalEnvironment<'input, Data>,
-            ta: &TypeAnnotation<'input, Data>,
+            env: &mut LocalEnvironment<Data>,
+            ta: &TypeAnnotation<Data>,
         ) -> Result<Type, TypeError<Data>> {
             match ta {
-                TypeAnnotation::Name(name) => match PrimitiveType::try_from(name.0[0]) {
+                TypeAnnotation::Name(name) => match PrimitiveType::try_from(&name.0[0]) {
                     Ok(pt) => Ok(Type::Basic(TypeDef::Primitive(pt))),
-                    Err(()) => Err(TypeError::type_not_found(&*name.to_string(), name.1)),
+                    Err(()) => Err(TypeError::type_not_found(&name.0[0], name.1)),
                 },
                 TypeAnnotation::Function(ta1, ta2) => to_type(ctx, env, &*ta1)
                     .and_then(|t1| to_type(ctx, env, &*ta2).map(|t2| (t1, t2)))
                     .map(|(t1, t2)| Type::Parameterized(ComplexType::Function, vec![t1, t2])),
                 TypeAnnotation::Generic(gname) => {
-                    Ok(Type::Var(env.get_or_create_generic(ctx, gname.0, gname.1)))
+                    Ok(Type::Var(env.get_or_create_generic(ctx, &gname.0, gname.1)))
                 }
                 TypeAnnotation::Tuple(params) => params
                     .iter()
@@ -322,10 +323,10 @@ impl<'input, Data: Copy + Debug> Context<'input, Data> {
         replace(&sch.2, &|id| mapping.get(&id).cloned())
     }
 
-    fn bind_to_pattern<F: Fn(&Type, &mut LocalEnvironment<'input, Data>) -> Scheme>(
+    fn bind_to_pattern<F: Fn(&Type, &mut LocalEnvironment<Data>) -> Scheme>(
         &mut self,
-        env: &mut LocalEnvironment<'input, Data>,
-        pattern: &BindPattern<'input, TypeAnnotation<'input, Data>, Data>,
+        env: &mut LocalEnvironment<Data>,
+        pattern: &BindPattern<TypeAnnotation<Data>, Data>,
         tp: &mut Type,
         to_scheme: F,
         export: bool,
@@ -342,9 +343,9 @@ impl<'input, Data: Copy + Debug> Context<'input, Data> {
                 }
                 let scheme = to_scheme(&tp, env);
                 if export {
-                    self.export_value(idt, scheme.clone());
+                    self.export_value(idt.clone(), scheme.clone());
                 }
-                env.add(idt, scheme, Location::Local(*loc));
+                env.add(idt.clone(), scheme, Location::Local(*loc));
             }
             BindPattern::UnitLiteral(loc) => {
                 self.unify(tp, &unit(), UnificationSource::PatternMatching, *loc)
@@ -355,8 +356,8 @@ impl<'input, Data: Copy + Debug> Context<'input, Data> {
 
     fn bind_to_pattern_generalized(
         &mut self,
-        env: &mut LocalEnvironment<'input, Data>,
-        pattern: &BindPattern<'input, TypeAnnotation<'input, Data>, Data>,
+        env: &mut LocalEnvironment<Data>,
+        pattern: &BindPattern<TypeAnnotation<Data>, Data>,
         tp: &mut Type,
         export: bool,
     ) {
@@ -365,8 +366,8 @@ impl<'input, Data: Copy + Debug> Context<'input, Data> {
 
     fn bind_to_pattern_directly(
         &mut self,
-        env: &mut LocalEnvironment<'input, Data>,
-        pattern: &BindPattern<'input, TypeAnnotation<'input, Data>, Data>,
+        env: &mut LocalEnvironment<Data>,
+        pattern: &BindPattern<TypeAnnotation<Data>, Data>,
         tp: &mut Type,
     ) {
         self.bind_to_pattern(env, pattern, tp, |t, _env| Scheme::simple(t.clone()), false);
@@ -374,8 +375,8 @@ impl<'input, Data: Copy + Debug> Context<'input, Data> {
 
     fn call_operator(
         &mut self,
-        exprs: &mut Vec<TExpression<'input>>,
-        last_name: &'input str,
+        exprs: &mut Vec<TExpression>,
+        last_name: SymbolName,
         last_type: &Type,
         loc: Data,
     ) {
@@ -388,12 +389,12 @@ impl<'input, Data: Copy + Debug> Context<'input, Data> {
 
     fn transform_operators(
         &mut self,
-        env: &mut LocalEnvironment<'input, Data>,
-        elements: &Vec<OperatorElement<'input, Data>>,
+        env: &mut LocalEnvironment<Data>,
+        elements: &Vec<OperatorElement<Data>>,
         top_location: Data,
-    ) -> TExpression<'input> {
-        let mut bin_ops: Vec<(&str, Type, u32, Associativity, Data)> = Vec::new();
-        let mut un_ops: Vec<(&str, Type)> = Vec::new();
+    ) -> TExpression {
+        let mut bin_ops: Vec<(SymbolName, Type, u32, Associativity, Data)> = Vec::new();
+        let mut un_ops: Vec<(SymbolName, Type)> = Vec::new();
         let mut exprs = Vec::new();
 
         for el in elements {
@@ -405,7 +406,7 @@ impl<'input, Data: Copy + Debug> Context<'input, Data> {
                         None => (),
                         Some(OperatorSpecification::Infix(op_prec, assoc)) => {
                             match bin_ops.last() {
-                                None => bin_ops.push((*name, op_tp, op_prec, assoc, data)),
+                                None => bin_ops.push((name.clone(), op_tp, op_prec, assoc, data)),
                                 Some((last_op, _, last_prec, last_assoc, data)) => {
                                     let data = *data;
                                     if last_prec == &op_prec {
@@ -415,7 +416,7 @@ impl<'input, Data: Copy + Debug> Context<'input, Data> {
                                             self.add_error(
                                                 TypeError::repeated_unassociative_operators(
                                                     top_location,
-                                                    &[*last_op, *name],
+                                                    &[last_op, name],
                                                 ),
                                             );
                                         } else if assoc == Associativity::Left {
@@ -430,11 +431,11 @@ impl<'input, Data: Copy + Debug> Context<'input, Data> {
                                             bin_ops.pop().unwrap();
                                         self.call_operator(&mut exprs, last_name, &last_type, data)
                                     }
-                                    bin_ops.push((*name, op_tp, op_prec, assoc, data))
+                                    bin_ops.push((name.clone(), op_tp, op_prec, assoc, data))
                                 }
                             }
                         }
-                        Some(OperatorSpecification::Prefix) => un_ops.push((*name, op_tp)),
+                        Some(OperatorSpecification::Prefix) => un_ops.push((name.clone(), op_tp)),
                     }
                 }
                 OperatorElement::Expression(oexpr) => {
@@ -451,7 +452,7 @@ impl<'input, Data: Copy + Debug> Context<'input, Data> {
         }
 
         if !un_ops.is_empty() {
-            let op_names: Vec<&str> = un_ops.iter().map(|(a, _)| *a).collect();
+            let op_names: Vec<&SymbolName> = un_ops.iter().map(|(a, _)| a).collect();
             self.add_error(TypeError::remaining_unary_operators(
                 top_location,
                 &op_names,
@@ -466,7 +467,7 @@ impl<'input, Data: Copy + Debug> Context<'input, Data> {
     }
 }
 
-impl<'input> Context<'input, Span> {
+impl Context<Span> {
     fn publish_errors(&mut self, error_ctx: &mut ErrorContext) {
         let name = self.module.clone();
         self.errors
@@ -477,16 +478,16 @@ impl<'input> Context<'input, Span> {
 
 //TODO: Immutable environments or something similar to allow variable shadowing?
 #[derive(Clone)]
-struct LocalEnvironment<'a, Data: Copy + Debug> {
-    values: SymbolTable<'a, Scheme, Data>,
-    operators: SymbolTable<'a, (Scheme, OperatorSpecification), Data>,
-    modules: HashMap<ModuleIdentifier, Rc<ModuleEnvironment<'a>>>,
+struct LocalEnvironment<Data: Copy + Debug> {
+    values: SymbolTable<Scheme, Data>,
+    operators: SymbolTable<(Scheme, OperatorSpecification), Data>,
+    modules: HashMap<ModuleIdentifier, Rc<ModuleEnvironment>>,
     mono_vars: HashSet<GenericId>,
-    named_generics: SymbolTable<'a, GenericId, Data>,
+    named_generics: SymbolTable<GenericId, Data>,
     depth: usize,
 }
 
-impl<'a, Data: Copy + Debug> LocalEnvironment<'a, Data> {
+impl<Data: Copy + Debug> LocalEnvironment<Data> {
     fn new() -> Self {
         LocalEnvironment {
             values: SymbolTable::new(),
@@ -498,21 +499,21 @@ impl<'a, Data: Copy + Debug> LocalEnvironment<'a, Data> {
         }
     }
 
-    fn lookup_generic(&self, name: &'a str) -> Option<GenericId> {
+    fn lookup_generic(&self, name: &SymbolName) -> Option<GenericId> {
         self.named_generics.get(name).copied()
     }
 
     fn get_or_create_generic(
         &mut self,
         ctx: &mut Context<Data>,
-        name: &'a str,
+        name: &SymbolName,
         location: Data,
     ) -> GenericId {
         match self.named_generics.get(name) {
             None => {
                 let gid = ctx.next_id();
                 self.named_generics
-                    .add(name, gid, Location::Local(location));
+                    .add(name.clone(), gid, Location::Local(location));
                 gid
             }
             Some(gid) => *gid,
@@ -521,7 +522,7 @@ impl<'a, Data: Copy + Debug> LocalEnvironment<'a, Data> {
 
     fn add_operator(
         &mut self,
-        name: &'a str,
+        name: SymbolName,
         sch: Scheme,
         op: OperatorSpecification,
         location: Location<Data>,
@@ -529,7 +530,7 @@ impl<'a, Data: Copy + Debug> LocalEnvironment<'a, Data> {
         self.operators.add(name, (sch, op), location);
     }
 
-    fn add(&mut self, name: &'a str, sch: Scheme, location: Location<Data>) {
+    fn add(&mut self, name: SymbolName, sch: Scheme, location: Location<Data>) {
         self.values.add(name, sch, location);
     }
 
@@ -537,8 +538,8 @@ impl<'a, Data: Copy + Debug> LocalEnvironment<'a, Data> {
         self.mono_vars.insert(id);
     }
 
-    fn import_prelude(&mut self) {
-        let prelude = prelude::prelude();
+    fn import_prelude(&mut self, interner: &SymbolNameInterner) {
+        let prelude = prelude::prelude(&interner);
         self.import(
             &ModuleIdentifier::from_filename("Prelude".into()),
             &prelude,
@@ -550,8 +551,8 @@ impl<'a, Data: Copy + Debug> LocalEnvironment<'a, Data> {
     fn import(
         &mut self,
         name: &ModuleIdentifier,
-        module: &Rc<ModuleEnvironment<'a>>,
-        opening: Opening<'a>,
+        module: &Rc<ModuleEnvironment>,
+        opening: Opening,
         location: Location<Data>,
     ) {
         let module = module.clone();
@@ -569,16 +570,16 @@ impl<'a, Data: Copy + Debug> LocalEnvironment<'a, Data> {
     }
 }
 
-impl<'a, Data: Copy + Debug> Environment for LocalEnvironment<'a, Data> {
-    fn lookup_value(&self, name: &str) -> Option<&Scheme> {
+impl<Data: Copy + Debug> Environment for LocalEnvironment<Data> {
+    fn lookup_value(&self, name: &SymbolName) -> Option<&Scheme> {
         self.values.get(name)
     }
 
-    fn lookup_operator(&self, name: &str) -> Option<&(Scheme, OperatorSpecification)> {
+    fn lookup_operator(&self, name: &SymbolName) -> Option<&(Scheme, OperatorSpecification)> {
         self.operators.get(name)
     }
 
-    fn lookup_module(&self, name: &str) -> Option<&Box<dyn Environment>> {
+    fn lookup_module(&self, name: &SymbolName) -> Option<&Box<dyn Environment>> {
         //TODO
         None
     }
@@ -614,12 +615,12 @@ fn replace<F: Fn(GenericId) -> Option<Type>>(tp: &Type, mapper: &F) -> Type {
     }
 }
 
-fn function_call<'input, Data: Copy + Debug>(
-    ctx: &mut Context<'input, Data>,
-    tfunc: TExpression<'input>,
-    args: Vec<TExpression<'input>>,
+fn function_call<Data: Copy + Debug>(
+    ctx: &mut Context<Data>,
+    tfunc: TExpression,
+    args: Vec<TExpression>,
     loc: Data,
-) -> TExpression<'input> {
+) -> TExpression {
     let argtypes: Vec<Type> = args.iter().map(TExpression::typ).cloned().collect();
     let ret = ctx.new_generic();
     let mut arg_fun_type = build_function(&argtypes, &ret);
@@ -632,16 +633,18 @@ fn function_call<'input, Data: Copy + Debug>(
     TExpression::new(TExprData::FunctionCall(tfunc.into(), args), ret)
 }
 
-fn infer_expr<'input, Data: Copy + Debug>(
-    env: &mut LocalEnvironment<'input, Data>,
-    ctx: &mut Context<'input, Data>,
-    expr: &Expr<'input, Data>,
-) -> TExpression<'input> {
+fn infer_expr<Data: Copy + Debug>(
+    env: &mut LocalEnvironment<Data>,
+    ctx: &mut Context<Data>,
+    expr: &Expr<Data>,
+) -> TExpression {
     match expr {
-        Expr::Literal(lit, _) => TExpression::new(TExprData::Literal(*lit), get_literal_type(lit)),
+        Expr::Literal(lit, _) => {
+            TExpression::new(TExprData::Literal(lit.clone()), get_literal_type(lit))
+        }
         Expr::Variable(varname) => {
-            let vartype = ctx.lookup_var(env, varname.0[0], varname.1);
-            TExpression::new(TExprData::Variable(varname.0[0]), vartype)
+            let vartype = ctx.lookup_var(env, &varname.0[0], varname.1);
+            TExpression::new(TExprData::Variable(varname.0[0].clone()), vartype)
         }
         Expr::Lambda {
             params,
@@ -710,7 +713,7 @@ fn infer_expr<'input, Data: Copy + Debug>(
         }
         Expr::OperatorAsFunction(name, loc) => {
             let vartype = ctx.lookup_var(env, name, *loc);
-            TExpression::new(TExprData::Variable(name), vartype)
+            TExpression::new(TExprData::Variable(name.clone()), vartype)
         }
         Expr::Tuple(exprs, _) => {
             let texprs: Vec<TExpression> = exprs.iter().map(|e| infer_expr(env, ctx, e)).collect();
@@ -732,12 +735,12 @@ fn get_literal_type(lit: &Literal) -> Type {
     }))
 }
 
-fn infer_let<'input, Data: Copy + Debug>(
-    env: &mut LocalEnvironment<'input, Data>,
-    ctx: &mut Context<'input, Data>,
-    l: &Let<'input, Data>,
+fn infer_let<Data: Copy + Debug>(
+    env: &mut LocalEnvironment<Data>,
+    ctx: &mut Context<Data>,
+    l: &Let<Data>,
     export: bool,
-) -> TStatement<'input> {
+) -> TStatement {
     let v = if l.mods.contains(&Modifier::Rec) {
         let mut var = ctx.new_generic();
         let mut body_env = env.clone();
@@ -754,17 +757,17 @@ fn infer_let<'input, Data: Copy + Debug>(
     TStatement::Let(v, map_bind_pattern(&l.pattern))
 }
 
-fn infer_let_operator<'input, Data: Copy + Debug>(
-    env: &mut LocalEnvironment<'input, Data>,
-    ctx: &mut Context<'input, Data>,
-    l: &LetOperator<'input, Data>,
+fn infer_let_operator<Data: Copy + Debug>(
+    env: &mut LocalEnvironment<Data>,
+    ctx: &mut Context<Data>,
+    l: &LetOperator<Data>,
     export: bool,
-) -> TStatement<'input> {
+) -> TStatement {
     let (mut op_type, v) = if l.mods.contains(&Modifier::Rec) {
         let recursive_type = ctx.new_generic();
         let mut body_env = env.clone();
         body_env.add_operator(
-            &l.name,
+            l.name.clone(),
             Scheme::simple(recursive_type),
             l.op,
             Location::Local(l.data),
@@ -809,17 +812,17 @@ fn infer_let_operator<'input, Data: Copy + Debug>(
     }
     let scheme = generalize(env, &op_type);
     if export {
-        ctx.export_operator(l.name, scheme.clone(), l.op);
+        ctx.export_operator(l.name.clone(), scheme.clone(), l.op);
     }
-    env.add_operator(l.name, scheme, l.op, Location::Local(l.data));
-    TStatement::Let(v, BindPattern::Name(l.name, None, Unit::unit()))
+    env.add_operator(l.name.clone(), scheme, l.op, Location::Local(l.data));
+    TStatement::Let(v, BindPattern::Name(l.name.clone(), None, Unit::unit()))
 }
 
-fn infer_statement<'input, Data: Copy + Debug>(
-    env: &mut LocalEnvironment<'input, Data>,
-    ctx: &mut Context<'input, Data>,
-    statement: &Statement<'input, Data>,
-) -> Option<TStatement<'input>> {
+fn infer_statement<Data: Copy + Debug>(
+    env: &mut LocalEnvironment<Data>,
+    ctx: &mut Context<Data>,
+    statement: &Statement<Data>,
+) -> Option<TStatement> {
     match statement {
         Statement::Region(name, _) => None,
         Statement::Do(expr, _) => Some(TStatement::Do(infer_expr(env, ctx, expr))),
@@ -828,33 +831,33 @@ fn infer_statement<'input, Data: Copy + Debug>(
     }
 }
 
-fn map_bind_pattern<'input, Data>(
-    pattern: &BindPattern<'input, TypeAnnotation<Data>, Data>,
-) -> BindPattern<'input, Unit, Unit> {
+fn map_bind_pattern<Data>(
+    pattern: &BindPattern<TypeAnnotation<Data>, Data>,
+) -> BindPattern<Unit, Unit> {
     match pattern {
         BindPattern::Any(_) => BindPattern::Any(Unit::unit()),
-        BindPattern::Name(id, _, _) => BindPattern::Name(id, None, Unit::unit()),
+        BindPattern::Name(id, _, _) => BindPattern::Name(id.clone(), None, Unit::unit()),
         BindPattern::UnitLiteral(_) => BindPattern::UnitLiteral(Unit::unit()),
         _ => unimplemented!(),
     }
 }
 
-fn map_match_pattern<'input, Data>(
-    pattern: &MatchPattern<'input, TypeAnnotation<Data>, Data>,
-) -> MatchPattern<'input, Unit, Unit> {
+fn map_match_pattern<Data>(
+    pattern: &MatchPattern<TypeAnnotation<Data>, Data>,
+) -> MatchPattern<Unit, Unit> {
     match pattern {
         MatchPattern::Any(_) => MatchPattern::Any(Unit::unit()),
-        MatchPattern::Literal(lit, _) => MatchPattern::Literal(*lit, Unit::unit()),
-        MatchPattern::Name(id, _, _) => MatchPattern::Name(id, None, Unit::unit()),
+        MatchPattern::Literal(lit, _) => MatchPattern::Literal(lit.clone(), Unit::unit()),
+        MatchPattern::Name(id, _, _) => MatchPattern::Name(id.clone(), None, Unit::unit()),
         _ => unimplemented!(),
     }
 }
 
-fn infer_block<'input, Data: Copy + Debug>(
-    env: &mut LocalEnvironment<'input, Data>,
-    ctx: &mut Context<'input, Data>,
-    block: &Block<'input, Data>,
-) -> TBlock<'input> {
+fn infer_block<Data: Copy + Debug>(
+    env: &mut LocalEnvironment<Data>,
+    ctx: &mut Context<Data>,
+    block: &Block<Data>,
+) -> TBlock {
     let mut block_env = env.clone();
     let tstatements = block
         .statements
@@ -868,11 +871,11 @@ fn infer_block<'input, Data: Copy + Debug>(
     }
 }
 
-fn infer_top_level<'input, Data: Copy + Debug>(
-    env: &mut LocalEnvironment<'input, Data>,
-    ctx: &mut Context<'input, Data>,
-    tls: &TopLevelStatement<'input, Data>,
-) -> Option<TStatement<'input>> {
+fn infer_top_level<Data: Copy + Debug>(
+    env: &mut LocalEnvironment<Data>,
+    ctx: &mut Context<Data>,
+    tls: &TopLevelStatement<Data>,
+) -> Option<TStatement> {
     match tls {
         TopLevelStatement::Let(vis, l) => {
             Some(infer_let(env, ctx, l, vis == &Some(Visibility::Public)))
@@ -888,11 +891,11 @@ fn infer_top_level<'input, Data: Copy + Debug>(
     }
 }
 
-fn infer_top_level_block<'input, Data: Copy + Debug>(
-    env: &mut LocalEnvironment<'input, Data>,
-    ctx: &mut Context<'input, Data>,
-    tlb: &TopLevelBlock<'input, Data>,
-) -> TBlock<'input> {
+fn infer_top_level_block<Data: Copy + Debug>(
+    env: &mut LocalEnvironment<Data>,
+    ctx: &mut Context<Data>,
+    tlb: &TopLevelBlock<Data>,
+) -> TBlock {
     let statements = tlb
         .0
         .iter()
@@ -904,14 +907,15 @@ fn infer_top_level_block<'input, Data: Copy + Debug>(
     }
 }
 
-fn typecheck_module<'input>(
-    unchecked: &UntypedModule<'input>,
-    deps: Vec<TypedModule<'input>>,
-    error_context: &mut ErrorContext<'input>,
-) -> Result<TypedModule<'input>, ()> {
+fn typecheck_module(
+    unchecked: &UntypedModule,
+    deps: Vec<TypedModule>,
+    error_context: &mut ErrorContext,
+    interner: &SymbolNameInterner,
+) -> Result<TypedModule, ()> {
     let mut context = Context::new(unchecked.0.name.clone());
     let mut env = LocalEnvironment::new();
-    env.import_prelude();
+    env.import_prelude(interner);
 
     for dep in &deps {
         //TODO
@@ -935,46 +939,49 @@ fn typecheck_module<'input>(
     })
 }
 
-fn typecheck_tree<'input>(
-    tree: &mut HashMap<ModuleIdentifier, TypedModule<'input>>,
-    untyped: &UntypedModule<'input>,
-    err: &mut ErrorContext<'input>,
-) -> Result<TypedModule<'input>, ()> {
-    let dependencies: Result<Vec<TypedModule<'input>>, ()> = untyped
+fn typecheck_tree(
+    tree: &mut HashMap<ModuleIdentifier, TypedModule>,
+    untyped: &UntypedModule,
+    err: &mut ErrorContext,
+    interner: &SymbolNameInterner,
+) -> Result<TypedModule, ()> {
+    let dependencies: Result<Vec<TypedModule>, ()> = untyped
         .0
         .dependencies
         .iter()
         .map(|ud| match tree.get(&ud.0.name) {
             Some(d) => Ok(d.clone()),
-            None => typecheck_tree(tree, ud, err),
+            None => typecheck_tree(tree, ud, err, interner),
         })
         .collect();
-    dependencies.and_then(|d| typecheck_module(untyped, d, err))
+    dependencies.and_then(|d| typecheck_module(untyped, d, err, interner))
 }
 
 fn verify_main_module(main_mod: &TypedModule, errors: &mut ErrorContext) {
-    if let Some(main_type) = main_mod.0.env.lookup_value("main") {
-        let mut ctx: Context<Span> = Context::new(main_mod.0.name.clone());
-        if let Err(_e) = ctx.unify_rec(&main_type.2, &build_function(&[unit()], &unit())) {
-            errors.add_error(CompilerError::MainFunctionError(
-                main_mod.0.name.clone(),
-                MainFunctionErrorKind::SignatureWrong,
-            ))
-        }
-    } else {
-        errors.add_error(CompilerError::MainFunctionError(
-            main_mod.0.name.clone(),
-            MainFunctionErrorKind::Missing,
-        ))
-    }
+    //TODO
+    //if let Some(main_type) = main_mod.0.env.lookup_value("main") {
+    //    let mut ctx: Context<Span> = Context::new(main_mod.0.name.clone());
+    //    if let Err(_e) = ctx.unify_rec(&main_type.2, &build_function(&[unit()], &unit())) {
+    //        errors.add_error(CompilerError::MainFunctionError(
+    //            main_mod.0.name.clone(),
+    //            MainFunctionErrorKind::SignatureWrong,
+    //        ))
+    //    }
+    //} else {
+    //    errors.add_error(CompilerError::MainFunctionError(
+    //        main_mod.0.name.clone(),
+    //        MainFunctionErrorKind::Missing,
+    //    ))
+    //}
 }
 
-pub fn typecheck<'input>(
-    errors: &mut ErrorContext<'input>,
-    module_ctx: UntypedModuleTree<'input>,
-) -> Result<TypedModuleTree<'input>, ()> {
+pub fn typecheck(
+    errors: &mut ErrorContext,
+    module_ctx: UntypedModuleTree,
+    interner: &SymbolNameInterner,
+) -> Result<TypedModuleTree, ()> {
     let mut lookup = HashMap::new();
-    let main_mod = typecheck_tree(&mut lookup, &module_ctx.main_module, errors)?;
+    let main_mod = typecheck_tree(&mut lookup, &module_ctx.main_module, errors, interner)?;
     verify_main_module(&main_mod, errors);
     errors.handle_errors().map(|_| TypedModuleTree {
         main_module: main_mod,
@@ -992,6 +999,7 @@ mod operator_tests {
     use crate::common::ModuleIdentifier;
     use crate::errors::ErrorContext;
     use crate::modules::{UntypedModule, UntypedModuleData};
+    use crate::parsing::names::{SymbolName, SymbolNameInterner};
     use crate::parsing::parser::parse;
     use crate::typechecker::env::Environment;
     use crate::typechecker::prelude::prelude;
@@ -1002,12 +1010,15 @@ mod operator_tests {
     use std::rc::Rc;
 
     fn int_lit(lit: &str) -> OperatorElement<()> {
-        Expression(Expr::Literal(Literal::Number(lit, NumberType::Integer), ()))
+        Expression(Expr::Literal(
+            Literal::Number(String::from(lit), NumberType::Integer),
+            (),
+        ))
     }
 
     fn int_lit_typed(lit: &str) -> TExpression {
         TExpression::new(
-            TExprData::Literal(Literal::Number(lit, NumberType::Integer)),
+            TExprData::Literal(Literal::Number(String::from(lit), NumberType::Integer)),
             int(),
         )
     }
@@ -1015,7 +1026,7 @@ mod operator_tests {
     fn lookup<Data: Copy + Debug>(
         env: &LocalEnvironment<Data>,
         ctx: &mut Context<Data>,
-        name: &str,
+        name: &SymbolName,
     ) -> Type {
         let sch = env.lookup_value(name).unwrap();
         ctx.inst(sch)
@@ -1024,40 +1035,53 @@ mod operator_tests {
     fn lookup_operator<Data: Copy + Debug>(
         env: &LocalEnvironment<Data>,
         ctx: &mut Context<Data>,
-        name: &str,
+        name: &SymbolName,
     ) -> Type {
         let (sch, _) = env.lookup_operator(name).unwrap();
         ctx.inst(sch)
     }
 
-    fn add_op<'a, Data: Copy + Debug>(
-        env: &LocalEnvironment<'a, Data>,
+    fn add_op<Data: Copy + Debug>(
+        env: &LocalEnvironment<Data>,
         ctx: &mut Context<Data>,
-    ) -> TExpression<'a> {
-        TExpression::new(TExprData::Variable("+"), lookup_operator(env, ctx, "+"))
-    }
-
-    fn mul_op<'a, Data: Copy + Debug>(
-        env: &LocalEnvironment<'a, Data>,
-        ctx: &mut Context<Data>,
-    ) -> TExpression<'a> {
-        TExpression::new(TExprData::Variable("*"), lookup_operator(env, ctx, "*"))
-    }
-
-    fn neg_op<'a, Data: Copy + Debug>(
-        env: &LocalEnvironment<'a, Data>,
-        ctx: &mut Context<Data>,
-    ) -> TExpression<'a> {
-        TExpression::new(TExprData::Variable("~"), lookup_operator(env, ctx, "~"))
-    }
-
-    fn neg_expr<'a, Data: Copy + Debug>(
-        env: &LocalEnvironment<'a, Data>,
-        ctx: &mut Context<Data>,
-        expr: TExpression<'a>,
-    ) -> TExpression<'a> {
+        interner: &SymbolNameInterner,
+    ) -> TExpression {
         TExpression::new(
-            TExprData::FunctionCall(neg_op(env, ctx).into(), vec![expr]),
+            TExprData::Variable(interner.intern("+")),
+            lookup_operator(env, ctx, &interner.intern("+")),
+        )
+    }
+
+    fn mul_op<Data: Copy + Debug>(
+        env: &LocalEnvironment<Data>,
+        ctx: &mut Context<Data>,
+        interner: &SymbolNameInterner,
+    ) -> TExpression {
+        TExpression::new(
+            TExprData::Variable(interner.intern("*")),
+            lookup_operator(env, ctx, &interner.intern("*")),
+        )
+    }
+
+    fn neg_op<Data: Copy + Debug>(
+        env: &LocalEnvironment<Data>,
+        ctx: &mut Context<Data>,
+        interner: &SymbolNameInterner,
+    ) -> TExpression {
+        TExpression::new(
+            TExprData::Variable(interner.intern("~")),
+            lookup_operator(env, ctx, &interner.intern("~")),
+        )
+    }
+
+    fn neg_expr<Data: Copy + Debug>(
+        env: &LocalEnvironment<Data>,
+        ctx: &mut Context<Data>,
+        interner: &SymbolNameInterner,
+        expr: TExpression,
+    ) -> TExpression {
+        TExpression::new(
+            TExprData::FunctionCall(neg_op(env, ctx, interner).into(), vec![expr]),
             int(),
         )
     }
@@ -1066,11 +1090,16 @@ mod operator_tests {
     fn op_transform_simple_binary() {
         let mut ctx = Context::new(ModuleIdentifier::from_filename(String::from("Test")));
         let mut env = LocalEnvironment::new();
-        env.import_prelude();
-        let ops = vec![int_lit("1"), Operator("+", ()), int_lit("2")];
+        let interner = SymbolNameInterner::new();
+        env.import_prelude(&interner);
+        let ops = vec![
+            int_lit("1"),
+            Operator(interner.intern("+"), ()),
+            int_lit("2"),
+        ];
         let exprs = TExpression::new(
             TExprData::FunctionCall(
-                add_op(&env, &mut ctx).into(),
+                add_op(&env, &mut ctx, &interner).into(),
                 vec![int_lit_typed("1"), int_lit_typed("2")],
             ),
             int(),
@@ -1084,22 +1113,23 @@ mod operator_tests {
     fn op_transform_binary_precedence() {
         let mut ctx = Context::new(ModuleIdentifier::from_filename(String::from("Test")));
         let mut env = LocalEnvironment::new();
-        env.import_prelude();
+        let interner = SymbolNameInterner::new();
+        env.import_prelude(&interner);
         let ops = vec![
             int_lit("2"),
-            Operator("+", ()),
+            Operator(interner.intern("+"), ()),
             int_lit("2"),
-            Operator("*", ()),
+            Operator(interner.intern("*"), ()),
             int_lit("3"),
         ];
         let exprs = TExpression::new(
             TExprData::FunctionCall(
-                add_op(&env, &mut ctx).into(),
+                add_op(&env, &mut ctx, &interner).into(),
                 vec![
                     int_lit_typed("2"),
                     TExpression::new(
                         TExprData::FunctionCall(
-                            mul_op(&env, &mut ctx).into(),
+                            mul_op(&env, &mut ctx, &interner).into(),
                             vec![int_lit_typed("2"), int_lit_typed("3")],
                         ),
                         int(),
@@ -1117,10 +1147,15 @@ mod operator_tests {
     fn op_transform_unary_simple() {
         let mut ctx = Context::new(ModuleIdentifier::from_filename(String::from("Test")));
         let mut env = LocalEnvironment::new();
-        env.import_prelude();
-        let ops = vec![Operator("~", ()), Operator("~", ()), int_lit("1")];
-        let e1 = neg_expr(&env, &mut ctx, int_lit_typed("1"));
-        let exprs = neg_expr(&env, &mut ctx, e1);
+        let interner = SymbolNameInterner::new();
+        env.import_prelude(&interner);
+        let ops = vec![
+            Operator(interner.intern("~"), ()),
+            Operator(interner.intern("~"), ()),
+            int_lit("1"),
+        ];
+        let e1 = neg_expr(&env, &mut ctx, &interner, int_lit_typed("1"));
+        let exprs = neg_expr(&env, &mut ctx, &interner, e1);
         let res = ctx.transform_operators(&mut env, &ops, ());
         ctx.unify_rec(exprs.typ(), res.typ()).unwrap();
         assert_eq!(exprs.data(), res.data())
@@ -1130,22 +1165,23 @@ mod operator_tests {
     fn op_transform_unary_binary() {
         let mut ctx = Context::new(ModuleIdentifier::from_filename(String::from("Test")));
         let mut env = LocalEnvironment::new();
-        env.import_prelude();
+        let interner = SymbolNameInterner::new();
+        env.import_prelude(&interner);
         let ops = vec![
-            Operator("~", ()),
+            Operator(interner.intern("~"), ()),
             int_lit("1"),
-            Operator("+", ()),
-            Operator("~", ()),
-            Operator("~", ()),
+            Operator(interner.intern("+"), ()),
+            Operator(interner.intern("~"), ()),
+            Operator(interner.intern("~"), ()),
             int_lit("2"),
         ];
-        let e2 = neg_expr(&env, &mut ctx, int_lit_typed("2"));
+        let e2 = neg_expr(&env, &mut ctx, &interner, int_lit_typed("2"));
         let exprs = TExpression::new(
             TExprData::FunctionCall(
-                add_op(&env, &mut ctx).into(),
+                add_op(&env, &mut ctx, &interner).into(),
                 vec![
-                    neg_expr(&env, &mut ctx, int_lit_typed("1")),
-                    neg_expr(&env, &mut ctx, e2),
+                    neg_expr(&env, &mut ctx, &interner, int_lit_typed("1")),
+                    neg_expr(&env, &mut ctx, &interner, e2),
                 ],
             ),
             int(),
@@ -1159,32 +1195,33 @@ mod operator_tests {
     fn op_transform_complex() {
         let mut ctx = Context::new(ModuleIdentifier::from_filename(String::from("Test")));
         let mut env = LocalEnvironment::new();
-        env.import_prelude();
+        let interner = SymbolNameInterner::new();
+        env.import_prelude(&interner);
         let ops = vec![
-            Operator("~", ()),
+            Operator(interner.intern("~"), ()),
             int_lit("1"),
-            Operator("*", ()),
+            Operator(interner.intern("*"), ()),
             int_lit("2"),
-            Operator("+", ()),
-            Operator("~", ()),
+            Operator(interner.intern("+"), ()),
+            Operator(interner.intern("~"), ()),
             int_lit("3"),
         ];
-        let e2 = neg_expr(&env, &mut ctx, int_lit_typed("2"));
+        let e2 = neg_expr(&env, &mut ctx, &interner, int_lit_typed("2"));
         let exprs = TExpression::new(
             TExprData::FunctionCall(
-                add_op(&env, &mut ctx).into(),
+                add_op(&env, &mut ctx, &interner).into(),
                 vec![
                     TExpression::new(
                         TExprData::FunctionCall(
-                            mul_op(&env, &mut ctx).into(),
+                            mul_op(&env, &mut ctx, &interner).into(),
                             vec![
-                                neg_expr(&env, &mut ctx, int_lit_typed("1")),
+                                neg_expr(&env, &mut ctx, &interner, int_lit_typed("1")),
                                 int_lit_typed("2"),
                             ],
                         ),
                         int(),
                     ),
-                    neg_expr(&env, &mut ctx, int_lit_typed("3")),
+                    neg_expr(&env, &mut ctx, &interner, int_lit_typed("3")),
                 ],
             ),
             int(),
@@ -1198,21 +1235,22 @@ mod operator_tests {
     fn op_transform_bin_assoc() {
         let mut ctx = Context::new(ModuleIdentifier::from_filename(String::from("Test")));
         let mut env = LocalEnvironment::new();
-        env.import_prelude();
+        let interner = SymbolNameInterner::new();
+        env.import_prelude(&interner);
         let ops = vec![
             int_lit("4"),
-            Operator("+", ()),
+            Operator(interner.intern("+"), ()),
             int_lit("5"),
-            Operator("+", ()),
+            Operator(interner.intern("+"), ()),
             int_lit("6"),
         ];
         let exprs = TExpression::new(
             TExprData::FunctionCall(
-                add_op(&env, &mut ctx).into(),
+                add_op(&env, &mut ctx, &interner).into(),
                 vec![
                     TExpression::new(
                         TExprData::FunctionCall(
-                            add_op(&env, &mut ctx).into(),
+                            add_op(&env, &mut ctx, &interner).into(),
                             vec![int_lit_typed("4"), int_lit_typed("5")],
                         ),
                         int(),
@@ -1233,6 +1271,7 @@ mod typecheck_tests {
     use crate::ast_common::{Associativity, OperatorSpecification};
     use crate::common::ModuleIdentifier;
     use crate::errors::ErrorContext;
+    use crate::parsing::names::{SymbolName, SymbolNameInterner};
     use crate::parsing::parser::{parse, parse_type};
     use crate::parsing::token::Span;
     use crate::typechecker::env::Environment;
@@ -1241,28 +1280,30 @@ mod typecheck_tests {
     use std::fs::read_to_string;
 
     fn assert_value_type<'a>(
-        ctx: &mut Context<'a, Span>,
-        env: &mut LocalEnvironment<'a, Span>,
-        value: &str,
+        ctx: &mut Context<Span>,
+        env: &mut LocalEnvironment<Span>,
+        interner: &SymbolNameInterner,
+        value: &SymbolName,
         expected_type: &'a str,
     ) {
         let value_scheme = ctx.mod_env.lookup_value(value).unwrap().clone();
         let value_type = ctx.inst(&value_scheme);
-        let expected_ta = parse_type(expected_type).unwrap();
+        let expected_ta = parse_type(expected_type, interner).unwrap();
         let expected_tp = ctx.type_from_annotation(env, &expected_ta);
         ctx.unify_rec(&value_type, &expected_tp).unwrap();
     }
 
     fn assert_operator_type<'a>(
-        ctx: &mut Context<'a, Span>,
-        env: &mut LocalEnvironment<'a, Span>,
-        name: &str,
+        ctx: &mut Context<Span>,
+        env: &mut LocalEnvironment<Span>,
+        interner: &SymbolNameInterner,
+        name: &SymbolName,
         expected_type: &'a str,
         expected_spec: OperatorSpecification,
     ) {
         let (op_scheme, op_spec) = ctx.mod_env.lookup_operator(name).unwrap().clone();
         let op_type = ctx.inst(&op_scheme);
-        let expected_ta = parse_type(expected_type).unwrap();
+        let expected_ta = parse_type(expected_type, interner).unwrap();
         let expected_tp = ctx.type_from_annotation(env, &expected_ta);
         assert_eq!(op_spec, expected_spec);
         ctx.unify_rec(&op_type, &expected_tp).unwrap();
@@ -1270,34 +1311,79 @@ mod typecheck_tests {
 
     #[test]
     fn simple_types() {
+        let interner = SymbolNameInterner::new();
         let content = read_to_string("tests/typechecking/simple.ca").unwrap();
-        let parsed = parse(&content).unwrap();
+        let parsed = parse(&content, &interner).unwrap();
         let mut error_context = ErrorContext::new();
         let mut env = LocalEnvironment::new();
         let mut ctx = Context::new(ModuleIdentifier::from_filename(String::from("Simple")));
-        env.import_prelude();
+        env.import_prelude(&interner);
         let typed = infer_top_level_block(&mut env, &mut ctx, &parsed);
-        assert_value_type(&mut ctx, &mut env, "fac", "Int -> Int");
+        assert_value_type(
+            &mut ctx,
+            &mut env,
+            &interner,
+            &interner.intern("fac"),
+            "Int -> Int",
+        );
         assert_operator_type(
             &mut ctx,
             &mut env,
-            "~",
+            &interner,
+            &interner.intern("~"),
             "Bool -> Bool",
             OperatorSpecification::Prefix,
         );
         assert_operator_type(
             &mut ctx,
             &mut env,
-            "|||",
+            &interner,
+            &interner.intern("|||"),
             "Bool -> Bool -> Bool",
             OperatorSpecification::Infix(30, Associativity::None),
         );
-        assert_value_type(&mut ctx, &mut env, "add", "Int -> Int -> Int");
-        assert_value_type(&mut ctx, &mut env, "isEq", "a -> a -> bool");
-        assert_value_type(&mut ctx, &mut env, "unit", "Unit");
-        assert_value_type(&mut ctx, &mut env, "str", "String");
-        assert_value_type(&mut ctx, &mut env, "id", "a -> a");
-        assert_value_type(&mut ctx, &mut env, "str2", "String");
+        assert_value_type(
+            &mut ctx,
+            &mut env,
+            &interner,
+            &interner.intern("add"),
+            "Int -> Int -> Int",
+        );
+        assert_value_type(
+            &mut ctx,
+            &mut env,
+            &interner,
+            &interner.intern("isEq"),
+            "a -> a -> bool",
+        );
+        assert_value_type(
+            &mut ctx,
+            &mut env,
+            &interner,
+            &interner.intern("unit"),
+            "Unit",
+        );
+        assert_value_type(
+            &mut ctx,
+            &mut env,
+            &interner,
+            &interner.intern("str"),
+            "String",
+        );
+        assert_value_type(
+            &mut ctx,
+            &mut env,
+            &interner,
+            &interner.intern("id"),
+            "a -> a",
+        );
+        assert_value_type(
+            &mut ctx,
+            &mut env,
+            &interner,
+            &interner.intern("str2"),
+            "String",
+        );
         error_context.handle_errors().unwrap();
     }
 }
