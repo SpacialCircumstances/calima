@@ -957,22 +957,25 @@ fn typecheck_tree(
     dependencies.and_then(|d| typecheck_module(untyped, d, err, interner))
 }
 
-fn verify_main_module(main_mod: &TypedModule, errors: &mut ErrorContext) {
-    //TODO
-    //if let Some(main_type) = main_mod.0.env.lookup_value("main") {
-    //    let mut ctx: Context<Span> = Context::new(main_mod.0.name.clone());
-    //    if let Err(_e) = ctx.unify_rec(&main_type.2, &build_function(&[unit()], &unit())) {
-    //        errors.add_error(CompilerError::MainFunctionError(
-    //            main_mod.0.name.clone(),
-    //            MainFunctionErrorKind::SignatureWrong,
-    //        ))
-    //    }
-    //} else {
-    //    errors.add_error(CompilerError::MainFunctionError(
-    //        main_mod.0.name.clone(),
-    //        MainFunctionErrorKind::Missing,
-    //    ))
-    //}
+fn verify_main_module(
+    main_mod: &TypedModule,
+    errors: &mut ErrorContext,
+    interner: &SymbolNameInterner,
+) {
+    if let Some(main_type) = main_mod.0.env.lookup_value(&interner.intern("main")) {
+        let mut ctx: Context<Span> = Context::new(main_mod.0.name.clone());
+        if let Err(_e) = ctx.unify_rec(&main_type.2, &build_function(&[unit()], &unit())) {
+            errors.add_error(CompilerError::MainFunctionError(
+                main_mod.0.name.clone(),
+                MainFunctionErrorKind::SignatureWrong,
+            ))
+        }
+    } else {
+        errors.add_error(CompilerError::MainFunctionError(
+            main_mod.0.name.clone(),
+            MainFunctionErrorKind::Missing,
+        ))
+    }
 }
 
 pub fn typecheck(
@@ -982,7 +985,7 @@ pub fn typecheck(
 ) -> Result<TypedModuleTree, ()> {
     let mut lookup = HashMap::new();
     let main_mod = typecheck_tree(&mut lookup, &module_ctx.main_module, errors, interner)?;
-    verify_main_module(&main_mod, errors);
+    verify_main_module(&main_mod, errors, interner);
     errors.handle_errors().map(|_| TypedModuleTree {
         main_module: main_mod,
         lookup,
