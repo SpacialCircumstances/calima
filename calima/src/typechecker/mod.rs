@@ -6,7 +6,7 @@ use crate::formatting::format_iter;
 use crate::modules::{
     TypedModule, TypedModuleData, TypedModuleTree, UntypedModule, UntypedModuleTree,
 };
-use crate::parsing::names::{SymbolName, SymbolNameInterner};
+use crate::names::{SymbolName, SymbolNameInterner};
 use crate::parsing::token::Span;
 use crate::typechecker::env::{Environment, ModuleEnvironment, Opening};
 use crate::typechecker::substitution::Substitution;
@@ -1002,7 +1002,7 @@ mod operator_tests {
     use crate::common::ModuleIdentifier;
     use crate::errors::ErrorContext;
     use crate::modules::{UntypedModule, UntypedModuleData};
-    use crate::parsing::names::{SymbolName, SymbolNameInterner};
+    use crate::names::{SymbolName, SymbolNameInterner};
     use crate::parsing::parser::parse;
     use crate::typechecker::env::Environment;
     use crate::typechecker::prelude::prelude;
@@ -1274,7 +1274,7 @@ mod typecheck_tests {
     use crate::ast_common::{Associativity, OperatorSpecification};
     use crate::common::ModuleIdentifier;
     use crate::errors::ErrorContext;
-    use crate::parsing::names::{SymbolName, SymbolNameInterner};
+    use crate::names::{SymbolName, SymbolNameInterner};
     use crate::parsing::parser::{parse, parse_type};
     use crate::parsing::token::Span;
     use crate::typechecker::env::Environment;

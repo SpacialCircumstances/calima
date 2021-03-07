@@ -1,6 +1,6 @@
 use crate::formatting::tree::{format_children, TreeFormat};
 use crate::formatting::{format_iter, format_record, format_tuple};
-use crate::parsing::names::SymbolName;
+use crate::names::SymbolName;
 use std::convert::TryFrom;
 use std::fmt::{Display, Formatter};
 

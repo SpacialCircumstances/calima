@@ -1,20 +1,20 @@
-pub mod lexer;
-pub mod names;
-pub mod parser;
-pub mod token;
+use std::collections::HashMap;
+use std::fs::read_to_string;
+use std::iter::once;
+use std::path::PathBuf;
+use std::rc::Rc;
 
 use crate::ast::{find_imported_modules, TopLevelBlock};
 use crate::common::*;
 use crate::errors::CompilerError::*;
 use crate::errors::{CompilerError, ErrorContext};
 use crate::modules::{UntypedModule, UntypedModuleData, UntypedModuleTree};
-use crate::parsing::names::SymbolNameInterner;
+use crate::names::SymbolNameInterner;
 use crate::CompilerArguments;
-use std::collections::HashMap;
-use std::fs::read_to_string;
-use std::iter::once;
-use std::path::PathBuf;
-use std::rc::Rc;
+
+pub mod lexer;
+pub mod parser;
+pub mod token;
 
 fn try_resolve_module(
     search_dirs: &[PathBuf],

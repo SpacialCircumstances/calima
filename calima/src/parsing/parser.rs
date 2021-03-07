@@ -1,6 +1,6 @@
 use crate::ast::*;
+use crate::names::SymbolNameInterner;
 use crate::parsing::lexer::{Error, Lexer};
-use crate::parsing::names::SymbolNameInterner;
 use crate::parsing::token::{Location, Span, Token};
 use lalrpop_util::ParseError;
 
@@ -47,7 +47,7 @@ mod tests {
     use crate::ast::Expr::*;
     use crate::ast::{Block, Let, TopLevelBlock, TopLevelStatement};
     use crate::ast_common::{BindPattern, Literal};
-    use crate::parsing::names::SymbolNameInterner;
+    use crate::names::SymbolNameInterner;
     use crate::parsing::parser::parse;
     use crate::parsing::token::{Location, Span};
     use crate::typed_ast::Unit;

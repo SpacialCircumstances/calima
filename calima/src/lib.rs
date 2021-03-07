@@ -1,8 +1,9 @@
 #[macro_use]
 extern crate lalrpop_util;
 
+use names::SymbolNameInterner;
+
 use crate::errors::ErrorContext;
-use crate::parsing::names::SymbolNameInterner;
 use crate::parsing::parse_all_modules;
 
 mod ast;
@@ -11,6 +12,7 @@ mod common;
 mod errors;
 mod formatting;
 mod modules;
+pub mod names;
 mod parsing;
 mod typechecker;
 mod typed_ast;

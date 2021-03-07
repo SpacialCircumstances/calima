@@ -122,7 +122,7 @@ impl SymbolNameInterner {
 
 #[cfg(test)]
 mod tests {
-    use crate::parsing::names::SymbolNameInterner;
+    use crate::names::SymbolNameInterner;
     use std::rc::Rc;
 
     #[test]

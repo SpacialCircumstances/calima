@@ -2,7 +2,7 @@ use crate::ast_common::{BindPattern, Literal, MatchPattern, Name, OperatorSpecif
 use crate::common::ModuleIdentifier;
 use crate::formatting::tree::{format_children, TreeFormat};
 use crate::formatting::*;
-use crate::parsing::names::SymbolName;
+use crate::names::SymbolName;
 use std::fmt::{Debug, Display, Formatter};
 
 #[derive(Debug, Clone, PartialEq)]

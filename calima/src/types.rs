@@ -1,6 +1,6 @@
 use crate::formatting::tree::{format_children, TreeFormat};
 use crate::formatting::{format_iter, format_iter_end};
-use crate::parsing::names::SymbolName;
+use crate::names::SymbolName;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::convert::TryFrom;

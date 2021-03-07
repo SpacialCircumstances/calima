@@ -1,4 +1,4 @@
-use crate::parsing::names::SymbolName;
+use crate::names::SymbolName;
 use std::collections::HashMap;
 
 #[derive(Debug, Copy, Clone)]
