@@ -320,7 +320,10 @@ pub enum Expr<Data> {
     Case {
         data: Data,
         value: Box<Expr<Data>>,
-        matches: Vec<(MatchPattern<TypeAnnotation<Data>, Data>, Block<Data>)>,
+        matches: Vec<(
+            MatchPattern<Name<Data>, TypeAnnotation<Data>, Data>,
+            Block<Data>,
+        )>,
     },
     List(Vec<Expr<Data>>, Data),
     Ref(RegionAnnotation<Data>, Box<Expr<Data>>, Data),

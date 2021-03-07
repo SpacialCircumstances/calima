@@ -108,16 +108,16 @@ impl<TA: Display, Data> Display for BindPattern<TA, Data> {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum MatchPattern<TA: Display, Data> {
+pub enum MatchPattern<Name: Display, TA: Display, Data> {
     Any(Data),
     Name(SymbolName, Option<TA>, Data),
-    Tuple(Vec<MatchPattern<TA, Data>>, Data),
+    Tuple(Vec<MatchPattern<Name, TA, Data>>, Data),
     Literal(Literal, Data),
-    Record(Vec<(SymbolName, MatchPattern<TA, Data>)>, Data),
-    SumUnwrap(Name<Data>, Option<Box<MatchPattern<TA, Data>>>, Data),
+    Record(Vec<(SymbolName, MatchPattern<Name, TA, Data>)>, Data),
+    SumUnwrap(Name, Option<Box<MatchPattern<Name, TA, Data>>>, Data),
 }
 
-impl<TA: Display, Data> TreeFormat for MatchPattern<TA, Data> {
+impl<Name: Display, TA: Display, Data> TreeFormat for MatchPattern<Name, TA, Data> {
     fn get_precedence(&self) -> i32 {
         match self {
             Self::Any(_) => 0,
@@ -149,7 +149,7 @@ impl<TA: Display, Data> TreeFormat for MatchPattern<TA, Data> {
     }
 }
 
-impl<TA: Display, Data> Display for MatchPattern<TA, Data> {
+impl<Name: Display, TA: Display, Data> Display for MatchPattern<Name, TA, Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             MatchPattern::Any(_) => write!(f, "_"),

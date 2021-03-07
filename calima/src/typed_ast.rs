@@ -1,4 +1,4 @@
-use crate::ast_common::{BindPattern, Literal, MatchPattern};
+use crate::ast_common::{BindPattern, Literal, MatchPattern, Name};
 use crate::names::SymbolName;
 use crate::types::{Region, Type};
 use std::fmt::{Display, Formatter};
@@ -27,7 +27,10 @@ pub enum TExprData {
     List(Vec<TExpression>),
     Literal(Literal),
     Lambda(Vec<BindPattern<Unit, Unit>>, TBlock),
-    Case(Box<TExpression>, Vec<(MatchPattern<Unit, Unit>, TBlock)>),
+    Case(
+        Box<TExpression>,
+        Vec<(MatchPattern<SymbolName, Unit, Unit>, TBlock)>,
+    ),
     Ref(Region, Box<TExpression>),
 }
 

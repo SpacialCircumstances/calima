@@ -843,8 +843,8 @@ fn map_bind_pattern<Data>(
 }
 
 fn map_match_pattern<Data>(
-    pattern: &MatchPattern<TypeAnnotation<Data>, Data>,
-) -> MatchPattern<Unit, Unit> {
+    pattern: &MatchPattern<Name<Data>, TypeAnnotation<Data>, Data>,
+) -> MatchPattern<Name<Data>, Unit, Unit> {
     match pattern {
         MatchPattern::Any(_) => MatchPattern::Any(Unit::unit()),
         MatchPattern::Literal(lit, _) => MatchPattern::Literal(lit.clone(), Unit::unit()),

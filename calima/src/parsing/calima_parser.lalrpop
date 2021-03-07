@@ -162,7 +162,7 @@ Case: Expr<Data> = <posl:@L> "case" <value_expr:Expression1> "of" <rows:CaseRow+
     matches: rows
 };
 
-CaseRow: (MatchPattern<TypeAnnotation<Data>, Data>, Block<Data>) = "|" <pat:MatchPattern0> "->" <block:Block> => (pat, block);
+CaseRow: (MatchPattern<Name<Data>, TypeAnnotation<Data>, Data>, Block<Data>) = "|" <pat:MatchPattern0> "->" <block:Block> => (pat, block);
 
 If: Expr<Data> = <posl:@L> "if" <cond_expr:Expression1> "then" <if_block:Block> "else" <else_block:Block> "end" <posr:@R> => Expr::If {
     data: to_data(posl, posr),
@@ -247,14 +247,14 @@ BindPattern0: BindPattern<TypeAnnotation<Data>, Data> = {
     <posl:@L> "(" ")" <posr:@R> => BindPattern::UnitLiteral(to_data(posl, posr))
 };
 
-MatchPattern0: MatchPattern<TypeAnnotation<Data>, Data> = {
+MatchPattern0: MatchPattern<Name<Data>, TypeAnnotation<Data>, Data> = {
     MatchPattern1,
     <posl:@L> <variant:TypeName> <patt:MatchPattern1?> <posr:@R> => MatchPattern::SumUnwrap(variant, patt.map(|p| Box::new(p)), to_data(posl, posr)),
 };
 
-RecordMatchPatternRow: (SymbolName, MatchPattern<TypeAnnotation<Data>, Data>) = <name:NameSymbol> "=" <patt:MatchPattern1> => (name, patt);
+RecordMatchPatternRow: (SymbolName, MatchPattern<Name<Data>, TypeAnnotation<Data>, Data>) = <name:NameSymbol> "=" <patt:MatchPattern1> => (name, patt);
 
-MatchPattern1: MatchPattern<TypeAnnotation<Data>, Data> = {
+MatchPattern1: MatchPattern<Name<Data>, TypeAnnotation<Data>, Data> = {
     <posl:@L> "_" <posr:@R> => MatchPattern::Any(to_data(posl, posr)),
     <posl:@L> <id:AnnotatedName> <posr:@R> => MatchPattern::Name(id.0, id.1, to_data(posl, posr)),
     <posl:@L> <lit:Literal> <posr:@R> => MatchPattern::Literal(lit, to_data(posl, posr)),
