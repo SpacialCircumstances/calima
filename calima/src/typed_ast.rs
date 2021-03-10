@@ -26,10 +26,10 @@ pub enum TExprData {
     Tuple(Vec<TExpression>),
     List(Vec<TExpression>),
     Literal(Literal),
-    Lambda(Vec<BindPattern<Unit, Unit>>, TBlock),
+    Lambda(Vec<BindPattern<SymbolName, Unit, Unit>>, TBlock),
     Case(
         Box<TExpression>,
-        Vec<(MatchPattern<SymbolName, Unit, Unit>, TBlock)>,
+        Vec<(MatchPattern<SymbolName, SymbolName, Unit, Unit>, TBlock)>,
     ),
     Ref(Region, Box<TExpression>),
 }
@@ -60,7 +60,7 @@ impl PartialEq for TExpression {
 #[derive(Debug, Clone, PartialEq)]
 pub enum TStatement {
     Do(TExpression),
-    Let(TExpression, BindPattern<Unit, Unit>),
+    Let(TExpression, BindPattern<SymbolName, Unit, Unit>),
 }
 
 #[derive(Debug, Clone, PartialEq)]

@@ -84,15 +84,15 @@ impl Display for Literal {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum BindPattern<TA: Display, Data> {
+pub enum BindPattern<Symbol: Display, TA: Display, Data> {
     Any(Data),
     UnitLiteral(Data),
-    Name(SymbolName, Option<TA>, Data),
-    Tuple(Vec<BindPattern<TA, Data>>, Data),
-    Record(Vec<(SymbolName, BindPattern<TA, Data>)>, Data),
+    Name(Symbol, Option<TA>, Data),
+    Tuple(Vec<BindPattern<Symbol, TA, Data>>, Data),
+    Record(Vec<(Symbol, BindPattern<Symbol, TA, Data>)>, Data),
 }
 
-impl<TA: Display, Data> Display for BindPattern<TA, Data> {
+impl<Symbol: Display, TA: Display, Data> Display for BindPattern<Symbol, TA, Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             BindPattern::Any(_) => write!(f, "_"),
@@ -108,16 +108,22 @@ impl<TA: Display, Data> Display for BindPattern<TA, Data> {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum MatchPattern<Name: Display, TA: Display, Data> {
+pub enum MatchPattern<Name: Display, Symbol: Display, TA: Display, Data> {
     Any(Data),
-    Name(SymbolName, Option<TA>, Data),
-    Tuple(Vec<MatchPattern<Name, TA, Data>>, Data),
+    Name(Symbol, Option<TA>, Data),
+    Tuple(Vec<MatchPattern<Name, Symbol, TA, Data>>, Data),
     Literal(Literal, Data),
-    Record(Vec<(SymbolName, MatchPattern<Name, TA, Data>)>, Data),
-    SumUnwrap(Name, Option<Box<MatchPattern<Name, TA, Data>>>, Data),
+    Record(Vec<(Symbol, MatchPattern<Name, Symbol, TA, Data>)>, Data),
+    SumUnwrap(
+        Name,
+        Option<Box<MatchPattern<Name, Symbol, TA, Data>>>,
+        Data,
+    ),
 }
 
-impl<Name: Display, TA: Display, Data> TreeFormat for MatchPattern<Name, TA, Data> {
+impl<Name: Display, Symbol: Display, TA: Display, Data> TreeFormat
+    for MatchPattern<Name, Symbol, TA, Data>
+{
     fn get_precedence(&self) -> i32 {
         match self {
             Self::Any(_) => 0,
@@ -149,7 +155,9 @@ impl<Name: Display, TA: Display, Data> TreeFormat for MatchPattern<Name, TA, Dat
     }
 }
 
-impl<Name: Display, TA: Display, Data> Display for MatchPattern<Name, TA, Data> {
+impl<Name: Display, Symbol: Display, TA: Display, Data> Display
+    for MatchPattern<Name, Symbol, TA, Data>
+{
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             MatchPattern::Any(_) => write!(f, "_"),

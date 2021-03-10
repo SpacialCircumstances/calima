@@ -326,7 +326,7 @@ impl<Data: Copy + Debug> Context<Data> {
     fn bind_to_pattern<F: Fn(&Type, &mut LocalEnvironment<Data>) -> Scheme>(
         &mut self,
         env: &mut LocalEnvironment<Data>,
-        pattern: &BindPattern<TypeAnnotation<Name<Data>, SymbolName, Data>, Data>,
+        pattern: &BindPattern<SymbolName, TypeAnnotation<Name<Data>, SymbolName, Data>, Data>,
         tp: &mut Type,
         to_scheme: F,
         export: bool,
@@ -357,7 +357,7 @@ impl<Data: Copy + Debug> Context<Data> {
     fn bind_to_pattern_generalized(
         &mut self,
         env: &mut LocalEnvironment<Data>,
-        pattern: &BindPattern<TypeAnnotation<Name<Data>, SymbolName, Data>, Data>,
+        pattern: &BindPattern<SymbolName, TypeAnnotation<Name<Data>, SymbolName, Data>, Data>,
         tp: &mut Type,
         export: bool,
     ) {
@@ -367,7 +367,7 @@ impl<Data: Copy + Debug> Context<Data> {
     fn bind_to_pattern_directly(
         &mut self,
         env: &mut LocalEnvironment<Data>,
-        pattern: &BindPattern<TypeAnnotation<Name<Data>, SymbolName, Data>, Data>,
+        pattern: &BindPattern<SymbolName, TypeAnnotation<Name<Data>, SymbolName, Data>, Data>,
         tp: &mut Type,
     ) {
         self.bind_to_pattern(env, pattern, tp, |t, _env| Scheme::simple(t.clone()), false);
@@ -832,8 +832,8 @@ fn infer_statement<Data: Copy + Debug>(
 }
 
 fn map_bind_pattern<Data>(
-    pattern: &BindPattern<TypeAnnotation<Name<Data>, SymbolName, Data>, Data>,
-) -> BindPattern<Unit, Unit> {
+    pattern: &BindPattern<SymbolName, TypeAnnotation<Name<Data>, SymbolName, Data>, Data>,
+) -> BindPattern<SymbolName, Unit, Unit> {
     match pattern {
         BindPattern::Any(_) => BindPattern::Any(Unit::unit()),
         BindPattern::Name(id, _, _) => BindPattern::Name(id.clone(), None, Unit::unit()),
@@ -843,8 +843,13 @@ fn map_bind_pattern<Data>(
 }
 
 fn map_match_pattern<Data>(
-    pattern: &MatchPattern<Name<Data>, TypeAnnotation<Name<Data>, SymbolName, Data>, Data>,
-) -> MatchPattern<Name<Data>, Unit, Unit> {
+    pattern: &MatchPattern<
+        Name<Data>,
+        SymbolName,
+        TypeAnnotation<Name<Data>, SymbolName, Data>,
+        Data,
+    >,
+) -> MatchPattern<Name<Data>, SymbolName, Unit, Unit> {
     match pattern {
         MatchPattern::Any(_) => MatchPattern::Any(Unit::unit()),
         MatchPattern::Literal(lit, _) => MatchPattern::Literal(lit.clone(), Unit::unit()),

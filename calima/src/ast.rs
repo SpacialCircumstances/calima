@@ -138,7 +138,7 @@ impl Display for Modifier {
 #[derive(Debug, PartialEq, Clone)]
 pub struct Let<Name: Display, Symbol: Display, Data> {
     pub mods: Vec<Modifier>,
-    pub pattern: BindPattern<TypeAnnotation<Name, Symbol, Data>, Data>,
+    pub pattern: BindPattern<Symbol, TypeAnnotation<Name, Symbol, Data>, Data>,
     pub value: Expr<Name, Symbol, Data>,
     pub data: Data,
 }
@@ -320,7 +320,7 @@ pub enum Expr<Name: Display, Symbol: Display, Data> {
     Tuple(Vec<Expr<Name, Symbol, Data>>, Data),
     Literal(Literal, Data),
     Lambda {
-        params: Vec<BindPattern<TypeAnnotation<Name, Symbol, Data>, Data>>,
+        params: Vec<BindPattern<Symbol, TypeAnnotation<Name, Symbol, Data>, Data>>,
         body: Block<Name, Symbol, Data>,
         data: Data,
     },
@@ -334,7 +334,7 @@ pub enum Expr<Name: Display, Symbol: Display, Data> {
         data: Data,
         value: Box<Expr<Name, Symbol, Data>>,
         matches: Vec<(
-            MatchPattern<Name, TypeAnnotation<Name, Symbol, Data>, Data>,
+            MatchPattern<Name, Symbol, TypeAnnotation<Name, Symbol, Data>, Data>,
             Block<Name, Symbol, Data>,
         )>,
     },
