@@ -284,12 +284,12 @@ impl<Data: Copy + Debug> Context<Data> {
     fn type_from_annotation(
         &mut self,
         env: &mut LocalEnvironment<Data>,
-        ta: &TypeAnnotation<Data>,
+        ta: &TypeAnnotation<Name<Data>, SymbolName, Data>,
     ) -> Type {
         fn to_type<Data: Copy + Debug>(
             ctx: &mut Context<Data>,
             env: &mut LocalEnvironment<Data>,
-            ta: &TypeAnnotation<Data>,
+            ta: &TypeAnnotation<Name<Data>, SymbolName, Data>,
         ) -> Result<Type, TypeError<Data>> {
             match ta {
                 TypeAnnotation::Name(name) => match PrimitiveType::try_from(&name.0[0]) {
@@ -326,7 +326,7 @@ impl<Data: Copy + Debug> Context<Data> {
     fn bind_to_pattern<F: Fn(&Type, &mut LocalEnvironment<Data>) -> Scheme>(
         &mut self,
         env: &mut LocalEnvironment<Data>,
-        pattern: &BindPattern<TypeAnnotation<Data>, Data>,
+        pattern: &BindPattern<TypeAnnotation<Name<Data>, SymbolName, Data>, Data>,
         tp: &mut Type,
         to_scheme: F,
         export: bool,
@@ -357,7 +357,7 @@ impl<Data: Copy + Debug> Context<Data> {
     fn bind_to_pattern_generalized(
         &mut self,
         env: &mut LocalEnvironment<Data>,
-        pattern: &BindPattern<TypeAnnotation<Data>, Data>,
+        pattern: &BindPattern<TypeAnnotation<Name<Data>, SymbolName, Data>, Data>,
         tp: &mut Type,
         export: bool,
     ) {
@@ -367,7 +367,7 @@ impl<Data: Copy + Debug> Context<Data> {
     fn bind_to_pattern_directly(
         &mut self,
         env: &mut LocalEnvironment<Data>,
-        pattern: &BindPattern<TypeAnnotation<Data>, Data>,
+        pattern: &BindPattern<TypeAnnotation<Name<Data>, SymbolName, Data>, Data>,
         tp: &mut Type,
     ) {
         self.bind_to_pattern(env, pattern, tp, |t, _env| Scheme::simple(t.clone()), false);
@@ -390,7 +390,7 @@ impl<Data: Copy + Debug> Context<Data> {
     fn transform_operators(
         &mut self,
         env: &mut LocalEnvironment<Data>,
-        elements: &Vec<OperatorElement<Data>>,
+        elements: &Vec<OperatorElement<Name<Data>, SymbolName, Data>>,
         top_location: Data,
     ) -> TExpression {
         let mut bin_ops: Vec<(SymbolName, Type, u32, Associativity, Data)> = Vec::new();
@@ -438,12 +438,12 @@ impl<Data: Copy + Debug> Context<Data> {
                         Some(OperatorSpecification::Prefix) => un_ops.push((name.clone(), op_tp)),
                     }
                 }
-                OperatorElement::Expression(oexpr) => {
+                OperatorElement::Expression(oexpr, loc) => {
                     let mut expr = infer_expr(env, self, oexpr);
 
                     while let Some((op_name, op_tp)) = un_ops.pop() {
                         let op_expr = TExpression::new(TExprData::Variable(op_name), op_tp.clone());
-                        expr = function_call(self, op_expr, vec![expr], *oexpr.get_location());
+                        expr = function_call(self, op_expr, vec![expr], *loc);
                     }
 
                     exprs.push(expr);
@@ -636,7 +636,7 @@ fn function_call<Data: Copy + Debug>(
 fn infer_expr<Data: Copy + Debug>(
     env: &mut LocalEnvironment<Data>,
     ctx: &mut Context<Data>,
-    expr: &Expr<Data>,
+    expr: &Expr<Name<Data>, SymbolName, Data>,
 ) -> TExpression {
     match expr {
         Expr::Literal(lit, _) => {
@@ -738,7 +738,7 @@ fn get_literal_type(lit: &Literal) -> Type {
 fn infer_let<Data: Copy + Debug>(
     env: &mut LocalEnvironment<Data>,
     ctx: &mut Context<Data>,
-    l: &Let<Data>,
+    l: &Let<Name<Data>, SymbolName, Data>,
     export: bool,
 ) -> TStatement {
     let v = if l.mods.contains(&Modifier::Rec) {
@@ -760,7 +760,7 @@ fn infer_let<Data: Copy + Debug>(
 fn infer_let_operator<Data: Copy + Debug>(
     env: &mut LocalEnvironment<Data>,
     ctx: &mut Context<Data>,
-    l: &LetOperator<Data>,
+    l: &LetOperator<Name<Data>, SymbolName, Data>,
     export: bool,
 ) -> TStatement {
     let (mut op_type, v) = if l.mods.contains(&Modifier::Rec) {
@@ -821,7 +821,7 @@ fn infer_let_operator<Data: Copy + Debug>(
 fn infer_statement<Data: Copy + Debug>(
     env: &mut LocalEnvironment<Data>,
     ctx: &mut Context<Data>,
-    statement: &Statement<Data>,
+    statement: &Statement<Name<Data>, SymbolName, Data>,
 ) -> Option<TStatement> {
     match statement {
         Statement::Region(name, _) => None,
@@ -832,7 +832,7 @@ fn infer_statement<Data: Copy + Debug>(
 }
 
 fn map_bind_pattern<Data>(
-    pattern: &BindPattern<TypeAnnotation<Data>, Data>,
+    pattern: &BindPattern<TypeAnnotation<Name<Data>, SymbolName, Data>, Data>,
 ) -> BindPattern<Unit, Unit> {
     match pattern {
         BindPattern::Any(_) => BindPattern::Any(Unit::unit()),
@@ -843,7 +843,7 @@ fn map_bind_pattern<Data>(
 }
 
 fn map_match_pattern<Data>(
-    pattern: &MatchPattern<Name<Data>, TypeAnnotation<Data>, Data>,
+    pattern: &MatchPattern<Name<Data>, TypeAnnotation<Name<Data>, SymbolName, Data>, Data>,
 ) -> MatchPattern<Name<Data>, Unit, Unit> {
     match pattern {
         MatchPattern::Any(_) => MatchPattern::Any(Unit::unit()),
@@ -856,7 +856,7 @@ fn map_match_pattern<Data>(
 fn infer_block<Data: Copy + Debug>(
     env: &mut LocalEnvironment<Data>,
     ctx: &mut Context<Data>,
-    block: &Block<Data>,
+    block: &Block<Name<Data>, SymbolName, Data>,
 ) -> TBlock {
     let mut block_env = env.clone();
     let tstatements = block
@@ -874,7 +874,7 @@ fn infer_block<Data: Copy + Debug>(
 fn infer_top_level<Data: Copy + Debug>(
     env: &mut LocalEnvironment<Data>,
     ctx: &mut Context<Data>,
-    tls: &TopLevelStatement<Data>,
+    tls: &TopLevelStatement<Name<Data>, SymbolName, Data>,
 ) -> Option<TStatement> {
     match tls {
         TopLevelStatement::Let(vis, l) => {
@@ -894,7 +894,7 @@ fn infer_top_level<Data: Copy + Debug>(
 fn infer_top_level_block<Data: Copy + Debug>(
     env: &mut LocalEnvironment<Data>,
     ctx: &mut Context<Data>,
-    tlb: &TopLevelBlock<Data>,
+    tlb: &TopLevelBlock<Name<Data>, SymbolName, Data>,
 ) -> TBlock {
     let statements = tlb
         .0
@@ -998,7 +998,7 @@ mod operator_tests {
 
     use crate::ast::OperatorElement::*;
     use crate::ast::{Expr, OperatorElement};
-    use crate::ast_common::{Literal, NumberType};
+    use crate::ast_common::{Literal, Name, NumberType};
     use crate::common::ModuleIdentifier;
     use crate::errors::ErrorContext;
     use crate::modules::{UntypedModule, UntypedModuleData};
@@ -1012,11 +1012,11 @@ mod operator_tests {
     use std::fs::read_to_string;
     use std::rc::Rc;
 
-    fn int_lit(lit: &str) -> OperatorElement<()> {
-        Expression(Expr::Literal(
-            Literal::Number(String::from(lit), NumberType::Integer),
+    fn int_lit(lit: &str) -> OperatorElement<Name<()>, SymbolName, ()> {
+        Expression(
+            Expr::Literal(Literal::Number(String::from(lit), NumberType::Integer), ()),
             (),
-        ))
+        )
     }
 
     fn int_lit_typed(lit: &str) -> TExpression {

@@ -1,5 +1,6 @@
 use crate::ast::*;
-use crate::names::SymbolNameInterner;
+use crate::ast_common::Name;
+use crate::names::{SymbolName, SymbolNameInterner};
 use crate::parsing::lexer::{Error, Lexer};
 use crate::parsing::token::{Location, Span, Token};
 use lalrpop_util::ParseError;
@@ -20,7 +21,7 @@ fn to_data(left_loc: Location, right_loc: Location) -> Span {
 pub fn parse_type<'a>(
     text: &'a str,
     interner: &SymbolNameInterner,
-) -> Result<TypeAnnotation<Span>, ParseError<Location, Token<'a>, Error>> {
+) -> Result<TypeAnnotation<Name<Span>, SymbolName, Span>, ParseError<Location, Token<'a>, Error>> {
     let lexer = Lexer::new(text);
     let parser = calima_parser::TypeAnnotation0Parser::new();
     parser.parse(&to_data, interner, lexer)
@@ -29,7 +30,7 @@ pub fn parse_type<'a>(
 pub fn parse<'a>(
     code: &'a str,
     interner: &SymbolNameInterner,
-) -> Result<TopLevelBlock<Span>, ParseError<Location, Token<'a>, Error>> {
+) -> Result<TopLevelBlock<Name<Span>, SymbolName, Span>, ParseError<Location, Token<'a>, Error>> {
     let lexer = Lexer::new(code);
     let parser = calima_parser::TopLevelBlockParser::new();
     parser.parse(
