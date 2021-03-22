@@ -12,6 +12,7 @@ mod common;
 mod errors;
 mod formatting;
 mod modules;
+mod names;
 mod parsing;
 pub mod symbol_names;
 mod typechecker;
