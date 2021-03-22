@@ -9,7 +9,7 @@ use crate::common::*;
 use crate::errors::CompilerError::*;
 use crate::errors::{CompilerError, ErrorContext};
 use crate::modules::{UntypedModule, UntypedModuleData, UntypedModuleTree};
-use crate::names::SymbolNameInterner;
+use crate::symbol_names::SymbolNameInterner;
 use crate::CompilerArguments;
 
 pub mod lexer;

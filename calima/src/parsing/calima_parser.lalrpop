@@ -3,7 +3,7 @@ use crate::ast::*;
 use crate::parsing::token::{Location, Token, Span, NumberFormat};
 use crate::parsing::token::Token::*;
 use crate::parsing::lexer::{Error, ErrorKind};
-use crate::names::{SymbolNameInterner, SymbolName};
+use crate::symbol_names::{SymbolNameInterner, SymbolName};
 use lalrpop_util::ParseError;
 use std::str::FromStr;
 use std::convert::TryFrom;

@@ -1,5 +1,5 @@
 use crate::ast_common::{BindPattern, Literal, MatchPattern, Name};
-use crate::names::SymbolName;
+use crate::symbol_names::SymbolName;
 use crate::types::{Region, Type};
 use std::fmt::{Display, Formatter};
 

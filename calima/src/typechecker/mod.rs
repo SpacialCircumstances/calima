@@ -6,8 +6,8 @@ use crate::formatting::format_iter;
 use crate::modules::{
     TypedModule, TypedModuleData, TypedModuleTree, UntypedModule, UntypedModuleTree,
 };
-use crate::names::{SymbolName, SymbolNameInterner};
 use crate::parsing::token::Span;
+use crate::symbol_names::{SymbolName, SymbolNameInterner};
 use crate::typechecker::env::{Environment, ModuleEnvironment, Opening};
 use crate::typechecker::substitution::Substitution;
 use crate::typechecker::symbol_table::{Location, SymbolTable};
@@ -1007,8 +1007,8 @@ mod operator_tests {
     use crate::common::ModuleIdentifier;
     use crate::errors::ErrorContext;
     use crate::modules::{UntypedModule, UntypedModuleData};
-    use crate::names::{SymbolName, SymbolNameInterner};
     use crate::parsing::parser::parse;
+    use crate::symbol_names::{SymbolName, SymbolNameInterner};
     use crate::typechecker::env::Environment;
     use crate::typechecker::prelude::prelude;
     use crate::typechecker::{infer_top_level_block, typecheck_module, Context, LocalEnvironment};
@@ -1279,9 +1279,9 @@ mod typecheck_tests {
     use crate::ast_common::{Associativity, OperatorSpecification};
     use crate::common::ModuleIdentifier;
     use crate::errors::ErrorContext;
-    use crate::names::{SymbolName, SymbolNameInterner};
     use crate::parsing::parser::{parse, parse_type};
     use crate::parsing::token::Span;
+    use crate::symbol_names::{SymbolName, SymbolNameInterner};
     use crate::typechecker::env::Environment;
     use crate::typechecker::{generalize, infer_top_level_block, Context, LocalEnvironment};
     use std::fmt::Debug;

@@ -1,4 +1,4 @@
-use crate::names::SymbolName;
+use crate::symbol_names::SymbolName;
 use std::fmt::{Display, Formatter};
 
 pub mod tree;

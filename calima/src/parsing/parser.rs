@@ -1,8 +1,8 @@
 use crate::ast::*;
 use crate::ast_common::Name;
-use crate::names::{SymbolName, SymbolNameInterner};
 use crate::parsing::lexer::{Error, Lexer};
 use crate::parsing::token::{Location, Span, Token};
+use crate::symbol_names::{SymbolName, SymbolNameInterner};
 use lalrpop_util::ParseError;
 
 lalrpop_mod!(
@@ -48,9 +48,9 @@ mod tests {
     use crate::ast::Expr::*;
     use crate::ast::{Block, Let, TopLevelBlock, TopLevelStatement};
     use crate::ast_common::{BindPattern, Literal};
-    use crate::names::SymbolNameInterner;
     use crate::parsing::parser::parse;
     use crate::parsing::token::{Location, Span};
+    use crate::symbol_names::SymbolNameInterner;
     use crate::typed_ast::Unit;
     use goldenfile::Mint;
     use std::fs::read_dir;
