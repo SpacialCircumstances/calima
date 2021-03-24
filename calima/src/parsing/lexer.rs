@@ -1,14 +1,12 @@
-use crate::parsing::string_interner::StringInterner;
 use crate::parsing::token::Token::*;
 use crate::parsing::token::{Location, NumberFormat, Span, Token};
 use std::fmt::{Display, Formatter};
 use std::iter::Peekable;
 use std::str::Chars;
 
-pub struct Lexer<'source, 'input> {
-    chars: Peekable<Chars<'source>>,
-    input: &'source str,
-    interner: &'input StringInterner,
+pub struct Lexer<'input> {
+    chars: Peekable<Chars<'input>>,
+    input: &'input str,
     last_pos: Location,
     current_pos: Location,
 }
@@ -121,8 +119,8 @@ fn handle_identifier(ident: &str) -> Token {
     }
 }
 
-impl<'source, 'input> Lexer<'source, 'input> {
-    pub fn new(input: &'source str, interner: &'input StringInterner) -> Self {
+impl<'input> Lexer<'input> {
+    pub fn new(input: &'input str) -> Self {
         let starting_pos = Location {
             pos: 0,
             line: 1,
@@ -133,7 +131,6 @@ impl<'source, 'input> Lexer<'source, 'input> {
             chars: input.chars().peekable(),
             last_pos: starting_pos,
             current_pos: starting_pos,
-            interner,
         }
     }
 
@@ -199,7 +196,7 @@ impl<'source, 'input> Lexer<'source, 'input> {
                 Some(_) => (),
             }
         };
-        let lit = self.interner.intern(&self.input[start_idx..end_idx]);
+        let lit = &self.input[start_idx..end_idx];
         let end = self.token_start_pos();
         Some(Ok((start, StringLiteral(lit), end)))
     }
@@ -217,7 +214,7 @@ impl<'source, 'input> Lexer<'source, 'input> {
             }
             self.advance();
         };
-        let lit = self.interner.intern(&self.input[start_idx..end_idx]);
+        let lit = &self.input[start_idx..end_idx];
         let end = self.token_start_pos();
         let format = match lit.contains('.') {
             true => NumberFormat::Float,
@@ -242,13 +239,13 @@ impl<'source, 'input> Lexer<'source, 'input> {
             }
             self.advance();
         };
-        let lit = self.interner.intern(&self.input[start_idx..end_idx]);
+        let lit = &self.input[start_idx..end_idx];
         let end = self.token_start_pos();
         Some(Ok((start, handle_identifier(lit), end)))
     }
 }
 
-impl<'source, 'input> Iterator for Lexer<'source, 'input> {
+impl<'input> Iterator for Lexer<'input> {
     type Item = LexerResult<'input>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -289,13 +286,11 @@ impl<'source, 'input> Iterator for Lexer<'source, 'input> {
 mod tests {
     use crate::ast::TypeAnnotation::Name;
     use crate::parsing::lexer::Lexer;
-    use crate::parsing::string_interner::StringInterner;
     use crate::parsing::token::Token::*;
     use crate::parsing::token::{NumberFormat, Token};
 
     fn lex_equal(code: &str, tokens: Vec<Token>) {
-        let interner = StringInterner::new();
-        let lexer = Lexer::new(code, &interner);
+        let lexer = Lexer::new(code);
         let res: Vec<Token> = lexer.map(|tk| tk.unwrap()).map(|(_, t, _)| t).collect();
         assert_eq!(res, tokens);
     }

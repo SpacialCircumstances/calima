@@ -1,7 +1,8 @@
 use crate::ast::*;
+use crate::ast_common::Name;
 use crate::parsing::lexer::{Error, Lexer};
-use crate::parsing::string_interner::StringInterner;
 use crate::parsing::token::{Location, Span, Token};
+use crate::symbol_names::{SymbolName, SymbolNameInterner};
 use lalrpop_util::ParseError;
 
 lalrpop_mod!(
@@ -10,32 +11,34 @@ lalrpop_mod!(
     "/parsing/calima_parser.rs"
 );
 
-pub fn parse_type<'source, 'input>(
-    text: &'source str,
-    interner: &'input StringInterner,
-) -> Result<TypeAnnotation<'input, Span>, ParseError<Location, Token<'input>, Error>> {
-    let lexer = Lexer::new(text, interner);
-    let parser = calima_parser::TypeAnnotation0Parser::new();
-    parser.parse(
-        &|left_loc, right_loc| Span {
-            left: left_loc,
-            right: right_loc,
-        },
-        lexer,
-    )
+fn to_data(left_loc: Location, right_loc: Location) -> Span {
+    Span {
+        left: left_loc,
+        right: right_loc,
+    }
 }
 
-pub fn parse<'source, 'input>(
-    code: &'source str,
-    interner: &'input StringInterner,
-) -> Result<TopLevelBlock<'input, Span>, ParseError<Location, Token<'input>, Error>> {
-    let lexer = Lexer::new(code, interner);
+pub fn parse_type<'a>(
+    text: &'a str,
+    interner: &SymbolNameInterner,
+) -> Result<TypeAnnotation<Name<Span>, SymbolName, Span>, ParseError<Location, Token<'a>, Error>> {
+    let lexer = Lexer::new(text);
+    let parser = calima_parser::TypeAnnotation0Parser::new();
+    parser.parse(&to_data, interner, lexer)
+}
+
+pub fn parse<'a>(
+    code: &'a str,
+    interner: &SymbolNameInterner,
+) -> Result<TopLevelBlock<Name<Span>, SymbolName, Span>, ParseError<Location, Token<'a>, Error>> {
+    let lexer = Lexer::new(code);
     let parser = calima_parser::TopLevelBlockParser::new();
     parser.parse(
         &|left_loc, right_loc| Span {
             left: left_loc,
             right: right_loc,
         },
+        interner,
         lexer,
     )
 }
@@ -46,8 +49,8 @@ mod tests {
     use crate::ast::{Block, Let, TopLevelBlock, TopLevelStatement};
     use crate::ast_common::{BindPattern, Literal};
     use crate::parsing::parser::parse;
-    use crate::parsing::string_interner::StringInterner;
     use crate::parsing::token::{Location, Span};
+    use crate::symbol_names::SymbolNameInterner;
     use crate::typed_ast::Unit;
     use goldenfile::Mint;
     use std::fs::read_dir;
@@ -56,11 +59,11 @@ mod tests {
     #[test]
     fn test_by_comparing_to_parsed() {
         let mut mint_code = Mint::new("tests/parsed/");
-        let interner = StringInterner::new();
 
         for entry in read_dir("../examples/basic/").unwrap() {
             match entry {
                 Ok(entry) => {
+                    let interner = SymbolNameInterner::new();
                     let entry_path = entry.path();
                     if entry_path.is_file() {
                         let filename = entry_path.file_name().unwrap();

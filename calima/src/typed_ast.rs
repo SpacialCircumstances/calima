@@ -1,4 +1,5 @@
-use crate::ast_common::{BindPattern, Literal, MatchPattern};
+use crate::ast_common::{BindPattern, Literal, MatchPattern, Name};
+use crate::symbol_names::SymbolName;
 use crate::types::{Region, Type};
 use std::fmt::{Display, Formatter};
 
@@ -18,26 +19,26 @@ impl Display for Unit {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum TExprData<'input> {
-    Variable(&'input str),
-    FunctionCall(Box<TExpression<'input>>, Vec<TExpression<'input>>),
-    Record(Vec<(&'input str, TExpression<'input>)>),
-    Tuple(Vec<TExpression<'input>>),
-    List(Vec<TExpression<'input>>),
-    Literal(Literal<'input>),
-    Lambda(Vec<BindPattern<'input, Unit, Unit>>, TBlock<'input>),
+pub enum TExprData {
+    Variable(SymbolName),
+    FunctionCall(Box<TExpression>, Vec<TExpression>),
+    Record(Vec<(SymbolName, TExpression)>),
+    Tuple(Vec<TExpression>),
+    List(Vec<TExpression>),
+    Literal(Literal),
+    Lambda(Vec<BindPattern<SymbolName, Unit, Unit>>, TBlock),
     Case(
-        Box<TExpression<'input>>,
-        Vec<(MatchPattern<'input, Unit, Unit>, TBlock<'input>)>,
+        Box<TExpression>,
+        Vec<(MatchPattern<SymbolName, SymbolName, Unit, Unit>, TBlock)>,
     ),
-    Ref(Region, Box<TExpression<'input>>),
+    Ref(Region, Box<TExpression>),
 }
 
 #[derive(Debug, Clone)]
-pub struct TExpression<'input>(TExprData<'input>, Type);
+pub struct TExpression(TExprData, Type);
 
-impl<'input> TExpression<'input> {
-    pub fn new(data: TExprData<'input>, tp: Type) -> Self {
+impl TExpression {
+    pub fn new(data: TExprData, tp: Type) -> Self {
         TExpression(data, tp)
     }
 
@@ -50,20 +51,20 @@ impl<'input> TExpression<'input> {
     }
 }
 
-impl<'a> PartialEq for TExpression<'a> {
+impl PartialEq for TExpression {
     fn eq(&self, other: &Self) -> bool {
         self.0 == other.0
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum TStatement<'input> {
-    Do(TExpression<'input>),
-    Let(TExpression<'input>, BindPattern<'input, Unit, Unit>),
+pub enum TStatement {
+    Do(TExpression),
+    Let(TExpression, BindPattern<SymbolName, Unit, Unit>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct TBlock<'input> {
-    pub statements: Vec<TStatement<'input>>,
-    pub res: Box<TExpression<'input>>,
+pub struct TBlock {
+    pub statements: Vec<TStatement>,
+    pub res: Box<TExpression>,
 }

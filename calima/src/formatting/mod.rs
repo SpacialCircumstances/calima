@@ -1,3 +1,4 @@
+use crate::symbol_names::SymbolName;
 use std::fmt::{Display, Formatter};
 
 pub mod tree;
@@ -16,9 +17,10 @@ pub fn format_iter_end<T: Display, I: Iterator<Item = T>>(iter: I, sep: &str) ->
     str
 }
 
-pub fn format_record<T>(elements: &Vec<(&str, T)>, sep: &str, element_sep: &str) -> String
+pub fn format_record<T, Symbol>(elements: &Vec<(Symbol, T)>, sep: &str, element_sep: &str) -> String
 where
     T: Display,
+    Symbol: Display,
 {
     let rows = format_iter(
         elements.iter().map(|(n, e)| format!("{}{} {}", n, sep, e)),
