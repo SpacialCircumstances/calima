@@ -20,13 +20,57 @@ pub enum MainFunctionErrorKind {
     SignatureWrong,
 }
 
+//Basically a copy of lalrpop::ParseError, but with formatted tokens to avoid lifetime issues
+#[derive(Debug, Clone)]
+pub enum ParserError {
+    InvalidToken {
+        location: Location,
+    },
+    UnrecognizedEOF {
+        location: Location,
+        expected: Vec<String>,
+    },
+    UnrecognizedToken {
+        token: (Location, String, Location),
+        expected: Vec<String>,
+    },
+
+    ExtraToken {
+        token: (Location, String, Location),
+    },
+    User {
+        error: crate::parsing::lexer::Error,
+    },
+}
+
+impl<'a> From<lalrpop_util::ParseError<Location, Token<'a>, crate::parsing::lexer::Error>>
+    for ParserError
+{
+    fn from(pe: ParseError<Location, Token<'a>, crate::parsing::lexer::Error>) -> Self {
+        match pe {
+            ParseError::InvalidToken { location } => ParserError::InvalidToken { location },
+            ParseError::UnrecognizedEOF { location, expected } => {
+                ParserError::UnrecognizedEOF { location, expected }
+            }
+            ParseError::UnrecognizedToken {
+                token: (l1, t, l2),
+                expected,
+            } => ParserError::UnrecognizedToken {
+                token: (l1, t.to_string(), l2),
+                expected,
+            },
+            ParseError::ExtraToken { token: (l1, t, l2) } => ParserError::ExtraToken {
+                token: (l1, t.to_string(), l2),
+            },
+            ParseError::User { error } => ParserError::User { error },
+        }
+    }
+}
+
 #[derive(Debug)]
-pub enum CompilerError<'a> {
+pub enum CompilerError {
     GeneralError(Option<Box<dyn Error>>, String),
-    ParserError(
-        lalrpop_util::ParseError<Location, Token<'a>, crate::parsing::lexer::Error>,
-        ModuleIdentifier,
-    ),
+    ParserError(ParserError, ModuleIdentifier),
     ImportError {
         importing_mod: ModuleIdentifier,
         location: Span,
@@ -121,13 +165,13 @@ impl<'a> codespan_reporting::files::Files<'a> for CompilerFiles {
 #[derive(Debug)]
 pub enum CompilerWarning {}
 
-pub struct ErrorContext<'a> {
-    errors: Vec<CompilerError<'a>>,
+pub struct ErrorContext {
+    errors: Vec<CompilerError>,
     warnings: Vec<CompilerWarning>,
     files: CompilerFiles,
 }
 
-impl<'a> ErrorContext<'a> {
+impl ErrorContext {
     pub fn new() -> Self {
         ErrorContext {
             warnings: Vec::new(),
@@ -140,7 +184,7 @@ impl<'a> ErrorContext<'a> {
         self.files.add_module(module, path, code);
     }
 
-    pub fn add_error(&mut self, err: CompilerError<'a>) {
+    pub fn add_error(&mut self, err: CompilerError) {
         self.errors.push(err);
     }
 
@@ -164,7 +208,7 @@ impl<'a> ErrorContext<'a> {
                 CompilerError::ParserError(parser_err, module) => {
                     let file_id = self.files.get_module(module).expect("Error loading file");
                     match parser_err {
-                        ParseError::User { error } => {
+                        ParserError::User { error } => {
                             let message = format!("{}", error.kind);
                             let e = Diagnostic::new(Severity::Error)
                                 .with_labels(vec![Label::primary(
@@ -175,7 +219,7 @@ impl<'a> ErrorContext<'a> {
                                 .with_message(&message);
                             diagnostics.push(e);
                         }
-                        ParseError::ExtraToken {
+                        ParserError::ExtraToken {
                             token: (s, token, e),
                         } => {
                             let e = Diagnostic::new(Severity::Error)
@@ -188,7 +232,7 @@ impl<'a> ErrorContext<'a> {
                                 )]);
                             diagnostics.push(e);
                         }
-                        ParseError::InvalidToken { location } => {
+                        ParserError::InvalidToken { location } => {
                             let e = Diagnostic::new(Severity::Error)
                                 .with_message("Parser Error")
                                 .with_labels(vec![Label::primary(
@@ -199,7 +243,7 @@ impl<'a> ErrorContext<'a> {
                                 .with_notes(vec!["Parser found invalid token".to_string()]);
                             diagnostics.push(e);
                         }
-                        ParseError::UnrecognizedEOF { location, expected } => {
+                        ParserError::UnrecognizedEOF { location, expected } => {
                             let expected = expected.join(", ");
                             let e = Diagnostic::new(Severity::Error)
                                 .with_message("Parser error")
@@ -214,7 +258,7 @@ impl<'a> ErrorContext<'a> {
                                 .with_notes(vec!["Parser encountered unexpected EOF".to_string()]);
                             diagnostics.push(e);
                         }
-                        ParseError::UnrecognizedToken {
+                        ParserError::UnrecognizedToken {
                             token: (s, token, e),
                             expected,
                         } => {

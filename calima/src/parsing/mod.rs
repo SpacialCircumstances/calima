@@ -39,8 +39,8 @@ fn try_resolve_module(
         .collect()
 }
 
-pub fn parse_all_modules<'input, S: AsRef<str>>(
-    error_context: &mut ErrorContext<'input>,
+pub fn parse_all_modules<S: AsRef<str>>(
+    error_context: &mut ErrorContext,
     interner: &SymbolNameInterner,
     args: CompilerArguments<S>,
 ) -> Result<UntypedModuleTree, ()> {
@@ -113,20 +113,20 @@ pub fn parse<'input>(
     search_dirs: &Vec<PathBuf>,
     name: ModuleIdentifier,
     path: PathBuf,
-    err: &mut ErrorContext<'input>,
+    err: &mut ErrorContext,
     interner: &SymbolNameInterner,
-) -> Result<UntypedModule, CompilerError<'input>> {
+) -> Result<UntypedModule, CompilerError> {
     let code = read_to_string(&path).map_err(|e| {
         GeneralError(
             Some(Box::new(e)),
             format!("Error opening file {}", &path.display()),
         )
     })?;
-    unimplemented!();
 
     let ast_res = parser::parse(&code, &interner);
-    err.add_file(&name, &path, code);
-    let ast = ast_res.map_err(|pe| ParserError(pe, name.clone()))?;
+    err.add_file(&name, &path, code.clone());
+    let ast =
+        ast_res.map_err(|pe| ParserError(crate::errors::ParserError::from(pe), name.clone()))?;
 
     let dependencies = find_imported_modules(&ast)
         .iter()
