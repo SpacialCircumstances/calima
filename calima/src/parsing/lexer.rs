@@ -1,10 +1,13 @@
 use crate::parsing::token::Token::*;
 use crate::parsing::token::{Location, NumberFormat, Span, Token};
+use crate::StringInterner;
+use quetta::Text;
 use std::fmt::{Display, Formatter};
 use std::iter::Peekable;
 use std::str::Chars;
 
 pub struct Lexer<'input> {
+    interner: &'input StringInterner,
     chars: Peekable<Chars<'input>>,
     input: &'input str,
     last_pos: Location,
@@ -40,7 +43,7 @@ impl Display for Error {
     }
 }
 
-type LexerResult<'input> = Result<(Location, Token<'input>, Location), Error>;
+type LexerResult = Result<(Location, Token, Location), Error>;
 
 fn is_separator(c: char, is_op: bool) -> bool {
     match c {
@@ -61,7 +64,7 @@ fn is_separator(c: char, is_op: bool) -> bool {
     }
 }
 
-fn single_char_token<'input>(c: char) -> Option<Token<'input>> {
+fn single_char_token(c: char) -> Option<Token> {
     match c {
         ':' => Some(Colon),
         ',' => Some(Comma),
@@ -78,47 +81,8 @@ fn single_char_token<'input>(c: char) -> Option<Token<'input>> {
     }
 }
 
-fn handle_identifier(ident: &str) -> Token {
-    match ident {
-        "do" => Do,
-        "let" => Let,
-        "rec" => Rec,
-        "in" => In,
-        "fun" => Fun,
-        "if" => If,
-        "then" => Then,
-        "else" => Else,
-        "case" => Case,
-        "of" => Of,
-        "end" => End,
-        "type" => Type,
-        "import" => Import,
-        "opening" => Opening,
-        "->" => Arrow,
-        "=" => Equal,
-        "|" => Pipe,
-        "_" => Underscore,
-        "true" => BooleanLiteral(true),
-        "false" => BooleanLiteral(false),
-        "infix" => Infix,
-        "prefix" => Prefix,
-        "public" => Public,
-        x => {
-            let first = x
-                .chars()
-                .next()
-                .expect(format!("Fatal Error: Unrecognized identifier '{}'", ident).as_ref());
-            match first {
-                c if c.is_alphabetic() && c.is_uppercase() => TypeIdentifier(ident),
-                c if c.is_alphabetic() => NameIdentifier(ident),
-                _ => OperatorIdentifier(ident),
-            }
-        }
-    }
-}
-
 impl<'input> Lexer<'input> {
-    pub fn new(input: &'input str) -> Self {
+    pub fn new(input: &'input str, interner: &'input StringInterner) -> Self {
         let starting_pos = Location {
             pos: 0,
             line: 1,
@@ -129,6 +93,7 @@ impl<'input> Lexer<'input> {
             chars: input.chars().peekable(),
             last_pos: starting_pos,
             current_pos: starting_pos,
+            interner,
         }
     }
 
@@ -175,7 +140,47 @@ impl<'input> Lexer<'input> {
         }
     }
 
-    fn string_literal(&mut self) -> Option<LexerResult<'input>> {
+    fn handle_identifier(&mut self, ident: &str) -> Token {
+        match ident {
+            "do" => Do,
+            "let" => Let,
+            "rec" => Rec,
+            "in" => In,
+            "fun" => Fun,
+            "if" => If,
+            "then" => Then,
+            "else" => Else,
+            "case" => Case,
+            "of" => Of,
+            "end" => End,
+            "type" => Type,
+            "import" => Import,
+            "opening" => Opening,
+            "->" => Arrow,
+            "=" => Equal,
+            "|" => Pipe,
+            "_" => Underscore,
+            "true" => BooleanLiteral(true),
+            "false" => BooleanLiteral(false),
+            "infix" => Infix,
+            "prefix" => Prefix,
+            "public" => Public,
+            x => {
+                let first = x
+                    .chars()
+                    .next()
+                    .expect(format!("Fatal Error: Unrecognized identifier '{}'", ident).as_ref());
+                let intern_ident = self.interner.intern(Text::new(ident));
+                match first {
+                    c if c.is_alphabetic() && c.is_uppercase() => TypeIdentifier(intern_ident),
+                    c if c.is_alphabetic() => NameIdentifier(intern_ident),
+                    _ => OperatorIdentifier(intern_ident),
+                }
+            }
+        }
+    }
+
+    fn string_literal(&mut self) -> Option<LexerResult> {
         //TODO: More escape stuff
         let start = self.token_start_pos();
         let start_idx = self.current_pos.pos;
@@ -196,10 +201,14 @@ impl<'input> Lexer<'input> {
         };
         let lit = &self.input[start_idx..end_idx];
         let end = self.token_start_pos();
-        Some(Ok((start, StringLiteral(lit), end)))
+        Some(Ok((
+            start,
+            StringLiteral(self.interner.intern(Text::new(lit))),
+            end,
+        )))
     }
 
-    fn number_literal(&mut self) -> Option<LexerResult<'input>> {
+    fn number_literal(&mut self) -> Option<LexerResult> {
         //TODO: Improve literals
         let start = self.token_start_pos();
         let start_idx = self.current_pos.pos - 1;
@@ -218,10 +227,14 @@ impl<'input> Lexer<'input> {
             true => NumberFormat::Float,
             false => NumberFormat::Integer,
         };
-        Some(Ok((start, NumberLiteral((lit, format)), end)))
+        Some(Ok((
+            start,
+            NumberLiteral((self.interner.intern(Text::new(lit)), format)),
+            end,
+        )))
     }
 
-    fn identifier(&mut self) -> Option<LexerResult<'input>> {
+    fn identifier(&mut self) -> Option<LexerResult> {
         let start = self.token_start_pos();
         let start_idx = self.current_pos.pos - 1;
         let is_operator = &self.input[start_idx..]
@@ -239,12 +252,12 @@ impl<'input> Lexer<'input> {
         };
         let lit = &self.input[start_idx..end_idx];
         let end = self.token_start_pos();
-        Some(Ok((start, handle_identifier(lit), end)))
+        Some(Ok((start, self.handle_identifier(lit), end)))
     }
 }
 
 impl<'input> Iterator for Lexer<'input> {
-    type Item = LexerResult<'input>;
+    type Item = LexerResult;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {

@@ -3,7 +3,7 @@ use crate::common::ModuleIdentifier;
 use crate::formatting::tree::{format_children, TreeFormat};
 use crate::formatting::*;
 use crate::parsing::token::Span;
-use crate::symbol_names::SymbolName;
+use crate::symbol_names::IText;
 use std::fmt::{Debug, Display, Formatter};
 
 #[derive(Debug, Clone, PartialEq)]

@@ -1,5 +1,5 @@
 use crate::ast_common::{BindPattern, Literal, MatchPattern, Name};
-use crate::symbol_names::SymbolName;
+use crate::symbol_names::IText;
 use crate::types::Type;
 use std::fmt::{Display, Formatter};
 
@@ -20,16 +20,16 @@ impl Display for Unit {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TExprData {
-    Variable(SymbolName),
+    Variable(IText),
     FunctionCall(Box<TExpression>, Vec<TExpression>),
-    Record(Vec<(SymbolName, TExpression)>),
+    Record(Vec<(IText, TExpression)>),
     Tuple(Vec<TExpression>),
     List(Vec<TExpression>),
     Literal(Literal),
-    Lambda(Vec<BindPattern<SymbolName, Unit, Unit>>, TBlock),
+    Lambda(Vec<BindPattern<IText, Unit, Unit>>, TBlock),
     Case(
         Box<TExpression>,
-        Vec<(MatchPattern<SymbolName, SymbolName, Unit, Unit>, TBlock)>,
+        Vec<(MatchPattern<IText, IText, Unit, Unit>, TBlock)>,
     ),
     Ref(Box<TExpression>),
 }
@@ -60,7 +60,7 @@ impl PartialEq for TExpression {
 #[derive(Debug, Clone, PartialEq)]
 pub enum TStatement {
     Do(TExpression),
-    Let(TExpression, BindPattern<SymbolName, Unit, Unit>),
+    Let(TExpression, BindPattern<IText, Unit, Unit>),
 }
 
 #[derive(Debug, Clone, PartialEq)]

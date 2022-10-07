@@ -9,7 +9,7 @@ use crate::common::*;
 use crate::errors::CompilerError::*;
 use crate::errors::{CompilerError, ErrorContext};
 use crate::modules::{UntypedModule, UntypedModuleData, UntypedModuleTree};
-use crate::symbol_names::SymbolNameInterner;
+use crate::symbol_names::StringInterner;
 use crate::CompilerArguments;
 
 pub mod lexer;
@@ -41,7 +41,7 @@ fn try_resolve_module(
 
 pub fn parse_all_modules<S: AsRef<str>>(
     error_context: &mut ErrorContext,
-    interner: &SymbolNameInterner,
+    interner: &StringInterner,
     args: CompilerArguments<S>,
 ) -> Result<UntypedModuleTree, ()> {
     let entrypoint_path = PathBuf::from(args.entrypoint);
@@ -114,7 +114,7 @@ pub fn parse<'input>(
     name: ModuleIdentifier,
     path: PathBuf,
     err: &mut ErrorContext,
-    interner: &SymbolNameInterner,
+    interner: &StringInterner,
 ) -> Result<UntypedModule, CompilerError> {
     let code = read_to_string(&path).map_err(|e| {
         GeneralError(

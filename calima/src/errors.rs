@@ -43,10 +43,8 @@ pub enum ParserError {
     },
 }
 
-impl<'a> From<lalrpop_util::ParseError<Location, Token<'a>, crate::parsing::lexer::Error>>
-    for ParserError
-{
-    fn from(pe: ParseError<Location, Token<'a>, crate::parsing::lexer::Error>) -> Self {
+impl From<lalrpop_util::ParseError<Location, Token, crate::parsing::lexer::Error>> for ParserError {
+    fn from(pe: ParseError<Location, Token, crate::parsing::lexer::Error>) -> Self {
         match pe {
             ParseError::InvalidToken { location } => ParserError::InvalidToken { location },
             ParseError::UnrecognizedEOF { location, expected } => {

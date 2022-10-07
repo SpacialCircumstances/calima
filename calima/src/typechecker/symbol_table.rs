@@ -1,4 +1,4 @@
-use crate::symbol_names::SymbolName;
+use crate::symbol_names::IText;
 use std::collections::HashMap;
 
 #[derive(Debug, Copy, Clone)]
@@ -23,18 +23,18 @@ impl<T, Data: Copy> Element<T, Data> {
 }
 
 #[derive(Clone)]
-pub struct SymbolTable<T, Data: Copy>(HashMap<SymbolName, Element<T, Data>>);
+pub struct SymbolTable<T, Data: Copy>(HashMap<IText, Element<T, Data>>);
 
 impl<T, Data: Copy> SymbolTable<T, Data> {
     pub fn new() -> Self {
         SymbolTable(HashMap::new())
     }
 
-    pub fn add(&mut self, key: SymbolName, value: T, def_loc: Location<Data>) {
+    pub fn add(&mut self, key: IText, value: T, def_loc: Location<Data>) {
         self.0.insert(key, Element::new(value, def_loc));
     }
 
-    pub fn get(&self, key: &SymbolName) -> Option<&T> {
+    pub fn get(&self, key: &IText) -> Option<&T> {
         self.0.get(key).map(|e| &e.data)
     }
 }

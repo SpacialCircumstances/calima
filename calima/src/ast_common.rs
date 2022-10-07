@@ -1,11 +1,11 @@
 use crate::formatting::tree::{format_children, TreeFormat};
 use crate::formatting::{format_iter, format_record, format_tuple};
-use crate::symbol_names::SymbolName;
+use crate::symbol_names::IText;
 use std::convert::TryFrom;
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct Name<Data>(pub Vec<SymbolName>, pub Data);
+pub struct Name<Data>(pub Vec<IText>, pub Data);
 
 impl<Data> Display for Name<Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -66,8 +66,8 @@ impl Display for OperatorSpecification {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Literal {
-    String(String),
-    Number(String, NumberType),
+    String(IText),
+    Number(IText, NumberType),
     Unit,
     Boolean(bool),
 }

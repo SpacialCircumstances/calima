@@ -2,7 +2,7 @@ use crate::ast::TopLevelBlock;
 use crate::ast_common::Name;
 use crate::common::ModuleIdentifier;
 use crate::parsing::token::Span;
-use crate::symbol_names::SymbolName;
+use crate::symbol_names::IText;
 use crate::typechecker::env::ModuleEnvironment;
 use crate::typechecker::substitution::Substitution;
 use crate::typed_ast::TBlock;
@@ -13,7 +13,7 @@ use std::rc::Rc;
 
 pub struct UntypedModuleData {
     pub(crate) name: ModuleIdentifier,
-    pub(crate) ast: TopLevelBlock<Name<Span>, SymbolName, Span>,
+    pub(crate) ast: TopLevelBlock<Name<Span>, IText, Span>,
     pub(crate) dependencies: Vec<UntypedModule>,
     pub(crate) path: PathBuf,
 }

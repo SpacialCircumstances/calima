@@ -1,6 +1,6 @@
 use crate::formatting::tree::{format_children, TreeFormat};
 use crate::formatting::{format_iter, format_iter_end};
-use crate::symbol_names::SymbolName;
+use crate::symbol_names::IText;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::convert::TryFrom;
@@ -25,11 +25,11 @@ pub enum PrimitiveType {
     Char,
 }
 
-impl TryFrom<&SymbolName> for PrimitiveType {
+impl TryFrom<&IText> for PrimitiveType {
     type Error = ();
 
-    fn try_from(value: &SymbolName) -> Result<Self, Self::Error> {
-        match value.as_str() {
+    fn try_from(value: &IText) -> Result<Self, Self::Error> {
+        match value.text().as_str() {
             "Unit" => Ok(PrimitiveType::Unit),
             "Float" => Ok(PrimitiveType::Float),
             "Int" => Ok(PrimitiveType::Int),

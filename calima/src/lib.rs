@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate lalrpop_util;
 
-use symbol_names::SymbolNameInterner;
+use symbol_names::StringInterner;
 
 use crate::errors::ErrorContext;
 use crate::parsing::parse_all_modules;
@@ -41,7 +41,7 @@ impl<'a, S: AsRef<str>> CompilerArguments<'a, S> {
 
 pub fn compile<S: AsRef<str>>(args: CompilerArguments<S>) -> Result<(), ()> {
     let mut errors = ErrorContext::new();
-    let interner = SymbolNameInterner::new();
+    let interner = StringInterner::new();
     let module_context = parse_all_modules(&mut errors, &interner, args)?;
     let typed_context = typechecker::typecheck(&mut errors, module_context, &interner)?;
     Ok(())
