@@ -1,5 +1,4 @@
 use crate::ast::*;
-use crate::ast_common::*;
 use crate::common::ModuleIdentifier;
 use crate::errors::{CompilerError, ErrorContext, MainFunctionErrorKind};
 use crate::formatting::format_iter;
@@ -1001,8 +1000,7 @@ mod operator_tests {
     use std::fmt::Debug;
 
     use crate::ast::OperatorElement::*;
-    use crate::ast::{Expr, OperatorElement};
-    use crate::ast_common::{Literal, Name, NumberType};
+    use crate::ast::{Expr, Literal, Name, NumberType, OperatorElement};
     use crate::common::ModuleIdentifier;
     use crate::errors::ErrorContext;
     use crate::modules::{UntypedModule, UntypedModuleData};
@@ -1314,7 +1312,7 @@ mod operator_tests {
 
 #[cfg(test)]
 mod typecheck_tests {
-    use crate::ast_common::{Associativity, OperatorSpecification};
+    use crate::ast::{Associativity, OperatorSpecification};
     use crate::common::ModuleIdentifier;
     use crate::errors::ErrorContext;
     use crate::parsing::parser::{parse, parse_type};

@@ -1,5 +1,4 @@
 use crate::ast::*;
-use crate::ast_common::Name;
 use crate::parsing::lexer::{Error, Lexer};
 use crate::parsing::token::{Location, Span, Token};
 use crate::symbol_names::{IText, StringInterner};
@@ -45,8 +44,7 @@ pub fn parse(
 #[cfg(test)]
 mod tests {
     use crate::ast::Expr::*;
-    use crate::ast::{Block, Let, TopLevelBlock, TopLevelStatement};
-    use crate::ast_common::{BindPattern, Literal};
+    use crate::ast::{BindPattern, Block, Let, Literal, TopLevelBlock, TopLevelStatement};
     use crate::parsing::parser::parse;
     use crate::parsing::token::{Location, Span};
     use crate::symbol_names::StringInterner;

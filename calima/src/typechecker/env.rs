@@ -1,4 +1,4 @@
-use crate::ast_common::OperatorSpecification;
+use crate::ast::OperatorSpecification;
 use crate::symbol_names::IText;
 use crate::types::Scheme;
 use std::collections::HashMap;

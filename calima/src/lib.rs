@@ -7,7 +7,6 @@ use crate::errors::ErrorContext;
 use crate::parsing::parse_all_modules;
 
 mod ast;
-mod ast_common;
 mod common;
 mod errors;
 mod formatting;

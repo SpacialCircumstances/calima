@@ -1,4 +1,4 @@
-use crate::ast_common::{BindPattern, Literal, MatchPattern, Name};
+use crate::ast::{BindPattern, Literal, MatchPattern, Name};
 use crate::symbol_names::IText;
 use crate::types::Type;
 use std::fmt::{Display, Formatter};

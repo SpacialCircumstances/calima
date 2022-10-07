@@ -1,5 +1,5 @@
+use crate::ast::Name;
 use crate::ast::TopLevelBlock;
-use crate::ast_common::Name;
 use crate::common::ModuleIdentifier;
 use crate::parsing::token::Span;
 use crate::symbol_names::IText;
