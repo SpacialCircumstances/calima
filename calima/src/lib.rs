@@ -10,6 +10,7 @@ mod ast;
 mod common;
 mod errors;
 mod formatting;
+mod ir;
 mod modules;
 mod parsing;
 pub mod symbol_names;

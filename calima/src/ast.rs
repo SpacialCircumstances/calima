@@ -15,7 +15,7 @@ impl<Data> Display for Name<Data> {
     }
 }
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum NumberType {
     Integer,
     Float,
