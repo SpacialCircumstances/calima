@@ -1,6 +1,6 @@
 use crate::ast_common::{BindPattern, Literal, MatchPattern, Name};
 use crate::symbol_names::SymbolName;
-use crate::types::{Region, Type};
+use crate::types::Type;
 use std::fmt::{Display, Formatter};
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -31,7 +31,7 @@ pub enum TExprData {
         Box<TExpression>,
         Vec<(MatchPattern<SymbolName, SymbolName, Unit, Unit>, TBlock)>,
     ),
-    Ref(Region, Box<TExpression>),
+    Ref(Box<TExpression>),
 }
 
 #[derive(Debug, Clone)]

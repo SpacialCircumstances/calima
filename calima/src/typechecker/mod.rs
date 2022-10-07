@@ -128,8 +128,8 @@ fn substitute(subst: &Substitution<Type>, typ: &Type) -> Type {
 
 fn substitute_scheme(subst: &Substitution<Type>, schem: &Scheme) -> Scheme {
     //All variables in scheme cannot be substituted, because they should be general
-    let subst_type = substitute(subst, &schem.2);
-    Scheme(schem.0.clone(), schem.1.clone(), subst_type)
+    let subst_type = substitute(subst, &schem.1);
+    Scheme(schem.0.clone(), subst_type)
 }
 
 pub struct Context<Data: Copy + Debug> {
@@ -188,7 +188,7 @@ impl<Data: Copy + Debug> Context<Data> {
                 Ok(())
             }
             Type::Basic(_) => Ok(()),
-            Type::Reference(_, t) => self.check_occurs(gid, &*t),
+            Type::Reference(t) => self.check_occurs(gid, &*t),
             Type::Error => panic!("Cannot occurs_check on erroneous type"),
         }
     }
@@ -319,8 +319,8 @@ impl<Data: Copy + Debug> Context<Data> {
 
     fn inst(&mut self, sch: &Scheme) -> Type {
         let mapping: HashMap<GenericId, Type> =
-            sch.1.iter().map(|v| (*v, self.new_generic())).collect();
-        replace(&sch.2, &|id| mapping.get(&id).cloned())
+            sch.0.iter().map(|v| (*v, self.new_generic())).collect();
+        replace(&sch.1, &|id| mapping.get(&id).cloned())
     }
 
     fn bind_to_pattern<F: Fn(&Type, &mut LocalEnvironment<Data>) -> Scheme>(
@@ -601,7 +601,7 @@ fn generalize<Data: Copy + Debug>(env: &LocalEnvironment<Data>, tp: &Type) -> Sc
     }
     let mut scheme_vars = HashSet::new();
     gen_rec(tp, &env.mono_vars, &mut scheme_vars);
-    Scheme(HashSet::new(), scheme_vars, tp.clone())
+    Scheme(scheme_vars, tp.clone())
 }
 
 fn replace<F: Fn(GenericId) -> Option<Type>>(tp: &Type, mapper: &F) -> Type {
@@ -824,7 +824,6 @@ fn infer_statement<Data: Copy + Debug>(
     statement: &Statement<Name<Data>, SymbolName, Data>,
 ) -> Option<TStatement> {
     match statement {
-        Statement::Region(name, _) => None,
         Statement::Do(expr, _) => Some(TStatement::Do(infer_expr(env, ctx, expr))),
         Statement::Let(l) => Some(infer_let(env, ctx, l, false)),
         Statement::LetOperator(l) => Some(infer_let_operator(env, ctx, l, false)),
@@ -969,7 +968,7 @@ fn verify_main_module(
 ) {
     if let Some(main_type) = main_mod.0.env.lookup_value(&interner.intern("main")) {
         let mut ctx: Context<Span> = Context::new(main_mod.0.name.clone());
-        if let Err(_e) = ctx.unify_rec(&main_type.2, &build_function(&[unit()], &unit())) {
+        if let Err(_e) = ctx.unify_rec(&main_type.1, &build_function(&[unit()], &unit())) {
             errors.add_error(CompilerError::MainFunctionError(
                 main_mod.0.name.clone(),
                 MainFunctionErrorKind::SignatureWrong,

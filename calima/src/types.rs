@@ -7,42 +7,6 @@ use std::convert::TryFrom;
 use std::fmt::{Display, Formatter};
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Serialize, Deserialize)]
-pub struct RegionId(pub usize);
-
-impl Display for RegionId {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "'{}", self.0)
-    }
-}
-
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Serialize, Deserialize)]
-pub struct RegionInstance {
-    pub id: usize,
-    pub depth: usize,
-}
-
-impl RegionInstance {
-    pub fn new(id: usize, depth: usize) -> Self {
-        RegionInstance { id, depth }
-    }
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Serialize, Deserialize)]
-pub enum Region {
-    Var(RegionId),
-    Instance(RegionInstance),
-}
-
-impl Display for Region {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Region::Var(rid) => write!(f, "{}", rid),
-            Region::Instance(ri) => write!(f, "@{}", ri.id),
-        }
-    }
-}
-
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Serialize, Deserialize)]
 pub struct GenericId(pub usize);
 
 impl Display for GenericId {
@@ -125,7 +89,7 @@ pub enum Type {
     Basic(TypeDef),
     Parameterized(ComplexType, Vec<Type>),
     Var(GenericId),
-    Reference(Region, Box<Type>),
+    Reference(Box<Type>),
     Error,
 }
 
@@ -136,8 +100,8 @@ impl TreeFormat for Type {
             Type::Parameterized(ComplexType::Function, _) => 3,
             Type::Parameterized(ComplexType::Tuple(_), _) => 2,
             Type::Var(_) => 0,
-            Type::Reference(_, _) => 4,
             Type::Error => 0,
+            Type::Reference(_) => 0,
         }
     }
 
@@ -155,7 +119,7 @@ impl TreeFormat for Type {
                     format!("({})", format_children(self, params.iter(), ", "))
                 }
             },
-            Type::Reference(reg, tp) => format!("@{} {}", reg, tp),
+            Type::Reference(tp) => format!("@{}", tp),
             Type::Error => "ERROR_TYPE".to_string(),
         }
     }
@@ -168,26 +132,20 @@ impl Display for Type {
 }
 
 #[derive(Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
-pub struct Scheme(pub HashSet<RegionId>, pub HashSet<GenericId>, pub Type);
+pub struct Scheme(pub HashSet<GenericId>, pub Type);
 
 impl Scheme {
     pub fn simple(tp: Type) -> Self {
-        Scheme(HashSet::new(), HashSet::new(), tp)
+        Scheme(HashSet::new(), tp)
     }
 }
 
 impl Display for Scheme {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         if self.0.is_empty() {
-            write!(f, "{}", self.2)
+            write!(f, "{}", self.1)
         } else {
-            write!(
-                f,
-                "forall {}{}. {}",
-                format_iter_end(self.0.iter(), " "),
-                format_iter(self.1.iter(), " "),
-                self.2
-            )
+            write!(f, "forall {}. {}", format_iter(self.0.iter(), " "), self.1)
         }
     }
 }

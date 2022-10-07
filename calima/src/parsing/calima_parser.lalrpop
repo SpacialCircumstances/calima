@@ -42,7 +42,6 @@ extern {
         "of" => Of,
         "end" => End,
         "type" => Type,
-        "region" => Region,
         "=" => Equal,
         "|" => Pipe,
         "import" => Import,
@@ -50,7 +49,6 @@ extern {
         ":" => Colon,
         "->" => Arrow,
         "backtick" => Backtick,
-        "@" => At,
         "'" => Apostrophe,
         "infix" => Infix,
         "prefix" => Prefix,
@@ -94,7 +92,7 @@ Block: Block<Name<Data>, SymbolName, Data> = {
 
 TopLevelStatement: TopLevelStatement<Name<Data>, SymbolName, Data> = {
     Import,
-    <posl:@L> "type" <n:TypeSymbol> <regions:RegionVariable*> <params:GenericTypeKind*> "=" <td:TypeDefinition> <posr:@R> => TopLevelStatement::Type { name: n, regions, params, type_def: td, data: to_data(posl, posr) },
+    <posl:@L> "type" <n:TypeSymbol> <params:GenericTypeKind*> "=" <td:TypeDefinition> <posr:@R> => TopLevelStatement::Type { name: n, params, type_def: td, data: to_data(posl, posr) },
     <vis:Visibility> <lets:Let> => TopLevelStatement::Let(vis, lets),
     <vis:Visibility> <lets:LetOperator> => TopLevelStatement::LetOperator(vis, lets),
 };
@@ -120,11 +118,8 @@ AnyIdentifier: SymbolName = {
 Statement: Statement<Name<Data>, SymbolName, Data> = {
     <Let> => Statement::Let(<>),
     Do,
-    Region,
     <LetOperator> => Statement::LetOperator(<>)
 };
-
-Region: Statement<Name<Data>, SymbolName, Data> = <posl:@L> "region" <n:NameSymbol> <posr:@R> => Statement::Region(n, to_data(posl, posr));
 
 Do: Statement<Name<Data>, SymbolName, Data> = <posl:@L> "do" <e:Expression0> <posr:@R> => Statement::Do(e, to_data(posl, posr));
 
@@ -175,7 +170,6 @@ Expression1: Expr<Name<Data>, SymbolName, Data> = {
     FunctionCall,
     OperatorCall,
     Lambda,
-    <posl:@L> <ra:RegionAnnotation> <expr:Expression2> <posr:@R> => Expr::Ref(ra, Box::new(expr), to_data(posl, posr)),
     Expression2
 };
 
@@ -209,7 +203,7 @@ Expression2: Expr<Name<Data>, SymbolName, Data> = {
     OperatorAsFunction,
     LiteralExpr,
     TupleConstruct,
-    "(" <Expression0> ")" => <>,
+    "(" <Expression0> ")",
     <posl:@L> "[" <exprs: Sep1<Expression0, ",">> "]" <posr:@R> => Expr::List(exprs, to_data(posl, posr)),
     <posl:@L> "{" <rows: Sep1<RecordExprRow, ",">> "}" <posr:@R> => Expr::Record(rows, to_data(posl, posr)),
 };
@@ -288,7 +282,6 @@ SumRow: (SymbolName, Option<TypeAnnotation<Name<Data>, SymbolName, Data>>) = {
 RecordTypeRow: (SymbolName, TypeAnnotation<Name<Data>, SymbolName, Data>) = <n:NameSymbol> ":" <ta:TypeAnnotation0> => (n, ta);
 
 pub TypeAnnotation0: TypeAnnotation<Name<Data>, SymbolName, Data> = {
-    <reg:RegionAnnotation> <ta:TypeAnnotation1> => TypeAnnotation::Reference(reg, Box::new(ta)),
     TypeAnnotation1
 };
 
@@ -306,19 +299,6 @@ TypeAnnotation2: TypeAnnotation<Name<Data>, SymbolName, Data> = {
 };
 
 GenericTypeKind: GenericTypeKind<SymbolName, Data> = <posl:@L> <n:NameSymbol> <posr:@R> => GenericTypeKind(n, to_data(posl, posr));
-
-RegionAnnotation: RegionAnnotation<SymbolName, Data> = {
-    "@" "_" => RegionAnnotation::Anonymous,
-    <posl:@L> "@" <n:NameSymbol> <posr:@R> => {
-        match n.as_str() {
-            "." => RegionAnnotation::Stack,
-            _ => RegionAnnotation::Named(n, to_data(posl, posr))
-        }
-    },
-    "@" <RegionVariable> => RegionAnnotation::Var(<>)
-};
-
-RegionVariable: RegionVariable<SymbolName, Data> = <posl:@L> "'" <n:NameSymbol> <posr:@R> => RegionVariable(n, to_data(posl, posr));
 
 Literal: Literal = {
     "(" ")" => Literal::Unit,

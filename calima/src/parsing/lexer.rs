@@ -72,7 +72,6 @@ fn single_char_token<'input>(c: char) -> Option<Token<'input>> {
         '[' => Some(SquareBracketOpen),
         ']' => Some(SquareBracketClose),
         '`' => Some(Backtick),
-        '@' => Some(At),
         '\'' => Some(Apostrophe),
         '.' => Some(Period),
         _ => None,
@@ -93,7 +92,6 @@ fn handle_identifier(ident: &str) -> Token {
         "of" => Of,
         "end" => End,
         "type" => Type,
-        "region" => Region,
         "import" => Import,
         "opening" => Opening,
         "->" => Arrow,
@@ -440,14 +438,13 @@ test #asdf d.
 
     #[test]
     fn lex10() {
-        let code = "a.T.b @reg ++ test";
+        let code = "a.T.b reg ++ test";
         let tokens = vec![
             NameIdentifier("a"),
             Period,
             TypeIdentifier("T"),
             Period,
             NameIdentifier("b"),
-            At,
             NameIdentifier("reg"),
             OperatorIdentifier("++"),
             NameIdentifier("test"),

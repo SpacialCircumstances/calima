@@ -7,34 +7,6 @@ use crate::symbol_names::SymbolName;
 use std::fmt::{Debug, Display, Formatter};
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct RegionVariable<Symbol: Display, Data>(pub Symbol, pub Data);
-
-impl<Symbol: Display, Data> Display for RegionVariable<Symbol, Data> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "'{}", self.0)
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum RegionAnnotation<Symbol: Display, Data> {
-    Anonymous,
-    Stack,
-    Named(Symbol, Data),
-    Var(RegionVariable<Symbol, Data>),
-}
-
-impl<Symbol: Display, Data> Display for RegionAnnotation<Symbol, Data> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            RegionAnnotation::Stack => write!(f, "@."),
-            RegionAnnotation::Anonymous => write!(f, "@_"),
-            RegionAnnotation::Named(name, _) => write!(f, "@{}", name),
-            RegionAnnotation::Var(var) => write!(f, "@{}", var),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
 pub struct GenericTypeKind<Symbol: Display, Data>(pub Symbol, pub Data);
 
 impl<Symbol: Display, Data> Display for GenericTypeKind<Symbol, Data> {
@@ -53,10 +25,7 @@ pub enum TypeAnnotation<Name: Display, Symbol: Display, Data> {
     ),
     Tuple(Vec<TypeAnnotation<Name, Symbol, Data>>),
     Parameterized(Name, Vec<TypeAnnotation<Name, Symbol, Data>>),
-    Reference(
-        RegionAnnotation<Symbol, Data>,
-        Box<TypeAnnotation<Name, Symbol, Data>>,
-    ),
+    Reference(Box<TypeAnnotation<Name, Symbol, Data>>),
 }
 
 impl<Name: Display, Symbol: Display, Data> TreeFormat for TypeAnnotation<Name, Symbol, Data> {
@@ -67,7 +36,7 @@ impl<Name: Display, Symbol: Display, Data> TreeFormat for TypeAnnotation<Name, S
             TypeAnnotation::Tuple(_) => 0,
             TypeAnnotation::Function(_, _) => 1,
             TypeAnnotation::Parameterized(_, _) => 1,
-            TypeAnnotation::Reference(_, _) => 2,
+            TypeAnnotation::Reference(_) => 2,
         }
     }
 
@@ -84,7 +53,7 @@ impl<Name: Display, Symbol: Display, Data> TreeFormat for TypeAnnotation<Name, S
             TypeAnnotation::Tuple(elements) => {
                 format!("({})", format_children(self, elements.iter(), ", "))
             }
-            TypeAnnotation::Reference(reg, tp) => format!("{} {}", reg, self.format_child(&*tp)),
+            TypeAnnotation::Reference(tp) => format!("{}", self.format_child(&*tp)),
         }
     }
 }
@@ -200,7 +169,6 @@ pub enum TopLevelStatement<Name: Display, Symbol: Display, Data> {
     },
     Type {
         name: Symbol,
-        regions: Vec<RegionVariable<Symbol, Data>>,
         params: Vec<GenericTypeKind<Symbol, Data>>,
         type_def: TypeDefinition<Name, Symbol, Data>,
         data: Data,
@@ -215,15 +183,13 @@ impl<Name: Display, Symbol: Display, Data> Display for TopLevelStatement<Name, S
             TopLevelStatement::Import { module, .. } => write!(f, "import {}", module),
             TopLevelStatement::Type {
                 name,
-                regions,
                 params,
                 type_def: typedef,
                 data: _,
             } => write!(
                 f,
-                "type {} {}{} = {}",
+                "type {} {} = {}",
                 name,
-                format_iter_end(regions.iter(), " "),
                 format_iter(params.iter(), " "),
                 typedef
             ),
@@ -244,13 +210,11 @@ pub enum Statement<Name: Display, Symbol: Display, Data> {
     Let(Let<Name, Symbol, Data>),
     LetOperator(LetOperator<Name, Symbol, Data>),
     Do(Expr<Name, Symbol, Data>, Data),
-    Region(Symbol, Data),
 }
 
 impl<Name: Display, Symbol: Display, Data> Display for Statement<Name, Symbol, Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Statement::Region(name, _) => write!(f, "region {}", name),
             Statement::Do(expr, _) => write!(f, "do {}", expr),
             Statement::Let(lets) => write!(f, "{}", lets),
             Statement::LetOperator(lets) => write!(f, "{}", lets),
@@ -339,11 +303,7 @@ pub enum Expr<Name: Display, Symbol: Display, Data> {
         )>,
     },
     List(Vec<Expr<Name, Symbol, Data>>, Data),
-    Ref(
-        RegionAnnotation<Symbol, Data>,
-        Box<Expr<Name, Symbol, Data>>,
-        Data,
-    ),
+    Ref(Box<Expr<Name, Symbol, Data>>, Data),
 }
 
 impl<Name: Display, Symbol: Display, Data> TreeFormat for Expr<Name, Symbol, Data> {
@@ -358,7 +318,7 @@ impl<Name: Display, Symbol: Display, Data> TreeFormat for Expr<Name, Symbol, Dat
             Expr::FunctionCall(_, _, _) => 1,
             Expr::OperatorCall(_, _) => 2,
             Expr::Lambda { .. } => 3,
-            Expr::Ref(_, _, _) => 3,
+            Expr::Ref(_, _) => 3,
             Expr::If { .. } => 4,
             Expr::Case { .. } => 4,
         }
@@ -416,7 +376,7 @@ impl<Name: Display, Symbol: Display, Data> TreeFormat for Expr<Name, Symbol, Dat
                 res.push_str("end");
                 res
             }
-            Expr::Ref(reg, expr, _) => format!("{} {}", reg, self.format_child(expr)),
+            Expr::Ref(expr, _) => format!("{}", self.format_child(expr)),
         }
     }
 }

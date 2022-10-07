@@ -26,7 +26,7 @@ fn float_unary_op() -> Scheme {
 fn scheme(gen: &[GenericId], tp: Type) -> Scheme {
     let mut gens = HashSet::new();
     gens.extend(gen.iter());
-    Scheme(HashSet::new(), gens, tp)
+    Scheme(gens, tp)
 }
 
 fn eq_type() -> Scheme {
@@ -34,7 +34,6 @@ fn eq_type() -> Scheme {
     let id = GenericId(1);
     eq_set.insert(id);
     Scheme(
-        HashSet::new(),
         eq_set,
         build_function(&[Type::Var(id), Type::Var(id)], &bool()),
     )

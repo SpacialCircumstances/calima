@@ -97,8 +97,9 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "clap"
-version = "4.0.10"
-source = "git+https://github.com/clap-rs/clap/#af1234a0c22254fe3425596c5531df24a88721d6"
+version = "4.0.0-rc.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9b01032b244c348ae40c5d99113438c95ee7343cd303bb361fc06dcb4c1d93e8"
 dependencies = [
  "atty",
  "bitflags",
@@ -110,7 +111,8 @@ dependencies = [
 [[package]]
 name = "clap_lex"
 version = "0.3.0"
-source = "git+https://github.com/clap-rs/clap/#af1234a0c22254fe3425596c5531df24a88721d6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0d4198f73e42b4936b35b5bb248d81d2b595ecb170da0bac7655c54eedfa8da8"
 dependencies = [
  "os_str_bytes",
 ]

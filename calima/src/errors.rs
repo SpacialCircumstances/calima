@@ -138,27 +138,50 @@ impl<'a> codespan_reporting::files::Files<'a> for CompilerFiles {
     type Name = String;
     type Source = &'a str;
 
-    fn name(&'a self, id: Self::FileId) -> Option<Self::Name> {
-        self.get(id).map(|f| f.path.display().to_string())
+    fn name(&'a self, id: Self::FileId) -> Result<Self::Name, codespan_reporting::files::Error> {
+        self.get(id)
+            .map(|f| f.path.display().to_string())
+            .ok_or_else(|| codespan_reporting::files::Error::FileMissing)
     }
 
-    fn source(&'a self, id: Self::FileId) -> Option<Self::Source> {
-        self.get(id).map(|f| f.content.as_str())
+    fn source(
+        &'a self,
+        id: Self::FileId,
+    ) -> Result<Self::Source, codespan_reporting::files::Error> {
+        self.get(id)
+            .map(|f| f.content.as_str())
+            .ok_or_else(|| codespan_reporting::files::Error::FileMissing)
     }
 
-    fn line_index(&'a self, id: Self::FileId, byte_index: usize) -> Option<usize> {
+    fn line_index(
+        &'a self,
+        id: Self::FileId,
+        byte_index: usize,
+    ) -> Result<usize, codespan_reporting::files::Error> {
         self.get(id)
             .map(|f| f.lines.binary_search(&byte_index).unwrap_or_else(|x| x - 1))
+            .ok_or_else(|| codespan_reporting::files::Error::FileMissing)
     }
 
-    fn line_range(&'a self, id: Self::FileId, line_index: usize) -> Option<Range<usize>> {
-        let file = self.get(id)?;
-        let start = *file.lines.get(line_index).or(Some(&file.content.len()))?;
+    fn line_range(
+        &'a self,
+        id: Self::FileId,
+        line_index: usize,
+    ) -> Result<Range<usize>, codespan_reporting::files::Error> {
+        let file = self
+            .get(id)
+            .ok_or_else(|| codespan_reporting::files::Error::FileMissing)?;
+        let start = *file
+            .lines
+            .get(line_index)
+            .or(Some(&file.content.len()))
+            .ok_or_else(|| codespan_reporting::files::Error::FileMissing)?;
         let end = *file
             .lines
             .get(line_index + 1)
-            .or(Some(&file.content.len()))?;
-        Some(start..end)
+            .or(Some(&file.content.len()))
+            .ok_or_else(|| codespan_reporting::files::Error::FileMissing)?;
+        Ok(start..end)
     }
 }
 
