@@ -1,11 +1,11 @@
 use crate::ast::Name;
 use crate::ast::TopLevelBlock;
 use crate::common::ModuleIdentifier;
+use crate::ir::Block;
 use crate::parsing::token::Span;
 use crate::symbol_names::IText;
-use crate::typechecker::env::ModuleEnvironment;
 use crate::typechecker::substitution::Substitution;
-use crate::typed_ast::TBlock;
+use crate::typechecker::Environment;
 use crate::types::Type;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -36,7 +36,7 @@ pub struct TypedModuleData {
     pub(crate) name: ModuleIdentifier,
     pub(crate) path: PathBuf,
     pub(crate) deps: Vec<TypedModule>,
-    pub(crate) ir_block: TBlock,
+    pub(crate) ir_block: Block,
     pub(crate) subst: Substitution<Type>,
     pub(crate) env: Rc<ModuleEnvironment>,
 }

@@ -29,7 +29,7 @@ pub enum Expr {
 }
 
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
-pub struct VarRef(usize);
+pub struct VarRef(pub usize);
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Val {

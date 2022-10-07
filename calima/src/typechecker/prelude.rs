@@ -2,10 +2,12 @@ use crate::ast::Associativity;
 use crate::ast::Associativity::Left;
 use crate::ast::OperatorSpecification::{Infix, Prefix};
 use crate::symbol_names::StringInterner;
-use crate::typechecker::env::ModuleEnvironment;
+use crate::typechecker::symbol_table::Location;
+use crate::typechecker::Environment;
 use crate::types::{bool, build_function, float, int, string, unit, GenericId, Scheme, Type};
 use quetta::Text;
 use std::collections::HashSet;
+use std::fmt::Debug;
 use std::rc::Rc;
 
 fn int_op() -> Scheme {
@@ -40,9 +42,9 @@ fn eq_type() -> Scheme {
     )
 }
 
-pub fn prelude(interner: &StringInterner) -> Rc<ModuleEnvironment> {
-    let mut env = ModuleEnvironment::new();
-
+pub fn prelude<Data: Copy + Debug>(interner: &StringInterner) -> Rc<Environment<Data>> {
+    let mut env = Environment::new();
+    /*
     env.add_operator(interner.intern(Text::new("+")), int_op(), Infix(60, Left));
     env.add_operator(
         interner.intern(Text::new(".+")),
@@ -77,8 +79,16 @@ pub fn prelude(interner: &StringInterner) -> Rc<ModuleEnvironment> {
         eq_type(),
         Infix(50, Associativity::None),
     );
-    env.add_operator(interner.intern(Text::new("~")), int_unary_op(), Prefix);
-    env.add_operator(interner.intern(Text::new(".~")), float_unary_op(), Prefix);
+    env.add_operator(
+        interner.intern(Text::new("~")),
+        int_unary_op(),
+        Prefix,
+    );
+    env.add_operator(
+        interner.intern(Text::new(".~")),
+        float_unary_op(),
+        Prefix,
+    );
     env.add_value(
         interner.intern(Text::new("println")),
         scheme(
@@ -86,5 +96,7 @@ pub fn prelude(interner: &StringInterner) -> Rc<ModuleEnvironment> {
             build_function(&[Type::Var(GenericId(1))], &unit()),
         ),
     );
-    Rc::new(env)
+    Rc::new(env)*/
+
+    todo!()
 }

@@ -15,7 +15,6 @@ mod modules;
 mod parsing;
 pub mod symbol_names;
 mod typechecker;
-mod typed_ast;
 mod types;
 
 #[derive(Debug)]
