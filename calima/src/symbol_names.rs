@@ -52,6 +52,10 @@ impl StringInterner {
         StringInterner(Arc::new(Mutex::new(InternedStringStore::new())))
     }
 
+    pub fn intern_str(&self, s: &str) -> IText {
+        self.intern(Text::new(s))
+    }
+
     pub fn intern(&self, text: Text) -> IText {
         let mut l = self.0.lock().expect("Error acquiring lock");
         l.intern(text)
@@ -66,11 +70,10 @@ mod tests {
     #[test]
     fn test_names() {
         let names = StringInterner::new();
-        let n1 = names.intern("Test");
-        let n2 = names.intern("Test2");
+        let n1 = names.intern_str("Test");
+        let n2 = names.intern_str("Test2");
         assert_ne!(n1, n2);
-        let n3 = names.intern("Test");
+        let n3 = names.intern_str("Test");
         assert_eq!(n1, n3);
-        assert_eq!(Rc::strong_count(&n1.0 .0), 3);
     }
 }

@@ -1016,16 +1016,16 @@ mod operator_tests {
     use std::fs::read_to_string;
     use std::rc::Rc;
 
-    fn int_lit(lit: &str) -> OperatorElement<Name<()>, IText, ()> {
+    fn int_lit(lit: IText) -> OperatorElement<Name<()>, IText, ()> {
         Expression(
-            Expr::Literal(Literal::Number(String::from(lit), NumberType::Integer), ()),
+            Expr::Literal(Literal::Number(lit, NumberType::Integer), ()),
             (),
         )
     }
 
-    fn int_lit_typed(lit: &str) -> TExpression {
+    fn int_lit_typed(lit: IText) -> TExpression {
         TExpression::new(
-            TExprData::Literal(Literal::Number(String::from(lit), NumberType::Integer)),
+            TExprData::Literal(Literal::Number(lit, NumberType::Integer)),
             int(),
         )
     }
@@ -1054,8 +1054,8 @@ mod operator_tests {
         interner: &StringInterner,
     ) -> TExpression {
         TExpression::new(
-            TExprData::Variable(interner.intern("+")),
-            lookup_operator(env, ctx, &interner.intern("+")),
+            TExprData::Variable(interner.intern_str("+")),
+            lookup_operator(env, ctx, &interner.intern_str("+")),
         )
     }
 
@@ -1065,8 +1065,8 @@ mod operator_tests {
         interner: &StringInterner,
     ) -> TExpression {
         TExpression::new(
-            TExprData::Variable(interner.intern("*")),
-            lookup_operator(env, ctx, &interner.intern("*")),
+            TExprData::Variable(interner.intern_str("*")),
+            lookup_operator(env, ctx, &interner.intern_str("*")),
         )
     }
 
@@ -1076,8 +1076,8 @@ mod operator_tests {
         interner: &StringInterner,
     ) -> TExpression {
         TExpression::new(
-            TExprData::Variable(interner.intern("~")),
-            lookup_operator(env, ctx, &interner.intern("~")),
+            TExprData::Variable(interner.intern_str("~")),
+            lookup_operator(env, ctx, &interner.intern_str("~")),
         )
     }
 
@@ -1100,14 +1100,17 @@ mod operator_tests {
         let interner = StringInterner::new();
         env.import_prelude(&interner);
         let ops = vec![
-            int_lit("1"),
-            Operator(interner.intern("+"), ()),
-            int_lit("2"),
+            int_lit(interner.intern_str("1")),
+            Operator(interner.intern_str("+"), ()),
+            int_lit(interner.intern_str("2")),
         ];
         let exprs = TExpression::new(
             TExprData::FunctionCall(
                 add_op(&env, &mut ctx, &interner).into(),
-                vec![int_lit_typed("1"), int_lit_typed("2")],
+                vec![
+                    int_lit_typed(interner.intern_str("1")),
+                    int_lit_typed(interner.intern_str("2")),
+                ],
             ),
             int(),
         );
@@ -1123,21 +1126,24 @@ mod operator_tests {
         let interner = StringInterner::new();
         env.import_prelude(&interner);
         let ops = vec![
-            int_lit("2"),
-            Operator(interner.intern("+"), ()),
-            int_lit("2"),
-            Operator(interner.intern("*"), ()),
-            int_lit("3"),
+            int_lit(interner.intern_str("2")),
+            Operator(interner.intern_str("+"), ()),
+            int_lit(interner.intern_str("2")),
+            Operator(interner.intern_str("*"), ()),
+            int_lit(interner.intern_str("3")),
         ];
         let exprs = TExpression::new(
             TExprData::FunctionCall(
                 add_op(&env, &mut ctx, &interner).into(),
                 vec![
-                    int_lit_typed("2"),
+                    int_lit_typed(interner.intern_str("2")),
                     TExpression::new(
                         TExprData::FunctionCall(
                             mul_op(&env, &mut ctx, &interner).into(),
-                            vec![int_lit_typed("2"), int_lit_typed("3")],
+                            vec![
+                                int_lit_typed(interner.intern_str("2")),
+                                int_lit_typed(interner.intern_str("3")),
+                            ],
                         ),
                         int(),
                     ),
@@ -1157,11 +1163,16 @@ mod operator_tests {
         let interner = StringInterner::new();
         env.import_prelude(&interner);
         let ops = vec![
-            Operator(interner.intern("~"), ()),
-            Operator(interner.intern("~"), ()),
-            int_lit("1"),
+            Operator(interner.intern_str("~"), ()),
+            Operator(interner.intern_str("~"), ()),
+            int_lit(interner.intern_str("1")),
         ];
-        let e1 = neg_expr(&env, &mut ctx, &interner, int_lit_typed("1"));
+        let e1 = neg_expr(
+            &env,
+            &mut ctx,
+            &interner,
+            int_lit_typed(interner.intern_str("1")),
+        );
         let exprs = neg_expr(&env, &mut ctx, &interner, e1);
         let res = ctx.transform_operators(&mut env, &ops, ());
         ctx.unify_rec(exprs.typ(), res.typ()).unwrap();
@@ -1175,19 +1186,29 @@ mod operator_tests {
         let interner = StringInterner::new();
         env.import_prelude(&interner);
         let ops = vec![
-            Operator(interner.intern("~"), ()),
-            int_lit("1"),
-            Operator(interner.intern("+"), ()),
-            Operator(interner.intern("~"), ()),
-            Operator(interner.intern("~"), ()),
-            int_lit("2"),
+            Operator(interner.intern_str("~"), ()),
+            int_lit(interner.intern_str("1")),
+            Operator(interner.intern_str("+"), ()),
+            Operator(interner.intern_str("~"), ()),
+            Operator(interner.intern_str("~"), ()),
+            int_lit(interner.intern_str("2")),
         ];
-        let e2 = neg_expr(&env, &mut ctx, &interner, int_lit_typed("2"));
+        let e2 = neg_expr(
+            &env,
+            &mut ctx,
+            &interner,
+            int_lit_typed(interner.intern_str("2")),
+        );
         let exprs = TExpression::new(
             TExprData::FunctionCall(
                 add_op(&env, &mut ctx, &interner).into(),
                 vec![
-                    neg_expr(&env, &mut ctx, &interner, int_lit_typed("1")),
+                    neg_expr(
+                        &env,
+                        &mut ctx,
+                        &interner,
+                        int_lit_typed(interner.intern_str("1")),
+                    ),
                     neg_expr(&env, &mut ctx, &interner, e2),
                 ],
             ),
@@ -1205,15 +1226,20 @@ mod operator_tests {
         let interner = StringInterner::new();
         env.import_prelude(&interner);
         let ops = vec![
-            Operator(interner.intern("~"), ()),
-            int_lit("1"),
-            Operator(interner.intern("*"), ()),
-            int_lit("2"),
-            Operator(interner.intern("+"), ()),
-            Operator(interner.intern("~"), ()),
-            int_lit("3"),
+            Operator(interner.intern_str("~"), ()),
+            int_lit(interner.intern_str("1")),
+            Operator(interner.intern_str("*"), ()),
+            int_lit(interner.intern_str("2")),
+            Operator(interner.intern_str("+"), ()),
+            Operator(interner.intern_str("~"), ()),
+            int_lit(interner.intern_str("3")),
         ];
-        let e2 = neg_expr(&env, &mut ctx, &interner, int_lit_typed("2"));
+        let e2 = neg_expr(
+            &env,
+            &mut ctx,
+            &interner,
+            int_lit_typed(interner.intern_str("2")),
+        );
         let exprs = TExpression::new(
             TExprData::FunctionCall(
                 add_op(&env, &mut ctx, &interner).into(),
@@ -1222,13 +1248,23 @@ mod operator_tests {
                         TExprData::FunctionCall(
                             mul_op(&env, &mut ctx, &interner).into(),
                             vec![
-                                neg_expr(&env, &mut ctx, &interner, int_lit_typed("1")),
-                                int_lit_typed("2"),
+                                neg_expr(
+                                    &env,
+                                    &mut ctx,
+                                    &interner,
+                                    int_lit_typed(interner.intern_str("1")),
+                                ),
+                                int_lit_typed(interner.intern_str("2")),
                             ],
                         ),
                         int(),
                     ),
-                    neg_expr(&env, &mut ctx, &interner, int_lit_typed("3")),
+                    neg_expr(
+                        &env,
+                        &mut ctx,
+                        &interner,
+                        int_lit_typed(interner.intern_str("3")),
+                    ),
                 ],
             ),
             int(),
@@ -1245,11 +1281,11 @@ mod operator_tests {
         let interner = StringInterner::new();
         env.import_prelude(&interner);
         let ops = vec![
-            int_lit("4"),
-            Operator(interner.intern("+"), ()),
-            int_lit("5"),
-            Operator(interner.intern("+"), ()),
-            int_lit("6"),
+            int_lit(interner.intern_str("4")),
+            Operator(interner.intern_str("+"), ()),
+            int_lit(interner.intern_str("5")),
+            Operator(interner.intern_str("+"), ()),
+            int_lit(interner.intern_str("6")),
         ];
         let exprs = TExpression::new(
             TExprData::FunctionCall(
@@ -1258,11 +1294,14 @@ mod operator_tests {
                     TExpression::new(
                         TExprData::FunctionCall(
                             add_op(&env, &mut ctx, &interner).into(),
-                            vec![int_lit_typed("4"), int_lit_typed("5")],
+                            vec![
+                                int_lit_typed(interner.intern_str("4")),
+                                int_lit_typed(interner.intern_str("5")),
+                            ],
                         ),
                         int(),
                     ),
-                    int_lit_typed("6"),
+                    int_lit_typed(interner.intern_str("6")),
                 ],
             ),
             int(),
@@ -1330,14 +1369,14 @@ mod typecheck_tests {
             &mut ctx,
             &mut env,
             &interner,
-            &interner.intern("fac"),
+            &interner.intern_str("fac"),
             "Int -> Int",
         );
         assert_operator_type(
             &mut ctx,
             &mut env,
             &interner,
-            &interner.intern("~"),
+            &interner.intern_str("~"),
             "Bool -> Bool",
             OperatorSpecification::Prefix,
         );
@@ -1345,7 +1384,7 @@ mod typecheck_tests {
             &mut ctx,
             &mut env,
             &interner,
-            &interner.intern("|||"),
+            &interner.intern_str("|||"),
             "Bool -> Bool -> Bool",
             OperatorSpecification::Infix(30, Associativity::None),
         );
@@ -1353,42 +1392,42 @@ mod typecheck_tests {
             &mut ctx,
             &mut env,
             &interner,
-            &interner.intern("add"),
+            &interner.intern_str("add"),
             "Int -> Int -> Int",
         );
         assert_value_type(
             &mut ctx,
             &mut env,
             &interner,
-            &interner.intern("isEq"),
+            &interner.intern_str("isEq"),
             "a -> a -> bool",
         );
         assert_value_type(
             &mut ctx,
             &mut env,
             &interner,
-            &interner.intern("unit"),
+            &interner.intern_str("unit"),
             "Unit",
         );
         assert_value_type(
             &mut ctx,
             &mut env,
             &interner,
-            &interner.intern("str"),
+            &interner.intern_str("str"),
             "String",
         );
         assert_value_type(
             &mut ctx,
             &mut env,
             &interner,
-            &interner.intern("id"),
+            &interner.intern_str("id"),
             "a -> a",
         );
         assert_value_type(
             &mut ctx,
             &mut env,
             &interner,
-            &interner.intern("str2"),
+            &interner.intern_str("str2"),
             "String",
         );
         error_context.handle_errors().unwrap();

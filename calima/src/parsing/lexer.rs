@@ -299,181 +299,197 @@ mod tests {
     use crate::parsing::lexer::Lexer;
     use crate::parsing::token::Token::*;
     use crate::parsing::token::{NumberFormat, Token};
+    use crate::StringInterner;
 
-    fn lex_equal(code: &str, tokens: Vec<Token>) {
-        let lexer = Lexer::new(code);
+    fn lex_equal(code: &str, tokens: Vec<Token>, interner: &StringInterner) {
+        let lexer = Lexer::new(code, interner);
         let res: Vec<Token> = lexer.map(|tk| tk.unwrap()).map(|(_, t, _)| t).collect();
         assert_eq!(res, tokens);
     }
 
     #[test]
     fn lex1() {
+        let interner = StringInterner::new();
         let code = "ab cd, : ->";
         let tokens = vec![
-            NameIdentifier("ab"),
-            NameIdentifier("cd"),
+            NameIdentifier(interner.intern_str("ab")),
+            NameIdentifier(interner.intern_str("cd")),
             Comma,
             Colon,
             Arrow,
         ];
-        lex_equal(code, tokens)
+        lex_equal(code, tokens, &interner)
     }
 
     #[test]
     fn lex2() {
+        let interner = StringInterner::new();
         let code = "\"test\" test \"asdf\\\"\"";
         let tokens = vec![
-            StringLiteral("test"),
-            NameIdentifier("test"),
-            StringLiteral("asdf\\\""),
+            StringLiteral(interner.intern_str("test")),
+            NameIdentifier(interner.intern_str("test")),
+            StringLiteral(interner.intern_str("asdf\\\"")),
         ];
-        lex_equal(code, tokens)
+        lex_equal(code, tokens, &interner)
     }
 
     #[test]
     fn lex3() {
+        let interner = StringInterner::new();
         let code = "12.3 344.45, 9900 -3";
         let tokens = vec![
-            NumberLiteral(("12.3", NumberFormat::Float)),
-            NumberLiteral(("344.45", NumberFormat::Float)),
+            NumberLiteral((interner.intern_str("12.3"), NumberFormat::Float)),
+            NumberLiteral((interner.intern_str("344.45"), NumberFormat::Float)),
             Comma,
-            NumberLiteral(("9900", NumberFormat::Integer)),
-            NumberLiteral(("-3", NumberFormat::Integer)),
+            NumberLiteral((interner.intern_str("9900"), NumberFormat::Integer)),
+            NumberLiteral((interner.intern_str("-3"), NumberFormat::Integer)),
         ];
-        lex_equal(code, tokens)
+        lex_equal(code, tokens, &interner)
     }
 
     #[test]
     fn lex4() {
+        let interner = StringInterner::new();
         let code = "case x of | a:Int -> 2";
         let tokens = vec![
             Case,
-            NameIdentifier("x"),
+            NameIdentifier(interner.intern_str("x")),
             Of,
             Pipe,
-            NameIdentifier("a"),
+            NameIdentifier(interner.intern_str("a")),
             Colon,
-            TypeIdentifier("Int"),
+            TypeIdentifier(interner.intern_str("Int")),
             Arrow,
-            NumberLiteral(("2", NumberFormat::Integer)),
+            NumberLiteral((interner.intern_str("2"), NumberFormat::Integer)),
         ];
-        lex_equal(code, tokens);
+        lex_equal(code, tokens, &interner);
     }
 
     #[test]
     fn lex5() {
+        let interner = StringInterner::new();
         let code = "{ a = \"test\", b = 12.4, c = d (a b) }";
         let tokens = vec![
             CurlyBraceOpen,
-            NameIdentifier("a"),
+            NameIdentifier(interner.intern_str("a")),
             Equal,
-            StringLiteral("test"),
+            StringLiteral(interner.intern_str("test")),
             Comma,
-            NameIdentifier("b"),
+            NameIdentifier(interner.intern_str("b")),
             Equal,
-            NumberLiteral(("12.4", NumberFormat::Float)),
+            NumberLiteral((interner.intern_str("12.4"), NumberFormat::Float)),
             Comma,
-            NameIdentifier("c"),
+            NameIdentifier(interner.intern_str("c")),
             Equal,
-            NameIdentifier("d"),
+            NameIdentifier(interner.intern_str("d")),
             ParenOpen,
-            NameIdentifier("a"),
-            NameIdentifier("b"),
+            NameIdentifier(interner.intern_str("a")),
+            NameIdentifier(interner.intern_str("b")),
             ParenClose,
             CurlyBraceClose,
         ];
-        lex_equal(code, tokens)
+        lex_equal(code, tokens, &interner)
     }
 
     #[test]
     fn lex6() {
+        let interner = StringInterner::new();
         let code = "if (x == asdf) then fun a -> a else 12";
         let tokens = vec![
             If,
             ParenOpen,
-            NameIdentifier("x"),
-            OperatorIdentifier("=="),
-            NameIdentifier("asdf"),
+            NameIdentifier(interner.intern_str("x")),
+            OperatorIdentifier(interner.intern_str("==")),
+            NameIdentifier(interner.intern_str("asdf")),
             ParenClose,
             Then,
             Fun,
-            NameIdentifier("a"),
+            NameIdentifier(interner.intern_str("a")),
             Arrow,
-            NameIdentifier("a"),
+            NameIdentifier(interner.intern_str("a")),
             Else,
-            NumberLiteral(("12", NumberFormat::Integer)),
+            NumberLiteral((interner.intern_str("12"), NumberFormat::Integer)),
         ];
-        lex_equal(code, tokens);
+        lex_equal(code, tokens, &interner);
     }
 
     #[test]
     fn lex7() {
+        let interner = StringInterner::new();
         let code = "
 test #asdf d.
       , (
       #)
 #";
-        let tokens = vec![NameIdentifier("test"), Comma, ParenOpen];
-        lex_equal(code, tokens);
+        let tokens = vec![
+            NameIdentifier(interner.intern_str("test")),
+            Comma,
+            ParenOpen,
+        ];
+        lex_equal(code, tokens, &interner);
     }
 
     #[test]
     fn lex8() {
+        let interner = StringInterner::new();
         let code = "map (fun i -> i + 2) x";
         let tokens = vec![
-            NameIdentifier("map"),
+            NameIdentifier(interner.intern_str("map")),
             ParenOpen,
             Fun,
-            NameIdentifier("i"),
+            NameIdentifier(interner.intern_str("i")),
             Arrow,
-            NameIdentifier("i"),
-            OperatorIdentifier("+"),
-            NumberLiteral(("2", NumberFormat::Integer)),
+            NameIdentifier(interner.intern_str("i")),
+            OperatorIdentifier(interner.intern_str("+")),
+            NumberLiteral((interner.intern_str("2"), NumberFormat::Integer)),
             ParenClose,
-            NameIdentifier("x"),
+            NameIdentifier(interner.intern_str("x")),
         ];
-        lex_equal(code, tokens);
+        lex_equal(code, tokens, &interner);
     }
 
     #[test]
     fn lex9() {
+        let interner = StringInterner::new();
         let code = "println (\"Hello\" ++ \"World!\")";
         let tokens = vec![
-            NameIdentifier("println"),
+            NameIdentifier(interner.intern_str("println")),
             ParenOpen,
-            StringLiteral("Hello"),
-            OperatorIdentifier("++"),
-            StringLiteral("World!"),
+            StringLiteral(interner.intern_str("Hello")),
+            OperatorIdentifier(interner.intern_str("++")),
+            StringLiteral(interner.intern_str("World!")),
             ParenClose,
         ];
-        lex_equal(code, tokens);
+        lex_equal(code, tokens, &interner);
     }
 
     #[test]
     fn lex10() {
+        let interner = StringInterner::new();
         let code = "a.T.b reg ++ test";
         let tokens = vec![
-            NameIdentifier("a"),
+            NameIdentifier(interner.intern_str("a")),
             Period,
-            TypeIdentifier("T"),
+            TypeIdentifier(interner.intern_str("T")),
             Period,
-            NameIdentifier("b"),
-            NameIdentifier("reg"),
-            OperatorIdentifier("++"),
-            NameIdentifier("test"),
+            NameIdentifier(interner.intern_str("b")),
+            NameIdentifier(interner.intern_str("reg")),
+            OperatorIdentifier(interner.intern_str("++")),
+            NameIdentifier(interner.intern_str("test")),
         ];
-        lex_equal(code, tokens);
+        lex_equal(code, tokens, &interner);
     }
 
     #[test]
     fn lex11() {
+        let interner = StringInterner::new();
         let code = "!a+b";
         let tokens = vec![
-            OperatorIdentifier("!"),
-            NameIdentifier("a"),
-            OperatorIdentifier("+"),
-            NameIdentifier("b"),
+            OperatorIdentifier(interner.intern_str("!")),
+            NameIdentifier(interner.intern_str("a")),
+            OperatorIdentifier(interner.intern_str("+")),
+            NameIdentifier(interner.intern_str("b")),
         ];
-        lex_equal(code, tokens);
+        lex_equal(code, tokens, &interner);
     }
 }
