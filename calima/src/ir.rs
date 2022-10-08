@@ -19,7 +19,6 @@ pub enum Expr {
     Lambda {
         params: Vec<BindTarget>,
         block: Block,
-        captures: HashSet<VarRef>,
     },
     If {
         condition: Val,
