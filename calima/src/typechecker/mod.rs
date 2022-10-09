@@ -176,6 +176,7 @@ impl<Data: Copy + Debug> Context<Data> {
         if let Some(nh) = name_hint {
             self.name_hints.insert(v.clone(), nh);
         }
+        self.types.insert(v, sch);
         v
     }
 
