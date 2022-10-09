@@ -371,28 +371,6 @@ impl<Data: Copy + Debug> Context<Data> {
         }
     }
 
-    fn bind_to_pattern_generalized(
-        &mut self,
-        env: &mut Environment<Data>,
-        pattern: &BindPattern<IText, TypeAnnotation<Name<Data>, IText, Data>, Data>,
-        block_builder: &mut BlockBuilder,
-        bind_expr: ir::Expr,
-        tp: Type,
-    ) {
-        match pattern {
-            BindPattern::Any(_) => {
-                block_builder.add_binding(Binding(BindTarget::Discard, bind_expr))
-            }
-            BindPattern::Name(name, ta, _) => {
-                // TODO: Check type annotation
-                let sch = generalize(&env, &tp);
-                let v = env.add(self, name.clone(), sch);
-                block_builder.add_binding(Binding(BindTarget::Var(v), bind_expr))
-            }
-            _ => todo!(),
-        }
-    }
-
     fn bind_to_pattern_val(
         &mut self,
         env: &mut Environment<Data>,
