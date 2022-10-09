@@ -4,4 +4,4 @@ let cub = v * v * v
 let sq2 = `*` v v
 let prefix ~ = fun a -> not a
 let infix 30 none ||| = fun a b -> a && ! b || ! a && b
-publiclet main = fun () -> println cub
+public let main = fun () -> println cub

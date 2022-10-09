@@ -325,7 +325,7 @@ pub enum Visibility {
 impl Display for Visibility {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Visibility::Public => write!(f, "public"),
+            Visibility::Public => write!(f, "public "),
         }
     }
 }

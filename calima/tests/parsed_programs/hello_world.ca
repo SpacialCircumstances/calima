@@ -1,1 +1,1 @@
-publiclet main = fun () -> println "Hello World!"
+public let main = fun () -> println "Hello World!"
