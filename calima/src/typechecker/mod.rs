@@ -353,15 +353,19 @@ impl<Data: Copy + Debug> Context<Data> {
         &mut self,
         env: &mut Environment<Data>,
         pattern: &BindPattern<IText, TypeAnnotation<Name<Data>, IText, Data>, Data>,
-        tp: Type,
+        tp: &mut Type,
         vals: &mut Vec<ir::BindTarget>,
     ) {
         match pattern {
             BindPattern::Any(_) => vals.push(BindTarget::Discard),
             BindPattern::Name(name, ta, _) => {
                 // TODO: Check type annotation
-                let v = env.add(self, name.clone(), Scheme::simple(tp));
+                let v = env.add(self, name.clone(), Scheme::simple(tp.clone()));
                 vals.push(BindTarget::Var(v));
+            }
+            BindPattern::UnitLiteral(data) => {
+                self.unify(tp, &unit(), UnificationSource::PatternMatching, *data);
+                vals.push(BindTarget::Discard);
             }
             _ => todo!(),
         }
@@ -673,7 +677,7 @@ fn infer_expr<Data: Copy + Debug>(
                 let gen = ctx.next_id();
                 body_env.add_monomorphic_var(gen);
                 let mut tp = Type::Var(gen);
-                ctx.bind_to_pattern_directly(&mut body_env, param, tp.clone(), &mut param_vals);
+                ctx.bind_to_pattern_directly(&mut body_env, param, &mut tp, &mut param_vals);
                 param_types.push(tp);
             }
 
