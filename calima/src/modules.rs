@@ -38,7 +38,6 @@ pub struct TypedModuleData {
     pub(crate) deps: Vec<TypedModule>,
     pub(crate) ir_block: Block,
     pub(crate) subst: Substitution<Type>,
-    pub(crate) env: Rc<ModuleEnvironment>,
 }
 
 pub struct TypedModule(pub Rc<TypedModuleData>);

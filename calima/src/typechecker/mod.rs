@@ -17,6 +17,7 @@ use quetta::Text;
 use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
 use std::fmt::Debug;
+use std::marker::PhantomData;
 use std::rc::Rc;
 
 mod lower;
@@ -150,8 +151,22 @@ impl<Data: Copy + Debug> Context<Data> {
         }
     }
 
-    pub fn get_type(&self, vr: &VarRef) -> Option<&Scheme> {
-        self.types.get(vr)
+    pub fn get_type(&self, v: &Val) -> Option<Scheme> {
+        match v {
+            Val::Var(vr) => self.types.get(vr).cloned(),
+            Val::Constant(Constant::Unit) => Some(Scheme::simple(Type::Basic(TypeDef::Primitive(
+                PrimitiveType::Unit,
+            )))),
+            Val::Constant(Constant::String(_)) => Some(Scheme::simple(Type::Basic(
+                TypeDef::Primitive(PrimitiveType::String),
+            ))),
+            Val::Constant(Constant::Number(_, NumberType::Float)) => Some(Scheme::simple(
+                Type::Basic(TypeDef::Primitive(PrimitiveType::Float)),
+            )),
+            Val::Constant(Constant::Number(_, NumberType::Integer)) => Some(Scheme::simple(
+                Type::Basic(TypeDef::Primitive(PrimitiveType::Int)),
+            )),
+        }
     }
 
     pub fn new_var(&mut self, sch: Scheme, name_hint: Option<IText>) -> VarRef {
@@ -159,7 +174,7 @@ impl<Data: Copy + Debug> Context<Data> {
         self.var_id += 1;
 
         if let Some(nh) = name_hint {
-            self.name_hints.insert(v.clone(), nh)
+            self.name_hints.insert(v.clone(), nh);
         }
         v
     }
@@ -265,7 +280,7 @@ impl<Data: Copy + Debug> Context<Data> {
 
     fn lookup_var(&mut self, env: &Environment<Data>, name: &IText, loc: Data) -> Type {
         match env.lookup_value(name) {
-            Some(sch) => self.inst(self.get_type(sch).expect("Var not found")), //TODO: Error handling?
+            Some(sch) => self.inst(&self.get_type(sch).expect("Var not found")), //TODO: Error handling?
             None => {
                 self.add_error(TypeError::var_not_found(name, loc));
                 Type::Error
@@ -281,7 +296,7 @@ impl<Data: Copy + Debug> Context<Data> {
     ) -> (Type, Option<OperatorSpecification>) {
         match env.lookup_operator(name) {
             Some((tp, op)) => (
-                self.inst(self.get_type(tp).expect("Var not found")),
+                self.inst(&self.get_type(&Val::Var(*tp)).expect("Var not found")),
                 Some(*op),
             ), //TODO: Error handling?
             None => {
@@ -333,34 +348,21 @@ impl<Data: Copy + Debug> Context<Data> {
         replace(&sch.1, &|id| mapping.get(&id).cloned())
     }
 
-    fn bind_to_pattern<F: Fn(&Type, &mut Environment<Data>) -> Scheme>(
+    fn bind_to_pattern_directly(
         &mut self,
         env: &mut Environment<Data>,
         pattern: &BindPattern<IText, TypeAnnotation<Name<Data>, IText, Data>, Data>,
-        tp: &mut Type,
-        to_scheme: F,
-        export: bool,
+        tp: Type,
+        vals: &mut Vec<ir::BindTarget>,
     ) {
         match pattern {
-            BindPattern::Any(_) => (),
-            BindPattern::Name(idt, ta, loc) => {
-                match ta {
-                    Some(ta) => {
-                        let annot = self.type_from_annotation(env, ta);
-                        self.unify(tp, &annot, UnificationSource::TypeAnnotation, *loc);
-                    }
-                    None => (),
-                }
-                let scheme = to_scheme(&tp, env);
-                /*if export {
-                    self.export_value(idt.clone(), scheme.clone());
-                }*/
-                env.add(self, idt.clone(), scheme);
+            BindPattern::Any(_) => vals.push(BindTarget::Discard),
+            BindPattern::Name(name, ta, _) => {
+                // TODO: Check type annotation
+                let v = env.add(self, name.clone(), Scheme::simple(tp));
+                vals.push(BindTarget::Var(v));
             }
-            BindPattern::UnitLiteral(loc) => {
-                self.unify(tp, &unit(), UnificationSource::PatternMatching, *loc)
-            }
-            _ => (),
+            _ => todo!(),
         }
     }
 
@@ -386,27 +388,39 @@ impl<Data: Copy + Debug> Context<Data> {
         }
     }
 
-    /*fn bind_to_pattern_directly(
+    fn bind_to_pattern_val(
         &mut self,
         env: &mut Environment<Data>,
         pattern: &BindPattern<IText, TypeAnnotation<Name<Data>, IText, Data>, Data>,
-        tp: &mut Type,
+        block_builder: &mut BlockBuilder,
+        bind_val: Val,
+        tp: Type,
     ) {
-        self.bind_to_pattern(env, pattern, tp, |t, _env| Scheme::simple(t.clone()), false);
-    }*/
+        match pattern {
+            BindPattern::Any(_) => (),
+            BindPattern::Name(name, ta, _) => {
+                // TODO: Check type annotation
+                let sch = generalize(&env, &tp);
+                let v = env.add(self, name.clone(), sch);
+            }
+            _ => todo!(),
+        }
+    }
 
     fn call_operator(
         &mut self,
-        exprs: &mut Vec<TExpression>,
+        exprs: &mut Vec<ir::Expr>,
         last_name: IText,
         last_type: &Type,
         loc: Data,
     ) {
+        /*
         let r = exprs.pop().unwrap();
         let l = exprs.pop().unwrap();
         let last_expr = TExpression::new(TExprData::Variable(last_name), last_type.clone());
         let fc = function_call(self, last_expr, vec![l, r], loc);
-        exprs.push(fc)
+        exprs.push(fc)*/
+        todo!()
     }
 
     fn transform_operators(
@@ -500,11 +514,12 @@ impl Context<Span> {
 }
 
 #[derive(Clone)]
-struct Environment<Data: Copy + Debug> {
-    values: HashMap<IText, VarRef>,
+pub struct Environment<Data: Copy + Debug> {
+    values: HashMap<IText, Val>,
     operators: HashMap<IText, (VarRef, OperatorSpecification)>,
     mono_vars: HashSet<GenericId>,
     named_generics: HashMap<IText, GenericId>,
+    phantom_data: PhantomData<Data>, //TODO: Remove once we have tracking again
 }
 
 impl<Data: Copy + Debug> Environment<Data> {
@@ -514,6 +529,7 @@ impl<Data: Copy + Debug> Environment<Data> {
             operators: HashMap::new(),
             mono_vars: HashSet::new(),
             named_generics: HashMap::new(),
+            phantom_data: PhantomData::default(),
         }
     }
 
@@ -530,8 +546,7 @@ impl<Data: Copy + Debug> Environment<Data> {
         match self.named_generics.get(name) {
             None => {
                 let gid = ctx.next_id();
-                self.named_generics
-                    .add(name.clone(), gid, Location::Local(location));
+                self.named_generics.insert(name.clone(), gid);
                 gid
             }
             Some(gid) => *gid,
@@ -552,7 +567,7 @@ impl<Data: Copy + Debug> Environment<Data> {
 
     fn add(&mut self, ctx: &mut Context<Data>, name: IText, sch: Scheme) -> VarRef {
         let v = ctx.new_var(sch, Some(name.clone()));
-        self.values.insert(name, v);
+        self.values.insert(name, Val::Var(v));
         v
     }
 
@@ -560,7 +575,7 @@ impl<Data: Copy + Debug> Environment<Data> {
         self.mono_vars.insert(id);
     }
 
-    fn lookup_value(&self, name: &IText) -> Option<&VarRef> {
+    fn lookup_value(&self, name: &IText) -> Option<&Val> {
         self.values.get(name)
     }
 
@@ -602,20 +617,24 @@ fn replace<F: Fn(GenericId) -> Option<Type>>(tp: &Type, mapper: &F) -> Type {
 fn function_call<Data: Copy + Debug>(
     ctx: &mut Context<Data>,
     func_val: Val,
-    func_tp: Type,
+    func_tp: &Type,
     args: Vec<(Val, Type)>,
     loc: Data,
-) -> TExpression {
-    let argtypes: Vec<Type> = args.iter().map(TExpression::typ).cloned().collect();
+) -> (ir::Expr, Type) {
+    let argtypes: Vec<Type> = args.iter().map(|(a, b)| b.clone()).collect();
     let ret = ctx.new_generic();
     let mut arg_fun_type = build_function(&argtypes, &ret);
     ctx.unify(
         &mut arg_fun_type,
-        tfunc.typ(),
+        func_tp,
         UnificationSource::FunctionCall,
         loc,
     );
-    TExpression::new(TExprData::FunctionCall(tfunc.into(), args), ret)
+    let fc = ir::Expr::FunctionCall {
+        func: func_val,
+        args: args.iter().map(|(a, b)| a.clone()).collect(),
+    };
+    (fc, ret)
 }
 
 fn infer_expr<Data: Copy + Debug>(
@@ -639,7 +658,7 @@ fn infer_expr<Data: Copy + Debug>(
             //TODO: Error handling
             let varvar = env.lookup_value(&varname.0[0]).expect("Variable not found"); //TODO: Lookup into data structures
             let vartp = ctx.get_type(varvar).unwrap();
-            (Val::Var(varvar.clone()), ctx.inst(vartp))
+            (varvar.clone(), ctx.inst(&vartp))
         }
         Expr::Lambda {
             params,
@@ -647,21 +666,26 @@ fn infer_expr<Data: Copy + Debug>(
             data: _,
         } => {
             let mut body_env = env.clone();
-            let mut param_types = Vec::with_capacity(params.len());
+            let mut param_vals = Vec::new();
+            let mut param_types = Vec::new();
             for param in params {
                 let gen = ctx.next_id();
                 body_env.add_monomorphic_var(gen);
                 let mut tp = Type::Var(gen);
-                ctx.bind_to_pattern_directly(&mut body_env, param, &mut tp);
+                ctx.bind_to_pattern_directly(&mut body_env, param, tp.clone(), &mut param_vals);
                 param_types.push(tp);
             }
 
-            let body = infer_block(&mut body_env, ctx, block_builder, body);
-            let scheme = build_function(&param_types, body.res.typ());
-            TExpression::new(
-                TExprData::Lambda(params.iter().map(|p| map_bind_pattern(p)).collect(), body),
-                scheme,
-            )
+            let (block, ret_tp) = infer_block(&mut body_env, ctx, block_builder, body);
+            let lambda = ir::Expr::Lambda {
+                params: param_vals,
+                block,
+            };
+            let func_tp = build_function(&param_types, &ret_tp);
+            let func_sch = Scheme::simple(func_tp.clone());
+            let lambda_var = ctx.new_var(func_sch, None);
+            block_builder.add_binding(Binding(BindTarget::Var(lambda_var), lambda));
+            (Val::Var(lambda_var), func_tp)
         }
         Expr::FunctionCall(func, args, loc) => {
             let targs = args
@@ -669,9 +693,15 @@ fn infer_expr<Data: Copy + Debug>(
                 .map(|e| infer_expr(env, ctx, block_builder, e))
                 .collect();
             let (tfunc, functp) = infer_expr(env, ctx, block_builder, func);
-            function_call(ctx, tfunc, functp, targs, *loc)
+            let (func_call, ret_tp) = function_call(ctx, tfunc, &functp, targs, *loc);
+            let funcc_var = ctx.new_var(Scheme::simple(ret_tp.clone()), None);
+            block_builder.add_binding(Binding(BindTarget::Var(funcc_var), func_call));
+            (Val::Var(funcc_var), ret_tp)
         }
-        Expr::OperatorCall(elements, loc) => ctx.transform_operators(env, elements, *loc),
+        Expr::OperatorCall(elements, loc) => {
+            todo!()
+            //ctx.transform_operators(env, elements, *loc)
+        }
         Expr::If {
             data: loc,
             cond,
@@ -733,7 +763,7 @@ fn infer_let<Data: Copy + Debug>(
     l: &Let<Name<Data>, IText, Data>,
     export: bool,
 ) {
-    let (lexpr, tp) = if l.mods.contains(&Modifier::Rec) {
+    let (lval, tp) = if l.mods.contains(&Modifier::Rec) {
         todo!()
         //let mut var = ctx.new_generic();
         //let mut body_env = env.clone();
@@ -745,7 +775,7 @@ fn infer_let<Data: Copy + Debug>(
         let mut body_env = env.clone();
         infer_expr(&mut body_env, ctx, block_builder, &l.value)
     };
-    ctx.bind_to_pattern_generalized(env, &l.pattern, block_builder, lexpr, tp);
+    ctx.bind_to_pattern_val(env, &l.pattern, block_builder, lval, tp);
 }
 
 fn infer_let_operator<Data: Copy + Debug>(
@@ -827,7 +857,7 @@ fn infer_block<Data: Copy + Debug>(
     ctx: &mut Context<Data>,
     block_builder: &mut BlockBuilder,
     block: &Block<Name<Data>, IText, Data>,
-) -> TBlock {
+) -> (ir::Block, Type) {
     block_builder.begin();
     let mut block_env = env.clone();
 
@@ -837,7 +867,7 @@ fn infer_block<Data: Copy + Debug>(
         .for_each(|s| infer_statement(&mut block_env, ctx, block_builder, s));
 
     let (result_val, result_tp) = infer_expr(&mut block_env, ctx, block_builder, &block.result);
-    block_builder.end(result_val)
+    (block_builder.end(result_val), result_tp)
 }
 
 fn infer_top_level<Data: Copy + Debug>(
@@ -850,13 +880,9 @@ fn infer_top_level<Data: Copy + Debug>(
         TopLevelStatement::Let(vis, l) => {
             infer_let(env, ctx, block_builder, l, vis == &Some(Visibility::Public))
         }
-        TopLevelStatement::LetOperator(vis, l) => Some(infer_let_operator(
-            env,
-            ctx,
-            block_builder,
-            l,
-            vis == &Some(Visibility::Public),
-        )),
+        TopLevelStatement::LetOperator(vis, l) => {
+            infer_let_operator(env, ctx, block_builder, l, vis == &Some(Visibility::Public))
+        }
         TopLevelStatement::Import { .. } => (), //Imports are resolved before typechecking
         TopLevelStatement::Type { .. } => unimplemented!(),
     }
@@ -902,7 +928,6 @@ fn typecheck_module(
             deps,
             ir_block,
             subst: context.type_subst,
-            env: Rc::new(context.mod_env),
         };
         TypedModule(Rc::new(mod_data))
     })
@@ -931,6 +956,8 @@ fn verify_main_module(
     errors: &mut ErrorContext,
     interner: &StringInterner,
 ) {
+    //TODO: Reactivate
+    /*
     if let Some(main_type) = main_mod
         .0
         .env
@@ -948,7 +975,7 @@ fn verify_main_module(
             main_mod.0.name.clone(),
             MainFunctionErrorKind::Missing,
         ))
-    }
+    }*/
 }
 
 pub fn typecheck(

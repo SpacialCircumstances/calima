@@ -43,7 +43,7 @@ fn eq_type() -> Scheme {
 }
 
 pub fn prelude<Data: Copy + Debug>(interner: &StringInterner) -> Rc<Environment<Data>> {
-    let mut env = Environment::new();
+    let mut env: Environment<Data> = Environment::new();
     /*
     env.add_operator(interner.intern(Text::new("+")), int_op(), Infix(60, Left));
     env.add_operator(

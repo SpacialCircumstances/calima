@@ -48,7 +48,6 @@ mod tests {
     use crate::parsing::parser::parse;
     use crate::parsing::token::{Location, Span};
     use crate::symbol_names::StringInterner;
-    use crate::typed_ast::Unit;
     use goldenfile::Mint;
     use std::fs::read_dir;
     use std::io::Write;
