@@ -1,0 +1,7 @@
+let v = 2 * 2 + 2 + -1
+let sq = v * v
+let cub = v * v * v
+let sq2 = `*` v v
+let prefix ~ = fun a -> not a
+let infix none 30 ||| = fun a b -> a && !b || !a && b
+public let main = fun () -> println cub

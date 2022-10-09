@@ -54,9 +54,9 @@ mod tests {
 
     #[test]
     fn test_by_comparing_to_parsed() {
-        let mut mint_code = Mint::new("tests/parsed/");
+        let mut mint_code = Mint::new("tests/parsed_programs/");
 
-        for entry in read_dir("../examples/basic/").unwrap() {
+        for entry in read_dir("tests/test_programs/").unwrap() {
             match entry {
                 Ok(entry) => {
                     let interner = StringInterner::new();
