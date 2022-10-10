@@ -279,12 +279,15 @@ impl<Data: Copy + Debug> Context<Data> {
         self.errors.push(te);
     }
 
-    fn lookup_var(&mut self, env: &Environment<Data>, name: &IText, loc: Data) -> Type {
+    fn lookup_var(&mut self, env: &Environment<Data>, name: &IText, loc: Data) -> (VarRef, Type) {
         match env.lookup_value(name) {
-            Some(sch) => self.inst(&self.get_type(sch).expect("Var not found")), //TODO: Error handling?
+            Some(sch) => (
+                *sch,
+                self.inst(&self.get_type(&Val::Var(*sch)).expect("Var not found")),
+            ), //TODO: Error handling?
             None => {
                 self.add_error(TypeError::var_not_found(name, loc));
-                Type::Error
+                todo!()
             }
         }
     }
@@ -294,15 +297,16 @@ impl<Data: Copy + Debug> Context<Data> {
         env: &Environment<Data>,
         name: &IText,
         loc: Data,
-    ) -> (Type, Option<OperatorSpecification>) {
+    ) -> (VarRef, Type, Option<OperatorSpecification>) {
         match env.lookup_operator(name) {
             Some((tp, op)) => (
+                *tp,
                 self.inst(&self.get_type(&Val::Var(*tp)).expect("Var not found")),
                 Some(*op),
             ), //TODO: Error handling?
             None => {
                 self.add_error(TypeError::operator_not_found(name, loc));
-                (Type::Error, None)
+                todo!()
             }
         }
     }
@@ -392,38 +396,50 @@ impl<Data: Copy + Debug> Context<Data> {
 
     fn call_operator(
         &mut self,
-        exprs: &mut Vec<ir::Expr>,
-        last_name: IText,
+        env: &Environment<Data>,
+        block_builder: &mut BlockBuilder,
+        vals: &mut Vec<ir::Val>,
+        last_name: &IText,
         last_type: &Type,
         loc: Data,
     ) {
-        /*
-        let r = exprs.pop().unwrap();
-        let l = exprs.pop().unwrap();
-        let last_expr = TExpression::new(TExprData::Variable(last_name), last_type.clone());
-        let fc = function_call(self, last_expr, vec![l, r], loc);
-        exprs.push(fc)*/
-        todo!()
+        //TODO: Error handling
+        let r = vals.pop().unwrap();
+        let l = vals.pop().unwrap();
+        let r_tp = self.inst(&self.get_type(&r).unwrap());
+        let l_tp = self.inst(&self.get_type(&l).unwrap());
+        let (op_var, op_tp, _) = self.lookup_operator(env, last_name, loc);
+        let (op_expr, res_tp) = function_call(
+            self,
+            Val::Var(op_var),
+            &op_tp,
+            vec![(l, l_tp), (r, r_tp)],
+            loc,
+        );
+
+        let res_var = self.new_var(Scheme::simple(res_tp), None);
+        block_builder.add_binding(Binding(BindTarget::Var(res_var), op_expr));
+        vals.push(Val::Var(res_var));
     }
 
     fn transform_operators(
         &mut self,
         env: &mut Environment<Data>,
+        block_builder: &mut BlockBuilder,
         elements: &Vec<OperatorElement<Name<Data>, IText, Data>>,
         top_location: Data,
-    ) -> ir::Expr {
-        todo!();
-        /*let mut bin_ops: Vec<(IText, Type, u32, Associativity, Data)> = Vec::new();
+    ) -> (ir::Val, Type) {
+        let mut bin_ops: Vec<(IText, Type, u32, Associativity, Data)> = Vec::new();
         let mut un_ops: Vec<(IText, Type)> = Vec::new();
-        let mut exprs = Vec::new();
+        let mut vals: Vec<Val> = Vec::new();
 
         for el in elements {
             match el {
                 OperatorElement::Operator(name, data) => {
                     let data = *data;
-                    let (op_tp, op_spec) = self.lookup_operator(env, name, data);
+                    let (_, op_tp, op_spec) = self.lookup_operator(env, name, data);
                     match op_spec {
-                        None => (),
+                        None => (), //TODO: Error handling?
                         Some(OperatorSpecification::Infix(op_prec, assoc)) => {
                             match bin_ops.last() {
                                 None => bin_ops.push((name.clone(), op_tp, op_prec, assoc, data)),
@@ -443,13 +459,25 @@ impl<Data: Copy + Debug> Context<Data> {
                                             let (last_name, last_type, _, _, data) =
                                                 bin_ops.pop().unwrap();
                                             self.call_operator(
-                                                &mut exprs, last_name, &last_type, data,
+                                                env,
+                                                block_builder,
+                                                &mut vals,
+                                                &last_name,
+                                                &last_type,
+                                                data,
                                             );
                                         }
                                     } else if last_prec > &op_prec {
                                         let (last_name, last_type, _, _, data) =
                                             bin_ops.pop().unwrap();
-                                        self.call_operator(&mut exprs, last_name, &last_type, data)
+                                        self.call_operator(
+                                            env,
+                                            block_builder,
+                                            &mut vals,
+                                            &last_name,
+                                            &last_type,
+                                            data,
+                                        )
                                     }
                                     bin_ops.push((name.clone(), op_tp, op_prec, assoc, data))
                                 }
@@ -459,14 +487,18 @@ impl<Data: Copy + Debug> Context<Data> {
                     }
                 }
                 OperatorElement::Expression(oexpr, loc) => {
-                    let mut expr = infer_expr(env, self, oexpr);
+                    let mut last_val = infer_expr(env, self, block_builder, oexpr);
 
                     while let Some((op_name, op_tp)) = un_ops.pop() {
-                        let op_expr = TExpression::new(TExprData::Variable(op_name), op_tp.clone());
-                        expr = function_call(self, op_expr, vec![expr], *loc);
+                        let (op_var, op_tp, _) = self.lookup_operator(env, &op_name, *loc);
+                        let (fc, tp) =
+                            function_call(self, Val::Var(op_var), &op_tp, vec![last_val], *loc);
+                        let fcv = self.new_var(Scheme::simple(tp.clone()), None);
+                        block_builder.add_binding(Binding(BindTarget::Var(fcv), fc));
+                        last_val = (Val::Var(fcv), tp)
                     }
 
-                    exprs.push(expr);
+                    vals.push(last_val.0);
                 }
             }
         }
@@ -480,10 +512,12 @@ impl<Data: Copy + Debug> Context<Data> {
         }
 
         while let Some((op_name, op_type, _, _, data)) = bin_ops.pop() {
-            self.call_operator(&mut exprs, op_name, &op_type, data);
+            self.call_operator(env, block_builder, &mut vals, &op_name, &op_type, data);
         }
 
-        exprs.pop().unwrap()*/
+        let res = vals.pop().unwrap();
+        let res_tp = self.inst(&self.get_type(&res).unwrap());
+        (res, res_tp)
     }
 }
 
@@ -498,7 +532,7 @@ impl Context<Span> {
 
 #[derive(Clone)]
 pub struct Environment<Data: Copy + Debug> {
-    values: HashMap<IText, Val>,
+    values: HashMap<IText, VarRef>,
     operators: HashMap<IText, (VarRef, OperatorSpecification)>,
     mono_vars: HashSet<GenericId>,
     named_generics: HashMap<IText, GenericId>,
@@ -550,7 +584,7 @@ impl<Data: Copy + Debug> Environment<Data> {
 
     fn add(&mut self, ctx: &mut Context<Data>, name: IText, sch: Scheme) -> VarRef {
         let v = ctx.new_var(sch, Some(name.clone()));
-        self.values.insert(name, Val::Var(v));
+        self.values.insert(name, v);
         v
     }
 
@@ -558,7 +592,7 @@ impl<Data: Copy + Debug> Environment<Data> {
         self.mono_vars.insert(id);
     }
 
-    fn lookup_value(&self, name: &IText) -> Option<&Val> {
+    fn lookup_value(&self, name: &IText) -> Option<&VarRef> {
         self.values.get(name)
     }
 
@@ -640,8 +674,8 @@ fn infer_expr<Data: Copy + Debug>(
         Expr::Variable(varname) => {
             //TODO: Error handling
             let varvar = env.lookup_value(&varname.0[0]).expect("Variable not found"); //TODO: Lookup into data structures
-            let vartp = ctx.get_type(varvar).unwrap();
-            (varvar.clone(), ctx.inst(&vartp))
+            let vartp = ctx.get_type(&Val::Var(*varvar)).unwrap();
+            (Val::Var(*varvar), ctx.inst(&vartp))
         }
         Expr::Lambda {
             params,
@@ -682,8 +716,7 @@ fn infer_expr<Data: Copy + Debug>(
             (Val::Var(funcc_var), ret_tp)
         }
         Expr::OperatorCall(elements, loc) => {
-            todo!()
-            //ctx.transform_operators(env, elements, *loc)
+            ctx.transform_operators(env, block_builder, elements, *loc)
         }
         Expr::If {
             data: loc,
