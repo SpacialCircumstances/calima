@@ -1008,6 +1008,56 @@ pub fn typecheck(
     })
 }
 
+#[cfg(test)]
+mod ir_gen_tests {
+    use crate::common::ModuleIdentifier;
+    use crate::modules::{UntypedModule, UntypedModuleData};
+    use crate::parsing::parser::parse;
+    use crate::typechecker::typecheck_module;
+    use crate::{ErrorContext, StringInterner};
+    use goldenfile::Mint;
+    use std::fs::read_dir;
+    use std::io::Write;
+    use std::rc::Rc;
+
+    #[test]
+    fn test_ir_generation() {
+        let mut mint_code = Mint::new("tests/ir_programs/");
+
+        for entry in read_dir("tests/typechecking/").unwrap() {
+            match entry {
+                Ok(entry) => {
+                    let interner = StringInterner::new();
+                    let entry_path = entry.path();
+                    if entry_path.is_file() {
+                        let filename = entry_path.file_name().unwrap();
+                        let mut parsed_file = mint_code.new_goldenfile(filename).unwrap();
+                        let file_content = std::fs::read_to_string(&entry_path).unwrap();
+                        let parsed = parse(&file_content, &interner).expect(
+                            format!("Error parsing {}", filename.to_string_lossy()).as_ref(),
+                        );
+                        let module: UntypedModule = UntypedModule(Rc::new(UntypedModuleData {
+                            name: ModuleIdentifier::from_filename(
+                                filename.to_string_lossy().to_string(),
+                            ),
+                            ast: parsed,
+                            dependencies: vec![],
+                            path: entry_path,
+                        }));
+                        let mut error_context = ErrorContext::new();
+                        let checked =
+                            typecheck_module(&module, vec![], &mut error_context, &interner)
+                                .expect("Typechecking error");
+                        let ir_text = checked.0.ir_block.to_string();
+                        write!(parsed_file, "{}", ir_text).unwrap();
+                    }
+                }
+                Err(_) => (),
+            }
+        }
+    }
+}
+
 //TODO: Rewrite tests
 /*
 #[cfg(test)]
@@ -1371,7 +1421,7 @@ mod typecheck_tests {
     #[test]
     fn simple_types() {
         let interner = StringInterner::new();
-        let content = read_to_string("tests/typechecking/simple.ca").unwrap();
+        let content = read_to_string("tests/typechecking_old/simple.ca").unwrap();
         let parsed = parse(&content, &interner).unwrap();
         let mut error_context = ErrorContext::new();
         let mut env = LocalEnvironment::new();
