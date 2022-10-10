@@ -111,6 +111,11 @@ pub struct Block(pub Vec<Binding>, pub Val);
 
 impl Display for Block {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}{}", format_iter_end(self.0.iter(), "\n"), self.1)
+        write!(
+            f,
+            "{{\n{}{}\n}}",
+            format_iter_end(self.0.iter(), ";\n"),
+            self.1
+        )
     }
 }
