@@ -279,17 +279,8 @@ impl<Data: Copy + Debug> Context<Data> {
         self.errors.push(te);
     }
 
-    fn lookup_var(&mut self, env: &Environment<Data>, name: &IText, loc: Data) -> (VarRef, Type) {
-        match env.lookup_value(name) {
-            Some(sch) => (
-                *sch,
-                self.inst(&self.get_type(&Val::Var(*sch)).expect("Var not found")),
-            ), //TODO: Error handling?
-            None => {
-                self.add_error(TypeError::var_not_found(name, loc));
-                todo!()
-            }
-        }
+    fn lookup_var(&mut self, var: VarRef, loc: Data) -> Option<&Scheme> {
+        self.types.get(&var)
     }
 
     fn lookup_operator(
@@ -386,9 +377,7 @@ impl<Data: Copy + Debug> Context<Data> {
         match pattern {
             BindPattern::Any(_) => (),
             BindPattern::Name(name, ta, _) => {
-                // TODO: Check type annotation
-                let sch = generalize(&env, &tp);
-                let v = env.add(self, name.clone(), sch);
+                env.bind(name.clone(), bind_val);
             }
             _ => todo!(),
         }
@@ -532,7 +521,7 @@ impl Context<Span> {
 
 #[derive(Clone)]
 pub struct Environment<Data: Copy + Debug> {
-    values: HashMap<IText, VarRef>,
+    values: HashMap<IText, Val>,
     operators: HashMap<IText, (VarRef, OperatorSpecification)>,
     mono_vars: HashSet<GenericId>,
     named_generics: HashMap<IText, GenericId>,
@@ -584,15 +573,19 @@ impl<Data: Copy + Debug> Environment<Data> {
 
     fn add(&mut self, ctx: &mut Context<Data>, name: IText, sch: Scheme) -> VarRef {
         let v = ctx.new_var(sch, Some(name.clone()));
-        self.values.insert(name, v);
+        self.bind(name, Val::Var(v));
         v
+    }
+
+    fn bind(&mut self, name: IText, val: Val) {
+        self.values.insert(name, val);
     }
 
     fn add_monomorphic_var(&mut self, id: GenericId) {
         self.mono_vars.insert(id);
     }
 
-    fn lookup_value(&self, name: &IText) -> Option<&VarRef> {
+    fn lookup_value(&self, name: &IText) -> Option<&Val> {
         self.values.get(name)
     }
 
@@ -673,9 +666,9 @@ fn infer_expr<Data: Copy + Debug>(
         }
         Expr::Variable(varname) => {
             //TODO: Error handling
-            let varvar = env.lookup_value(&varname.0[0]).expect("Variable not found"); //TODO: Lookup into data structures
-            let vartp = ctx.get_type(&Val::Var(*varvar)).unwrap();
-            (Val::Var(*varvar), ctx.inst(&vartp))
+            let val = env.lookup_value(&varname.0[0]).expect("Variable not found"); //TODO: Lookup into data structures
+            let vartp = ctx.get_type(val).unwrap();
+            (val.clone(), ctx.inst(&vartp))
         }
         Expr::Lambda {
             params,
@@ -746,7 +739,6 @@ fn infer_expr<Data: Copy + Debug>(
             todo!()
         }
         Expr::OperatorAsFunction(name, loc) => {
-            let vartype = ctx.lookup_var(env, name, *loc);
             todo!()
         }
         Expr::Tuple(exprs, _) => {
