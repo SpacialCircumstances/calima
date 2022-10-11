@@ -9,6 +9,7 @@ use crate::modules::{
 };
 use crate::parsing::token::Span;
 use crate::symbol_names::{IText, StringInterner};
+use crate::typechecker::environment::Environment;
 use crate::typechecker::ir_lowering::*;
 use crate::typechecker::substitution::{substitute, Substitution};
 use crate::types::*;
@@ -19,6 +20,7 @@ use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::rc::Rc;
 
+pub mod environment;
 mod ir_lowering;
 mod prelude;
 pub mod substitution;
@@ -515,100 +517,6 @@ impl Context<Span> {
             .drain(..)
             .for_each(|e| error_ctx.add_error(CompilerError::TypeError(e, name.clone())))
     }
-}
-
-#[derive(Clone)]
-pub struct Environment<Data: Copy + Debug> {
-    values: HashMap<IText, Val>,
-    operators: HashMap<IText, (VarRef, OperatorSpecification)>,
-    mono_vars: HashSet<GenericId>,
-    named_generics: HashMap<IText, GenericId>,
-    phantom_data: PhantomData<Data>, //TODO: Remove once we have tracking again
-}
-
-impl<Data: Copy + Debug> Environment<Data> {
-    fn new() -> Self {
-        Environment {
-            values: HashMap::new(),
-            operators: HashMap::new(),
-            mono_vars: HashSet::new(),
-            named_generics: HashMap::new(),
-            phantom_data: PhantomData::default(),
-        }
-    }
-
-    fn lookup_generic(&self, name: &IText) -> Option<GenericId> {
-        self.named_generics.get(name).copied()
-    }
-
-    fn get_or_create_generic(
-        &mut self,
-        ctx: &mut Context<Data>,
-        name: &IText,
-        location: Data,
-    ) -> GenericId {
-        match self.named_generics.get(name) {
-            None => {
-                let gid = ctx.next_id();
-                self.named_generics.insert(name.clone(), gid);
-                gid
-            }
-            Some(gid) => *gid,
-        }
-    }
-
-    fn add_operator(
-        &mut self,
-        ctx: &mut Context<Data>,
-        name: IText,
-        sch: Scheme,
-        op: OperatorSpecification,
-    ) -> VarRef {
-        let v = ctx.new_var(sch, Some(name.clone()));
-        self.operators.insert(name, (v, op));
-        v
-    }
-
-    fn add(&mut self, ctx: &mut Context<Data>, name: IText, sch: Scheme) -> VarRef {
-        let v = ctx.new_var(sch, Some(name.clone()));
-        self.bind(name, Val::Var(v));
-        v
-    }
-
-    fn bind(&mut self, name: IText, val: Val) {
-        self.values.insert(name, val);
-    }
-
-    fn add_monomorphic_var(&mut self, id: GenericId) {
-        self.mono_vars.insert(id);
-    }
-
-    fn lookup_value(&self, name: &IText) -> Option<&Val> {
-        self.values.get(name)
-    }
-
-    fn lookup_operator(&self, name: &IText) -> Option<&(VarRef, OperatorSpecification)> {
-        self.operators.get(name)
-    }
-}
-
-fn generalize<Data: Copy + Debug>(env: &Environment<Data>, tp: &Type) -> Scheme {
-    fn gen_rec(tp: &Type, mono_vars: &HashSet<GenericId>, scheme_vars: &mut HashSet<GenericId>) {
-        match tp {
-            Type::Parameterized(_, params) => {
-                for p in params {
-                    gen_rec(p, mono_vars, scheme_vars);
-                }
-            }
-            Type::Var(gid) if !mono_vars.contains(gid) => {
-                scheme_vars.insert(*gid);
-            }
-            _ => (),
-        }
-    }
-    let mut scheme_vars = HashSet::new();
-    gen_rec(tp, &env.mono_vars, &mut scheme_vars);
-    Scheme(scheme_vars, tp.clone())
 }
 
 fn replace<F: Fn(GenericId) -> Option<Type>>(tp: &Type, mapper: &F) -> Type {

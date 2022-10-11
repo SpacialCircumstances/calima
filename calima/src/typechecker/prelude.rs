@@ -2,7 +2,7 @@ use crate::ast::Associativity;
 use crate::ast::Associativity::Left;
 use crate::ast::OperatorSpecification::{Infix, Prefix};
 use crate::symbol_names::StringInterner;
-use crate::typechecker::Environment;
+use crate::typechecker::environment::Environment;
 use crate::types::{bool, build_function, float, int, string, unit, GenericId, Scheme, Type};
 use quetta::Text;
 use std::collections::HashSet;
