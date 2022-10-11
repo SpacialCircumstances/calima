@@ -2,7 +2,6 @@ use crate::ast::Associativity;
 use crate::ast::Associativity::Left;
 use crate::ast::OperatorSpecification::{Infix, Prefix};
 use crate::symbol_names::StringInterner;
-use crate::typechecker::symbol_table::Location;
 use crate::typechecker::Environment;
 use crate::types::{bool, build_function, float, int, string, unit, GenericId, Scheme, Type};
 use quetta::Text;

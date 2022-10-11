@@ -9,9 +9,8 @@ use crate::modules::{
 };
 use crate::parsing::token::Span;
 use crate::symbol_names::{IText, StringInterner};
-use crate::typechecker::lower::*;
+use crate::typechecker::ir_lowering::*;
 use crate::typechecker::substitution::{substitute, Substitution};
-use crate::typechecker::symbol_table::{Location, SymbolTable};
 use crate::types::*;
 use quetta::Text;
 use std::collections::{HashMap, HashSet};
@@ -20,10 +19,9 @@ use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::rc::Rc;
 
-mod lower;
+mod ir_lowering;
 mod prelude;
 pub mod substitution;
-mod symbol_table;
 
 //TODO: Additional information
 #[derive(Debug, Clone)]
