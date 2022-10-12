@@ -10,7 +10,7 @@ use std::marker::PhantomData;
 #[derive(Clone)]
 pub struct Environment<Data: Copy + Debug> {
     values: HashMap<IText, Val>,
-    operators: HashMap<IText, (VarRef, OperatorSpecification)>,
+    operators: HashMap<IText, OperatorSpecification>,
     mono_vars: HashSet<GenericId>,
     named_generics: HashMap<IText, GenericId>,
     phantom_data: PhantomData<Data>, //TODO: Remove once we have tracking again
@@ -47,26 +47,13 @@ impl<Data: Copy + Debug> Environment<Data> {
         }
     }
 
-    pub fn add_operator(
-        &mut self,
-        ctx: &mut Context<Data>,
-        name: IText,
-        sch: Scheme,
-        op: OperatorSpecification,
-    ) -> VarRef {
-        let v = ctx.new_var(sch, Some(name.clone()));
-        self.operators.insert(name, (v, op));
-        v
-    }
-
-    pub fn add(&mut self, ctx: &mut Context<Data>, name: IText, sch: Scheme) -> VarRef {
-        let v = ctx.new_var(sch, Some(name.clone()));
-        self.bind(name, Val::Var(v));
-        v
-    }
-
     pub fn bind(&mut self, name: IText, val: Val) {
         self.values.insert(name, val);
+    }
+
+    pub fn bind_operator(&mut self, name: IText, val: Val, op_spec: OperatorSpecification) {
+        self.bind(name.clone(), val);
+        self.operators.insert(name, op_spec);
     }
 
     pub fn add_monomorphic_var(&mut self, id: GenericId) {
@@ -77,8 +64,10 @@ impl<Data: Copy + Debug> Environment<Data> {
         self.values.get(name)
     }
 
-    pub fn lookup_operator(&self, name: &IText) -> Option<&(VarRef, OperatorSpecification)> {
-        self.operators.get(name)
+    pub fn lookup_operator(&self, name: &IText) -> Option<(Val, OperatorSpecification)> {
+        self.lookup_value(name)
+            .cloned()
+            .and_then(|v| self.operators.get(name).map(|n| (v, *n)))
     }
 
     pub fn generalize(&self, tp: &Type) -> Scheme {

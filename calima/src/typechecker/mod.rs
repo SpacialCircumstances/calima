@@ -184,6 +184,24 @@ impl<Data: Copy + Debug> Context<Data> {
         self.name_hints.get(vr)
     }
 
+    pub fn add_operator(
+        &mut self,
+        env: &mut Environment<Data>,
+        name: IText,
+        sch: Scheme,
+        op_spec: OperatorSpecification,
+    ) -> VarRef {
+        let v = self.new_var(sch, Some(name.clone()));
+        env.bind_operator(name, Val::Var(v), op_spec);
+        v
+    }
+
+    pub fn add(&mut self, env: &mut Environment<Data>, name: IText, sch: Scheme) -> VarRef {
+        let v = self.new_var(sch, Some(name.clone()));
+        env.bind(name, Val::Var(v));
+        v
+    }
+
     fn next_id(&mut self) -> GenericId {
         let id = self.generic_id;
         self.generic_id += 1;
@@ -283,25 +301,6 @@ impl<Data: Copy + Debug> Context<Data> {
         self.types.get(&var)
     }
 
-    fn lookup_operator(
-        &mut self,
-        env: &Environment<Data>,
-        name: &IText,
-        loc: Data,
-    ) -> (VarRef, Type, Option<OperatorSpecification>) {
-        match env.lookup_operator(name) {
-            Some((tp, op)) => (
-                *tp,
-                self.inst(&self.get_type(&Val::Var(*tp)).expect("Var not found")),
-                Some(*op),
-            ), //TODO: Error handling?
-            None => {
-                self.add_error(TypeError::operator_not_found(name, loc));
-                todo!()
-            }
-        }
-    }
-
     fn type_from_annotation(
         &mut self,
         env: &mut Environment<Data>,
@@ -355,7 +354,7 @@ impl<Data: Copy + Debug> Context<Data> {
             BindPattern::Any(_) => vals.push(BindTarget::Discard),
             BindPattern::Name(name, ta, _) => {
                 // TODO: Check type annotation
-                let v = env.add(self, name.clone(), Scheme::simple(tp.clone()));
+                let v = self.add(env, name.clone(), Scheme::simple(tp.clone()));
                 vals.push(BindTarget::Var(v));
             }
             BindPattern::UnitLiteral(data) => {
@@ -397,14 +396,10 @@ impl<Data: Copy + Debug> Context<Data> {
         let l = vals.pop().unwrap();
         let r_tp = self.inst(&self.get_type(&r).unwrap());
         let l_tp = self.inst(&self.get_type(&l).unwrap());
-        let (op_var, op_tp, _) = self.lookup_operator(env, last_name, loc);
-        let (op_expr, res_tp) = function_call(
-            self,
-            Val::Var(op_var),
-            &op_tp,
-            vec![(l, l_tp), (r, r_tp)],
-            loc,
-        );
+        let (op_val, _op_spec) = env.lookup_operator(last_name).unwrap();
+        let op_tp = self.inst(&self.get_type(&op_val).unwrap());
+        let (op_expr, res_tp) =
+            function_call(self, op_val, &op_tp, vec![(l, l_tp), (r, r_tp)], loc);
 
         let res_var = self.new_var(Scheme::simple(res_tp), None);
         block_builder.add_binding(Binding(BindTarget::Var(res_var), op_expr));
@@ -426,37 +421,24 @@ impl<Data: Copy + Debug> Context<Data> {
             match el {
                 OperatorElement::Operator(name, data) => {
                     let data = *data;
-                    let (_, op_tp, op_spec) = self.lookup_operator(env, name, data);
+                    let (op_val, op_spec) = env.lookup_operator(name).unwrap();
+                    let op_tp = self.inst(&self.get_type(&op_val).unwrap());
                     match op_spec {
-                        None => (), //TODO: Error handling?
-                        Some(OperatorSpecification::Infix(op_prec, assoc)) => {
-                            match bin_ops.last() {
-                                None => bin_ops.push((name.clone(), op_tp, op_prec, assoc, data)),
-                                Some((last_op, _, last_prec, last_assoc, data)) => {
-                                    let data = *data;
-                                    if last_prec == &op_prec {
-                                        if assoc == Associativity::None
-                                            || last_assoc == &Associativity::None
-                                        {
-                                            self.add_error(
-                                                TypeError::repeated_unassociative_operators(
-                                                    top_location,
-                                                    &[last_op, name],
-                                                ),
-                                            );
-                                        } else if assoc == Associativity::Left {
-                                            let (last_name, last_type, _, _, data) =
-                                                bin_ops.pop().unwrap();
-                                            self.call_operator(
-                                                env,
-                                                block_builder,
-                                                &mut vals,
-                                                &last_name,
-                                                &last_type,
-                                                data,
-                                            );
-                                        }
-                                    } else if last_prec > &op_prec {
+                        OperatorSpecification::Infix(op_prec, assoc) => match bin_ops.last() {
+                            None => bin_ops.push((name.clone(), op_tp, op_prec, assoc, data)),
+                            Some((last_op, _, last_prec, last_assoc, data)) => {
+                                let data = *data;
+                                if last_prec == &op_prec {
+                                    if assoc == Associativity::None
+                                        || last_assoc == &Associativity::None
+                                    {
+                                        self.add_error(
+                                            TypeError::repeated_unassociative_operators(
+                                                top_location,
+                                                &[last_op, name],
+                                            ),
+                                        );
+                                    } else if assoc == Associativity::Left {
                                         let (last_name, last_type, _, _, data) =
                                             bin_ops.pop().unwrap();
                                         self.call_operator(
@@ -466,22 +448,31 @@ impl<Data: Copy + Debug> Context<Data> {
                                             &last_name,
                                             &last_type,
                                             data,
-                                        )
+                                        );
                                     }
-                                    bin_ops.push((name.clone(), op_tp, op_prec, assoc, data))
+                                } else if last_prec > &op_prec {
+                                    let (last_name, last_type, _, _, data) = bin_ops.pop().unwrap();
+                                    self.call_operator(
+                                        env,
+                                        block_builder,
+                                        &mut vals,
+                                        &last_name,
+                                        &last_type,
+                                        data,
+                                    )
                                 }
+                                bin_ops.push((name.clone(), op_tp, op_prec, assoc, data))
                             }
-                        }
-                        Some(OperatorSpecification::Prefix) => un_ops.push((name.clone(), op_tp)),
+                        },
+                        OperatorSpecification::Prefix => un_ops.push((name.clone(), op_tp)),
                     }
                 }
                 OperatorElement::Expression(oexpr, loc) => {
                     let mut last_val = infer_expr(env, self, block_builder, oexpr);
 
                     while let Some((op_name, op_tp)) = un_ops.pop() {
-                        let (op_var, op_tp, _) = self.lookup_operator(env, &op_name, *loc);
-                        let (fc, tp) =
-                            function_call(self, Val::Var(op_var), &op_tp, vec![last_val], *loc);
+                        let (op_val, _) = env.lookup_operator(&op_name).unwrap();
+                        let (fc, tp) = function_call(self, op_val, &op_tp, vec![last_val], *loc);
                         let fcv = self.new_var(Scheme::simple(tp.clone()), None);
                         block_builder.add_binding(Binding(BindTarget::Var(fcv), fc));
                         last_val = (Val::Var(fcv), tp)
