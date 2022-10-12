@@ -6,6 +6,7 @@ use crate::parsing::token::Span;
 use crate::symbol_names::IText;
 use crate::typechecker::environment::Environment;
 use crate::typechecker::substitution::Substitution;
+use crate::typechecker::ValueTypeContext;
 use crate::types::Type;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -38,6 +39,7 @@ pub struct TypedModuleData {
     pub(crate) deps: Vec<TypedModule>,
     pub(crate) ir_block: Block,
     pub(crate) subst: Substitution<Type>,
+    pub(crate) vtc: ValueTypeContext,
 }
 
 pub struct TypedModule(pub Rc<TypedModuleData>);

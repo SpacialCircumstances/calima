@@ -129,24 +129,14 @@ pub enum UnificationSource {
     PatternMatching,
 }
 
-pub struct Context<Data: Copy + Debug> {
-    generic_id: usize,
-    type_subst: Substitution<Type>,
-    errors: Vec<TypeError<Data>>,
-    module: ModuleIdentifier,
-    var_id: usize,
+pub struct ValueTypeContext {
     name_hints: HashMap<VarRef, IText>,
     types: HashMap<VarRef, Scheme>, //TODO: Use symbol table once generic enough
 }
 
-impl<Data: Copy + Debug> Context<Data> {
-    pub fn new(module: ModuleIdentifier) -> Self {
-        Context {
-            generic_id: 0,
-            type_subst: Substitution::new(),
-            errors: Vec::new(),
-            module,
-            var_id: 0,
+impl ValueTypeContext {
+    fn new() -> Self {
+        Self {
             name_hints: HashMap::new(),
             types: HashMap::new(),
         }
@@ -170,19 +160,49 @@ impl<Data: Copy + Debug> Context<Data> {
         }
     }
 
+    pub fn get_name_hint(&self, vr: &VarRef) -> Option<&IText> {
+        self.name_hints.get(vr)
+    }
+}
+
+pub struct Context<Data: Copy + Debug> {
+    generic_id: usize,
+    type_subst: Substitution<Type>,
+    errors: Vec<TypeError<Data>>,
+    module: ModuleIdentifier,
+    var_id: usize,
+    vtc: ValueTypeContext,
+}
+
+impl<Data: Copy + Debug> Context<Data> {
+    pub fn new(module: ModuleIdentifier) -> Self {
+        Context {
+            generic_id: 0,
+            type_subst: Substitution::new(),
+            errors: Vec::new(),
+            module,
+            var_id: 0,
+            vtc: ValueTypeContext::new(),
+        }
+    }
+
+    pub fn get_type(&self, v: &Val) -> Option<Scheme> {
+        self.vtc.get_type(v)
+    }
+
     pub fn new_var(&mut self, sch: Scheme, name_hint: Option<IText>) -> VarRef {
         let v = VarRef(self.var_id);
         self.var_id += 1;
 
         if let Some(nh) = name_hint {
-            self.name_hints.insert(v.clone(), nh);
+            self.vtc.name_hints.insert(v.clone(), nh);
         }
-        self.types.insert(v, sch);
+        self.vtc.types.insert(v, sch);
         v
     }
 
     pub fn get_name_hint(&self, vr: &VarRef) -> Option<&IText> {
-        self.name_hints.get(vr)
+        self.vtc.get_name_hint(vr)
     }
 
     pub fn add_operator(
@@ -300,10 +320,6 @@ impl<Data: Copy + Debug> Context<Data> {
 
     fn add_error(&mut self, te: TypeError<Data>) {
         self.errors.push(te);
-    }
-
-    fn lookup_var(&mut self, var: VarRef, loc: Data) -> Option<&Scheme> {
-        self.types.get(&var)
     }
 
     fn type_from_annotation(
@@ -859,6 +875,7 @@ fn typecheck_module(
             deps,
             ir_block,
             subst: context.type_subst,
+            vtc: context.vtc,
         };
         TypedModule(Rc::new(mod_data))
     })
