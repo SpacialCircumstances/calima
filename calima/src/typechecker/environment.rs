@@ -8,7 +8,7 @@ use std::fmt::Debug;
 use std::marker::PhantomData;
 
 #[derive(Clone)]
-pub struct Environment<Data: Copy + Debug> {
+pub struct ScopeEnvironment<Data: Copy + Debug> {
     values: HashMap<IText, Val>,
     operators: HashMap<IText, OperatorSpecification>,
     mono_vars: HashSet<GenericId>,
@@ -16,9 +16,9 @@ pub struct Environment<Data: Copy + Debug> {
     phantom_data: PhantomData<Data>, //TODO: Remove once we have tracking again
 }
 
-impl<Data: Copy + Debug> Environment<Data> {
+impl<Data: Copy + Debug> ScopeEnvironment<Data> {
     pub fn new() -> Self {
-        Environment {
+        ScopeEnvironment {
             values: HashMap::new(),
             operators: HashMap::new(),
             mono_vars: HashSet::new(),
@@ -91,5 +91,32 @@ impl<Data: Copy + Debug> Environment<Data> {
         let mut scheme_vars = HashSet::new();
         gen_rec(tp, &self.mono_vars, &mut scheme_vars);
         Scheme(scheme_vars, tp.clone())
+    }
+}
+
+#[derive(Clone)]
+pub struct ClosedEnvironment<Data: Copy + Debug> {
+    values: HashMap<IText, Val>,
+    operators: HashMap<IText, OperatorSpecification>,
+    phantom_data: PhantomData<Data>, //TODO: Remove once we have tracking again
+}
+
+impl<Data: Copy + Debug> ClosedEnvironment<Data> {
+    pub fn new(env: ScopeEnvironment<Data>) -> Self {
+        ClosedEnvironment {
+            values: env.values,
+            operators: env.operators,
+            phantom_data: PhantomData::default(),
+        }
+    }
+
+    pub fn lookup_value(&self, name: &IText) -> Option<&Val> {
+        self.values.get(name)
+    }
+
+    pub fn lookup_operator(&self, name: &IText) -> Option<(Val, OperatorSpecification)> {
+        self.lookup_value(name)
+            .cloned()
+            .and_then(|v| self.operators.get(name).map(|n| (v, *n)))
     }
 }

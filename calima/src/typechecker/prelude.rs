@@ -2,7 +2,7 @@ use crate::ast::Associativity;
 use crate::ast::Associativity::Left;
 use crate::ast::OperatorSpecification::{Infix, Prefix};
 use crate::symbol_names::StringInterner;
-use crate::typechecker::environment::Environment;
+use crate::typechecker::environment::ScopeEnvironment;
 use crate::typechecker::Context;
 use crate::types::{bool, build_function, float, int, string, unit, GenericId, Scheme, Type};
 use quetta::Text;
@@ -44,7 +44,7 @@ fn eq_type() -> Scheme {
 
 pub fn prelude<Data: Copy + Debug>(
     ctx: &mut Context<Data>,
-    env: &mut Environment<Data>,
+    env: &mut ScopeEnvironment<Data>,
     interner: &StringInterner,
 ) {
     ctx.add_operator(

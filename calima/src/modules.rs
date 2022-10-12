@@ -4,7 +4,7 @@ use crate::common::ModuleIdentifier;
 use crate::ir::Block;
 use crate::parsing::token::Span;
 use crate::symbol_names::IText;
-use crate::typechecker::environment::Environment;
+use crate::typechecker::environment::ScopeEnvironment;
 use crate::typechecker::substitution::Substitution;
 use crate::typechecker::ValueTypeContext;
 use crate::types::Type;

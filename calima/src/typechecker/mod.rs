@@ -9,7 +9,7 @@ use crate::modules::{
 };
 use crate::parsing::token::Span;
 use crate::symbol_names::{IText, StringInterner};
-use crate::typechecker::environment::Environment;
+use crate::typechecker::environment::ScopeEnvironment;
 use crate::typechecker::ir_lowering::*;
 use crate::typechecker::prelude::prelude;
 use crate::typechecker::substitution::{substitute, Substitution};
@@ -207,7 +207,7 @@ impl<Data: Copy + Debug> Context<Data> {
 
     pub fn add_operator(
         &mut self,
-        env: &mut Environment<Data>,
+        env: &mut ScopeEnvironment<Data>,
         name: IText,
         sch: Scheme,
         op_spec: OperatorSpecification,
@@ -217,7 +217,7 @@ impl<Data: Copy + Debug> Context<Data> {
         v
     }
 
-    pub fn add(&mut self, env: &mut Environment<Data>, name: IText, sch: Scheme) -> VarRef {
+    pub fn add(&mut self, env: &mut ScopeEnvironment<Data>, name: IText, sch: Scheme) -> VarRef {
         let v = self.new_var(sch, Some(name.clone()));
         env.bind(name, Val::Var(v));
         v
@@ -234,7 +234,7 @@ impl<Data: Copy + Debug> Context<Data> {
         Type::Var(tr)
     }
 
-    fn import_prelude(&mut self, env: &mut Environment<Data>, interner: &StringInterner) {
+    fn import_prelude(&mut self, env: &mut ScopeEnvironment<Data>, interner: &StringInterner) {
         prelude(self, env, interner);
     }
 
@@ -324,12 +324,12 @@ impl<Data: Copy + Debug> Context<Data> {
 
     fn type_from_annotation(
         &mut self,
-        env: &mut Environment<Data>,
+        env: &mut ScopeEnvironment<Data>,
         ta: &TypeAnnotation<Name<Data>, IText, Data>,
     ) -> Type {
         fn to_type<Data: Copy + Debug>(
             ctx: &mut Context<Data>,
-            env: &mut Environment<Data>,
+            env: &mut ScopeEnvironment<Data>,
             ta: &TypeAnnotation<Name<Data>, IText, Data>,
         ) -> Result<Type, TypeError<Data>> {
             match ta {
@@ -366,7 +366,7 @@ impl<Data: Copy + Debug> Context<Data> {
 
     fn bind_to_pattern_parameter(
         &mut self,
-        env: &mut Environment<Data>,
+        env: &mut ScopeEnvironment<Data>,
         pattern: &BindPattern<IText, TypeAnnotation<Name<Data>, IText, Data>, Data>,
         tp: &mut Type,
         vals: &mut Vec<ir::BindTarget>,
@@ -388,7 +388,7 @@ impl<Data: Copy + Debug> Context<Data> {
 
     fn bind_to_pattern_types(
         &mut self,
-        env: &mut Environment<Data>,
+        env: &mut ScopeEnvironment<Data>,
         pattern: &BindPattern<IText, TypeAnnotation<Name<Data>, IText, Data>, Data>,
         tp: &mut Type,
     ) {
@@ -403,7 +403,7 @@ impl<Data: Copy + Debug> Context<Data> {
 
     fn bind_to_pattern_generalized(
         &mut self,
-        env: &mut Environment<Data>,
+        env: &mut ScopeEnvironment<Data>,
         pattern: &BindPattern<IText, TypeAnnotation<Name<Data>, IText, Data>, Data>,
         block_builder: &mut BlockBuilder,
         bind_val: Val,
@@ -435,7 +435,7 @@ impl Context<Span> {
 
 fn call_operator<Data: Copy + Debug>(
     ctx: &mut Context<Data>,
-    env: &Environment<Data>,
+    env: &ScopeEnvironment<Data>,
     block_builder: &mut BlockBuilder,
     vals: &mut Vec<ir::Val>,
     last_name: &IText,
@@ -458,7 +458,7 @@ fn call_operator<Data: Copy + Debug>(
 
 fn transform_operators<Data: Copy + Debug>(
     ctx: &mut Context<Data>,
-    env: &mut Environment<Data>,
+    env: &mut ScopeEnvironment<Data>,
     block_builder: &mut BlockBuilder,
     elements: &Vec<OperatorElement<Name<Data>, IText, Data>>,
     top_location: Data,
@@ -584,7 +584,7 @@ fn function_call<Data: Copy + Debug>(
 }
 
 fn infer_expr<Data: Copy + Debug>(
-    env: &mut Environment<Data>,
+    env: &mut ScopeEnvironment<Data>,
     ctx: &mut Context<Data>,
     block_builder: &mut BlockBuilder,
     expr: &Expr<Name<Data>, IText, Data>,
@@ -703,7 +703,7 @@ fn get_literal_type(lit: &Literal) -> Type {
 }
 
 fn infer_let<Data: Copy + Debug>(
-    env: &mut Environment<Data>,
+    env: &mut ScopeEnvironment<Data>,
     ctx: &mut Context<Data>,
     block_builder: &mut BlockBuilder,
     l: &Let<Name<Data>, IText, Data>,
@@ -724,7 +724,7 @@ fn infer_let<Data: Copy + Debug>(
 }
 
 fn infer_let_operator<Data: Copy + Debug>(
-    env: &mut Environment<Data>,
+    env: &mut ScopeEnvironment<Data>,
     ctx: &mut Context<Data>,
     block_builder: &mut BlockBuilder,
     l: &LetOperator<Name<Data>, IText, Data>,
@@ -783,7 +783,7 @@ fn infer_let_operator<Data: Copy + Debug>(
 }
 
 fn infer_statement<Data: Copy + Debug>(
-    env: &mut Environment<Data>,
+    env: &mut ScopeEnvironment<Data>,
     ctx: &mut Context<Data>,
     block_builder: &mut BlockBuilder,
     statement: &Statement<Name<Data>, IText, Data>,
@@ -798,7 +798,7 @@ fn infer_statement<Data: Copy + Debug>(
 }
 
 fn infer_block<Data: Copy + Debug>(
-    env: &mut Environment<Data>,
+    env: &mut ScopeEnvironment<Data>,
     ctx: &mut Context<Data>,
     block_builder: &mut BlockBuilder,
     block: &Block<Name<Data>, IText, Data>,
@@ -816,7 +816,7 @@ fn infer_block<Data: Copy + Debug>(
 }
 
 fn infer_top_level<Data: Copy + Debug>(
-    env: &mut Environment<Data>,
+    env: &mut ScopeEnvironment<Data>,
     ctx: &mut Context<Data>,
     block_builder: &mut BlockBuilder,
     tls: &TopLevelStatement<Name<Data>, IText, Data>,
@@ -834,7 +834,7 @@ fn infer_top_level<Data: Copy + Debug>(
 }
 
 fn infer_top_level_block<Data: Copy + Debug>(
-    env: &mut Environment<Data>,
+    env: &mut ScopeEnvironment<Data>,
     ctx: &mut Context<Data>,
     block_builder: &mut BlockBuilder,
     tlb: &TopLevelBlock<Name<Data>, IText, Data>,
@@ -854,7 +854,7 @@ fn typecheck_module(
 ) -> Result<TypedModule, ()> {
     let mut context = Context::new(unchecked.0.name.clone());
     let mut block_builder = BlockBuilder::new();
-    let mut env = Environment::new();
+    let mut env = ScopeEnvironment::new();
     context.import_prelude(&mut env, interner);
 
     /*for dep in &deps {
@@ -902,11 +902,11 @@ fn verify_main_module(
     errors: &mut ErrorContext,
     interner: &StringInterner,
 ) {
-    //TODO: Reactivate
-    /*
+    /*let main_md = &main_mod.0;
+    let main_val = main_md.
     if let Some(main_type) = main_mod
         .0
-        .env
+        .vtc
         .lookup_value(&interner.intern(Text::new("main")))
     {
         let mut ctx: Context<Span> = Context::new(main_mod.0.name.clone());
