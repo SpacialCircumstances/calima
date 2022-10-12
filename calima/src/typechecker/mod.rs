@@ -641,7 +641,9 @@ fn infer_expr<Data: Copy + Debug>(
             todo!()
         }
         Expr::OperatorAsFunction(name, loc) => {
-            todo!()
+            let val = env.lookup_value(name).expect("Variable not found"); //TODO: Lookup into data structures
+            let vartp = ctx.get_type(val).unwrap();
+            (val.clone(), ctx.inst(&vartp))
         }
         Expr::Tuple(exprs, _) => {
             /*let texprs = exprs
