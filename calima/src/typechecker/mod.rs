@@ -348,7 +348,7 @@ impl<Data: Copy + Debug> Context<Data> {
         replace(&sch.1, &|id| mapping.get(&id).cloned())
     }
 
-    fn bind_to_pattern_directly(
+    fn bind_to_pattern_parameter(
         &mut self,
         env: &mut Environment<Data>,
         pattern: &BindPattern<IText, TypeAnnotation<Name<Data>, IText, Data>, Data>,
@@ -365,6 +365,21 @@ impl<Data: Copy + Debug> Context<Data> {
             BindPattern::UnitLiteral(data) => {
                 self.unify(tp, &unit(), UnificationSource::PatternMatching, *data);
                 vals.push(BindTarget::Discard);
+            }
+            _ => todo!(),
+        }
+    }
+
+    fn bind_to_pattern_types(
+        &mut self,
+        env: &mut Environment<Data>,
+        pattern: &BindPattern<IText, TypeAnnotation<Name<Data>, IText, Data>, Data>,
+        tp: &mut Type,
+    ) {
+        match pattern {
+            BindPattern::Any(_) => (),
+            BindPattern::Name(name, ta, _) => {
+                self.add(env, name.clone(), Scheme::simple(tp.clone()))
             }
             _ => todo!(),
         }
@@ -584,7 +599,7 @@ fn infer_expr<Data: Copy + Debug>(
                 let gen = ctx.next_id();
                 body_env.add_monomorphic_var(gen);
                 let mut tp = Type::Var(gen);
-                ctx.bind_to_pattern_directly(&mut body_env, param, &mut tp, &mut param_vals);
+                ctx.bind_to_pattern_parameter(&mut body_env, param, &mut tp, &mut param_vals);
                 param_types.push(tp);
             }
 
@@ -676,13 +691,12 @@ fn infer_let<Data: Copy + Debug>(
     export: bool,
 ) {
     let (lval, tp) = if l.mods.contains(&Modifier::Rec) {
-        todo!()
-        //let mut var = ctx.new_generic();
-        //let mut body_env = env.clone();
-        //ctx.bind_to_pattern_directly(&mut body_env, &l.pattern, &mut var);
-        //let (lexpr, tp) = infer_expr(&mut body_env, ctx, block_builder, &l.value);
-        //ctx.unify(&mut var, &tp, UnificationSource::TypeInference, l.data);
-        //(lexpr, tp)
+        let mut rec_tp = ctx.new_generic();
+        let mut body_env = env.clone();
+        ctx.bind_to_pattern_types(&mut body_env, &l.pattern, &mut rec_tp);
+        let (val, tp) = infer_expr(&mut body_env, ctx, block_builder, &l.value);
+        ctx.unify(&mut rec_tp, &tp, UnificationSource::TypeInference, l.data);
+        (val, tp)
     } else {
         let mut body_env = env.clone();
         infer_expr(&mut body_env, ctx, block_builder, &l.value)
