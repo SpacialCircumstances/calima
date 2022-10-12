@@ -11,6 +11,7 @@ use crate::parsing::token::Span;
 use crate::symbol_names::{IText, StringInterner};
 use crate::typechecker::environment::Environment;
 use crate::typechecker::ir_lowering::*;
+use crate::typechecker::prelude::prelude;
 use crate::typechecker::substitution::{substitute, Substitution};
 use crate::types::*;
 use quetta::Text;
@@ -211,6 +212,10 @@ impl<Data: Copy + Debug> Context<Data> {
     fn new_generic(&mut self) -> Type {
         let tr = self.next_id();
         Type::Var(tr)
+    }
+
+    fn import_prelude(&mut self, env: &mut Environment<Data>, interner: &StringInterner) {
+        prelude(self, env, interner);
     }
 
     fn bind(&mut self, gid: GenericId, t2: &Type) -> Result<(), UnificationError> {
@@ -815,7 +820,7 @@ fn typecheck_module(
     let mut context = Context::new(unchecked.0.name.clone());
     let mut block_builder = BlockBuilder::new();
     let mut env = Environment::new();
-    //env.import_prelude(interner);
+    context.import_prelude(&mut env, interner);
 
     /*for dep in &deps {
         //TODO
