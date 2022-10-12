@@ -422,124 +422,6 @@ impl<Data: Copy + Debug> Context<Data> {
             _ => todo!(),
         }
     }
-
-    fn call_operator(
-        &mut self,
-        env: &Environment<Data>,
-        block_builder: &mut BlockBuilder,
-        vals: &mut Vec<ir::Val>,
-        last_name: &IText,
-        last_type: &Type,
-        loc: Data,
-    ) {
-        //TODO: Error handling
-        let r = vals.pop().unwrap();
-        let l = vals.pop().unwrap();
-        let r_tp = self.inst(&self.get_type(&r).unwrap());
-        let l_tp = self.inst(&self.get_type(&l).unwrap());
-        let (op_val, _op_spec) = env.lookup_operator(last_name).unwrap();
-        let op_tp = self.inst(&self.get_type(&op_val).unwrap());
-        let (op_expr, res_tp) =
-            function_call(self, op_val, &op_tp, vec![(l, l_tp), (r, r_tp)], loc);
-
-        let res_var = self.new_var(Scheme::simple(res_tp), None);
-        block_builder.add_binding(Binding(BindTarget::Var(res_var), op_expr));
-        vals.push(Val::Var(res_var));
-    }
-
-    fn transform_operators(
-        &mut self,
-        env: &mut Environment<Data>,
-        block_builder: &mut BlockBuilder,
-        elements: &Vec<OperatorElement<Name<Data>, IText, Data>>,
-        top_location: Data,
-    ) -> (ir::Val, Type) {
-        let mut bin_ops: Vec<(IText, Type, u32, Associativity, Data)> = Vec::new();
-        let mut un_ops: Vec<(IText, Type)> = Vec::new();
-        let mut vals: Vec<Val> = Vec::new();
-
-        for el in elements {
-            match el {
-                OperatorElement::Operator(name, data) => {
-                    let data = *data;
-                    let (op_val, op_spec) = env.lookup_operator(name).unwrap();
-                    let op_tp = self.inst(&self.get_type(&op_val).unwrap());
-                    match op_spec {
-                        OperatorSpecification::Infix(op_prec, assoc) => match bin_ops.last() {
-                            None => bin_ops.push((name.clone(), op_tp, op_prec, assoc, data)),
-                            Some((last_op, _, last_prec, last_assoc, data)) => {
-                                let data = *data;
-                                if last_prec == &op_prec {
-                                    if assoc == Associativity::None
-                                        || last_assoc == &Associativity::None
-                                    {
-                                        self.add_error(
-                                            TypeError::repeated_unassociative_operators(
-                                                top_location,
-                                                &[last_op, name],
-                                            ),
-                                        );
-                                    } else if assoc == Associativity::Left {
-                                        let (last_name, last_type, _, _, data) =
-                                            bin_ops.pop().unwrap();
-                                        self.call_operator(
-                                            env,
-                                            block_builder,
-                                            &mut vals,
-                                            &last_name,
-                                            &last_type,
-                                            data,
-                                        );
-                                    }
-                                } else if last_prec > &op_prec {
-                                    let (last_name, last_type, _, _, data) = bin_ops.pop().unwrap();
-                                    self.call_operator(
-                                        env,
-                                        block_builder,
-                                        &mut vals,
-                                        &last_name,
-                                        &last_type,
-                                        data,
-                                    )
-                                }
-                                bin_ops.push((name.clone(), op_tp, op_prec, assoc, data))
-                            }
-                        },
-                        OperatorSpecification::Prefix => un_ops.push((name.clone(), op_tp)),
-                    }
-                }
-                OperatorElement::Expression(oexpr, loc) => {
-                    let mut last_val = infer_expr(env, self, block_builder, oexpr);
-
-                    while let Some((op_name, op_tp)) = un_ops.pop() {
-                        let (op_val, _) = env.lookup_operator(&op_name).unwrap();
-                        let (fc, tp) = function_call(self, op_val, &op_tp, vec![last_val], *loc);
-                        let fcv = self.new_var(Scheme::simple(tp.clone()), None);
-                        block_builder.add_binding(Binding(BindTarget::Var(fcv), fc));
-                        last_val = (Val::Var(fcv), tp)
-                    }
-
-                    vals.push(last_val.0);
-                }
-            }
-        }
-
-        if !un_ops.is_empty() {
-            let op_names: Vec<&IText> = un_ops.iter().map(|(a, _)| a).collect();
-            self.add_error(TypeError::remaining_unary_operators(
-                top_location,
-                &op_names,
-            ))
-        }
-
-        while let Some((op_name, op_type, _, _, data)) = bin_ops.pop() {
-            self.call_operator(env, block_builder, &mut vals, &op_name, &op_type, data);
-        }
-
-        let res = vals.pop().unwrap();
-        let res_tp = self.inst(&self.get_type(&res).unwrap());
-        (res, res_tp)
-    }
 }
 
 impl Context<Span> {
@@ -549,6 +431,122 @@ impl Context<Span> {
             .drain(..)
             .for_each(|e| error_ctx.add_error(CompilerError::TypeError(e, name.clone())))
     }
+}
+
+fn call_operator<Data: Copy + Debug>(
+    ctx: &mut Context<Data>,
+    env: &Environment<Data>,
+    block_builder: &mut BlockBuilder,
+    vals: &mut Vec<ir::Val>,
+    last_name: &IText,
+    last_type: &Type,
+    loc: Data,
+) {
+    //TODO: Error handling
+    let r = vals.pop().unwrap();
+    let l = vals.pop().unwrap();
+    let r_tp = ctx.inst(&ctx.get_type(&r).unwrap());
+    let l_tp = ctx.inst(&ctx.get_type(&l).unwrap());
+    let (op_val, _op_spec) = env.lookup_operator(last_name).unwrap();
+    let op_tp = ctx.inst(&ctx.get_type(&op_val).unwrap());
+    let (op_expr, res_tp) = function_call(ctx, op_val, &op_tp, vec![(l, l_tp), (r, r_tp)], loc);
+
+    let res_var = ctx.new_var(Scheme::simple(res_tp), None);
+    block_builder.add_binding(Binding(BindTarget::Var(res_var), op_expr));
+    vals.push(Val::Var(res_var));
+}
+
+fn transform_operators<Data: Copy + Debug>(
+    ctx: &mut Context<Data>,
+    env: &mut Environment<Data>,
+    block_builder: &mut BlockBuilder,
+    elements: &Vec<OperatorElement<Name<Data>, IText, Data>>,
+    top_location: Data,
+) -> (ir::Val, Type) {
+    let mut bin_ops: Vec<(IText, Type, u32, Associativity, Data)> = Vec::new();
+    let mut un_ops: Vec<(IText, Type)> = Vec::new();
+    let mut vals: Vec<Val> = Vec::new();
+
+    for el in elements {
+        match el {
+            OperatorElement::Operator(name, data) => {
+                let data = *data;
+                let (op_val, op_spec) = env.lookup_operator(name).unwrap();
+                let op_tp = ctx.inst(&ctx.get_type(&op_val).unwrap());
+                match op_spec {
+                    OperatorSpecification::Infix(op_prec, assoc) => match bin_ops.last() {
+                        None => bin_ops.push((name.clone(), op_tp, op_prec, assoc, data)),
+                        Some((last_op, _, last_prec, last_assoc, data)) => {
+                            let data = *data;
+                            if last_prec == &op_prec {
+                                if assoc == Associativity::None
+                                    || last_assoc == &Associativity::None
+                                {
+                                    ctx.add_error(TypeError::repeated_unassociative_operators(
+                                        top_location,
+                                        &[last_op, name],
+                                    ));
+                                } else if assoc == Associativity::Left {
+                                    let (last_name, last_type, _, _, data) = bin_ops.pop().unwrap();
+                                    call_operator(
+                                        ctx,
+                                        env,
+                                        block_builder,
+                                        &mut vals,
+                                        &last_name,
+                                        &last_type,
+                                        data,
+                                    );
+                                }
+                            } else if last_prec > &op_prec {
+                                let (last_name, last_type, _, _, data) = bin_ops.pop().unwrap();
+                                call_operator(
+                                    ctx,
+                                    env,
+                                    block_builder,
+                                    &mut vals,
+                                    &last_name,
+                                    &last_type,
+                                    data,
+                                )
+                            }
+                            bin_ops.push((name.clone(), op_tp, op_prec, assoc, data))
+                        }
+                    },
+                    OperatorSpecification::Prefix => un_ops.push((name.clone(), op_tp)),
+                }
+            }
+            OperatorElement::Expression(oexpr, loc) => {
+                let mut last_val = infer_expr(env, ctx, block_builder, oexpr);
+
+                while let Some((op_name, op_tp)) = un_ops.pop() {
+                    let (op_val, _) = env.lookup_operator(&op_name).unwrap();
+                    let (fc, tp) = function_call(ctx, op_val, &op_tp, vec![last_val], *loc);
+                    let fcv = ctx.new_var(Scheme::simple(tp.clone()), None);
+                    block_builder.add_binding(Binding(BindTarget::Var(fcv), fc));
+                    last_val = (Val::Var(fcv), tp)
+                }
+
+                vals.push(last_val.0);
+            }
+        }
+    }
+
+    if !un_ops.is_empty() {
+        let op_names: Vec<&IText> = un_ops.iter().map(|(a, _)| a).collect();
+        ctx.add_error(TypeError::remaining_unary_operators(
+            top_location,
+            &op_names,
+        ))
+    }
+
+    while let Some((op_name, op_type, _, _, data)) = bin_ops.pop() {
+        call_operator(ctx, env, block_builder, &mut vals, &op_name, &op_type, data);
+    }
+
+    let res = vals.pop().unwrap();
+    let res_tp = ctx.inst(&ctx.get_type(&res).unwrap());
+    (res, res_tp)
 }
 
 fn replace<F: Fn(GenericId) -> Option<Type>>(tp: &Type, mapper: &F) -> Type {
@@ -647,7 +645,7 @@ fn infer_expr<Data: Copy + Debug>(
             (Val::Var(funcc_var), ret_tp)
         }
         Expr::OperatorCall(elements, loc) => {
-            ctx.transform_operators(env, block_builder, elements, *loc)
+            transform_operators(ctx, env, block_builder, elements, *loc)
         }
         Expr::If {
             data: loc,
