@@ -1,2 +1,4 @@
 let id = fun x -> x
-public let main = fun () -> id 2
+let a = id 2
+let b = id "test"
+public let main = fun () -> id a

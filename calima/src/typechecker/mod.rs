@@ -379,13 +379,13 @@ impl<Data: Copy + Debug> Context<Data> {
         match pattern {
             BindPattern::Any(_) => (),
             BindPattern::Name(name, ta, _) => {
-                self.add(env, name.clone(), Scheme::simple(tp.clone()))
+                self.add(env, name.clone(), Scheme::simple(tp.clone()));
             }
             _ => todo!(),
         }
     }
 
-    fn bind_to_pattern_val(
+    fn bind_to_pattern_generalized(
         &mut self,
         env: &mut Environment<Data>,
         pattern: &BindPattern<IText, TypeAnnotation<Name<Data>, IText, Data>, Data>,
@@ -396,7 +396,12 @@ impl<Data: Copy + Debug> Context<Data> {
         match pattern {
             BindPattern::Any(_) => (),
             BindPattern::Name(name, ta, _) => {
-                env.bind(name.clone(), bind_val);
+                let generalized = env.generalize(&tp);
+                let gen_var = self.add(env, name.clone(), generalized);
+                block_builder.add_binding(Binding(
+                    BindTarget::Var(gen_var),
+                    ir::Expr::Generalize(bind_val),
+                ))
             }
             _ => todo!(),
         }
@@ -701,7 +706,7 @@ fn infer_let<Data: Copy + Debug>(
         let mut body_env = env.clone();
         infer_expr(&mut body_env, ctx, block_builder, &l.value)
     };
-    ctx.bind_to_pattern_val(env, &l.pattern, block_builder, lval, tp);
+    ctx.bind_to_pattern_generalized(env, &l.pattern, block_builder, lval, tp);
 }
 
 fn infer_let_operator<Data: Copy + Debug>(

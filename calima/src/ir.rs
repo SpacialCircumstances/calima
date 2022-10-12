@@ -37,6 +37,7 @@ pub enum Expr {
         if_true: Block,
         if_false: Block,
     },
+    Generalize(Val),
 }
 
 impl Display for Expr {
@@ -54,6 +55,7 @@ impl Display for Expr {
                 if_true,
                 if_false,
             } => write!(f, "if {} then {} else {} end", condition, if_true, if_false),
+            Expr::Generalize(v) => write!(f, "$generalize {}", v),
         }
     }
 }
