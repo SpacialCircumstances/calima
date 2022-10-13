@@ -4,7 +4,7 @@ use crate::common::ModuleIdentifier;
 use crate::ir::Block;
 use crate::parsing::token::Span;
 use crate::symbol_names::IText;
-use crate::typechecker::environment::ScopeEnvironment;
+use crate::typechecker::environment::{ClosedEnvironment, ScopeEnvironment};
 use crate::typechecker::substitution::Substitution;
 use crate::typechecker::ValueTypeContext;
 use crate::types::Type;
@@ -40,6 +40,7 @@ pub struct TypedModuleData {
     pub(crate) ir_block: Block,
     pub(crate) subst: Substitution<Type>,
     pub(crate) vtc: ValueTypeContext,
+    pub(crate) env: ClosedEnvironment<Span>,
 }
 
 pub struct TypedModule(pub Rc<TypedModuleData>);

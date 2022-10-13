@@ -9,7 +9,7 @@ use crate::modules::{
 };
 use crate::parsing::token::Span;
 use crate::symbol_names::{IText, StringInterner};
-use crate::typechecker::environment::ScopeEnvironment;
+use crate::typechecker::environment::{ClosedEnvironment, ScopeEnvironment};
 use crate::typechecker::ir_lowering::*;
 use crate::typechecker::prelude::prelude;
 use crate::typechecker::substitution::{substitute, Substitution};
@@ -874,6 +874,7 @@ fn typecheck_module(
             ir_block,
             subst: context.type_subst,
             vtc: context.vtc,
+            env: ClosedEnvironment::new(env),
         };
         TypedModule(Rc::new(mod_data))
     })
