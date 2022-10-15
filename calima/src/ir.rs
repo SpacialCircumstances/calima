@@ -9,6 +9,7 @@ pub enum Constant {
     Unit,
     String(IText),
     Number(IText, NumberType),
+    Boolean(bool),
 }
 
 impl Display for Constant {
@@ -17,6 +18,7 @@ impl Display for Constant {
             Constant::Unit => write!(f, "()"),
             Constant::String(t) => write!(f, "\"{}\"", t),
             Constant::Number(t, _) => write!(f, "{}", t),
+            Constant::Boolean(b) => write!(f, "{}", b),
         }
     }
 }

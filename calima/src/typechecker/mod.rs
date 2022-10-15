@@ -157,6 +157,9 @@ impl ValueTypeContext {
             Val::Constant(Constant::Number(_, NumberType::Integer)) => Some(Scheme::simple(
                 Type::Basic(TypeDef::Primitive(PrimitiveType::Int)),
             )),
+            Val::Constant(Constant::Boolean(_)) => Some(Scheme::simple(Type::Basic(
+                TypeDef::Primitive(PrimitiveType::Bool),
+            ))),
         }
     }
 
@@ -596,7 +599,7 @@ fn infer_expr<Data: Copy + Debug>(
                 Literal::String(text) => Constant::String(text.clone()),
                 Literal::Unit => Constant::Unit,
                 Literal::Number(nr, nt) => Constant::Number(nr.clone(), *nt),
-                _ => todo!(),
+                Literal::Boolean(b) => Constant::Boolean(*b),
             };
             (Val::Constant(c), tp)
         }
