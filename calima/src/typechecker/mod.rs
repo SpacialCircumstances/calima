@@ -602,7 +602,9 @@ fn infer_expr<Data: Copy + Debug>(
         }
         Expr::Variable(varname) => {
             //TODO: Error handling
-            let val = env.lookup_value(&varname.0[0]).expect("Variable not found"); //TODO: Lookup into data structures
+            let val = env
+                .lookup_value(&varname.0[0])
+                .expect(&format!("Variable not found: {}", varname.to_string())); //TODO: Lookup into data structures
             let vartp = ctx.get_type(val).unwrap();
             (val.clone(), ctx.inst(&vartp))
         }
@@ -730,32 +732,23 @@ fn infer_let_operator<Data: Copy + Debug>(
     l: &LetOperator<Name<Data>, IText, Data>,
     export: bool,
 ) {
-    /*let (mut op_type, v) = if l.mods.contains(&Modifier::Rec) {
-        let recursive_type = ctx.new_generic();
+    let (lval, mut op_type) = if l.mods.contains(&Modifier::Rec) {
+        let mut rec_tp = ctx.new_generic();
         let mut body_env = env.clone();
-        body_env.add_operator(
+        ctx.add_operator(
+            &mut body_env,
             l.name.clone(),
-            Scheme::simple(recursive_type),
+            Scheme::simple(rec_tp.clone()),
             l.op,
-            Location::Local(l.data),
         );
-        let value = infer_expr(&mut body_env, ctx, &l.value);
-        let mut typ = value.typ().clone();
-        ctx.unify(
-            &mut typ,
-            &value.typ(),
-            UnificationSource::TypeInference,
-            l.data,
-        );
-        (typ, value)
+        let (val, tp) = infer_expr(&mut body_env, ctx, block_builder, &l.value);
+        ctx.unify(&mut rec_tp, &tp, UnificationSource::TypeInference, l.data);
+        (val, tp)
     } else {
-        let value = infer_expr(env, ctx, &l.value);
-        (value.typ().clone(), value)
+        let mut body_env = env.clone();
+        infer_expr(&mut body_env, ctx, block_builder, &l.value)
     };
-    if let Some(ta) = &l.ta {
-        let tp = ctx.type_from_annotation(env, &ta);
-        ctx.unify(&mut op_type, &tp, UnificationSource::TypeAnnotation, l.data);
-    }
+
     match l.op {
         OperatorSpecification::Infix(_, _) => {
             let expected_type =
@@ -777,9 +770,9 @@ fn infer_let_operator<Data: Copy + Debug>(
             );
         }
     }
-    let scheme = generalize(env, &op_type);
-    env.add_operator(l.name.clone(), scheme, l.op, Location::Local(l.data));*/
-    todo!()
+    let scheme = env.generalize(&op_type);
+    let op_var = ctx.add_operator(env, l.name.clone(), scheme, l.op);
+    block_builder.add_binding(Binding(BindTarget::Var(op_var), ir::Expr::Generalize(lval)))
 }
 
 fn infer_statement<Data: Copy + Debug>(
