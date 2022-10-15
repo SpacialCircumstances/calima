@@ -658,26 +658,28 @@ fn infer_expr<Data: Copy + Debug>(
             if_true,
             if_false,
         } => {
-            /*let tcond = infer_expr(env, ctx, &*cond);
+            let (tcond, cond_tp) = infer_expr(env, ctx, block_builder, &*cond);
             let mut true_env = env.clone();
             let mut false_env = env.clone();
-            let ttrue = infer_block(&mut true_env, ctx, if_true);
-            let tfalse = infer_block(&mut false_env, ctx, if_false);
-            let mut rett = ttrue.res.typ().clone();
+            let (ttrue, true_tp) = infer_block(&mut true_env, ctx, block_builder, if_true);
+            let (tfalse, false_tp) = infer_block(&mut false_env, ctx, block_builder, if_false);
+            let mut rett = true_tp.clone();
             ctx.unify_check(
                 &mut rett,
-                tcond.typ(),
+                &cond_tp,
                 &Type::Basic(TypeDef::Primitive(PrimitiveType::Bool)),
                 UnificationSource::If,
                 *loc,
             );
-            ctx.unify(
-                &mut rett,
-                tfalse.res.typ(),
-                UnificationSource::BlockReturn,
-                *loc,
-            );*/
-            todo!()
+            ctx.unify(&mut rett, &false_tp, UnificationSource::BlockReturn, *loc);
+            let if_expr = ir::Expr::If {
+                condition: tcond,
+                if_true: ttrue,
+                if_false: tfalse,
+            };
+            let res_var = ctx.new_var(Scheme::simple(rett.clone()), None);
+            block_builder.add_binding(Binding(BindTarget::Var(res_var), if_expr));
+            (Val::Var(res_var), rett)
         }
         Expr::OperatorAsFunction(name, loc) => {
             let val = env.lookup_value(name).expect("Variable not found"); //TODO: Lookup into data structures
