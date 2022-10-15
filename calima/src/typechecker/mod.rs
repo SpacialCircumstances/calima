@@ -985,7 +985,7 @@ mod ir_gen_tests {
                         let checked =
                             typecheck_module(&module, vec![], &mut error_context, &interner)
                                 .expect("Typechecking error");
-                        let ir_text = checked.0.ir_block.to_string();
+                        let ir_text = checked.0.ir_module.main_block.to_string();
                         write!(parsed_file, "{}", ir_text).unwrap();
                     }
                 }
