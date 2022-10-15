@@ -121,3 +121,26 @@ impl Display for Block {
         )
     }
 }
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct Module {
+    pub(crate) externs: Vec<Val>,
+    pub(crate) main_block: Block,
+    pub(crate) export: Vec<Val>,
+}
+
+impl Display for Module {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        for ext in &self.externs {
+            write!(f, "extern {}\n", ext)?
+        }
+
+        write!(f, "{}\n", self.main_block)?;
+
+        for exp in &self.export {
+            write!(f, "export {}\n", exp)?;
+        }
+
+        Ok(())
+    }
+}

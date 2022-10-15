@@ -3,7 +3,7 @@ use crate::common::ModuleIdentifier;
 use crate::errors::{CompilerError, ErrorContext, MainFunctionErrorKind};
 use crate::formatting::format_iter;
 use crate::ir;
-use crate::ir::{BindTarget, Binding, Constant, Val, VarRef};
+use crate::ir::{BindTarget, Binding, Constant, Module, Val, VarRef};
 use crate::modules::{
     TypedModule, TypedModuleData, TypedModuleTree, UntypedModule, UntypedModuleTree,
 };
@@ -864,6 +864,13 @@ fn typecheck_module(
 
     let ir_block =
         infer_top_level_block(&mut env, &mut context, &mut block_builder, &unchecked.0.ast);
+
+    let ir_module = Module {
+        externs: vec![],
+        main_block: ir_block,
+        export: vec![],
+    };
+
     context.publish_errors(error_context);
 
     error_context.handle_errors().map(|_| {
@@ -871,7 +878,7 @@ fn typecheck_module(
             name: unchecked.0.name.clone(),
             path: unchecked.0.path.clone(),
             deps,
-            ir_block,
+            ir_module,
             subst: context.type_subst,
             vtc: context.vtc,
             env: ClosedEnvironment::new(env),

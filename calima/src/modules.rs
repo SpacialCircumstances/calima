@@ -1,6 +1,7 @@
 use crate::ast::Name;
 use crate::ast::TopLevelBlock;
 use crate::common::ModuleIdentifier;
+use crate::ir;
 use crate::ir::Block;
 use crate::parsing::token::Span;
 use crate::symbol_names::IText;
@@ -37,7 +38,7 @@ pub struct TypedModuleData {
     pub(crate) name: ModuleIdentifier,
     pub(crate) path: PathBuf,
     pub(crate) deps: Vec<TypedModule>,
-    pub(crate) ir_block: Block,
+    pub(crate) ir_module: ir::Module,
     pub(crate) subst: Substitution<Type>,
     pub(crate) vtc: ValueTypeContext,
     pub(crate) env: ClosedEnvironment<Span>,
