@@ -910,15 +910,14 @@ fn verify_main_module(
     errors: &mut ErrorContext,
     interner: &StringInterner,
 ) {
-    /*let main_md = &main_mod.0;
-    let main_val = main_md.
-    if let Some(main_type) = main_mod
-        .0
-        .vtc
-        .lookup_value(&interner.intern(Text::new("main")))
-    {
+    let main_name = interner.intern_str("main");
+    let main_md = &main_mod.0;
+    let main_val = main_md.env.lookup_value(&main_name);
+    let main_type = main_val.and_then(|v| main_md.vtc.get_type(v));
+
+    if let Some(main_sch) = main_type {
         let mut ctx: Context<Span> = Context::new(main_mod.0.name.clone());
-        if let Err(_e) = ctx.unify_rec(&main_type.1, &build_function(&[unit()], &unit())) {
+        if let Err(_e) = ctx.unify_rec(&main_sch.1, &build_function(&[unit()], &unit())) {
             errors.add_error(CompilerError::MainFunctionError(
                 main_mod.0.name.clone(),
                 MainFunctionErrorKind::SignatureWrong,
@@ -929,7 +928,7 @@ fn verify_main_module(
             main_mod.0.name.clone(),
             MainFunctionErrorKind::Missing,
         ))
-    }*/
+    }
 }
 
 pub fn typecheck(
