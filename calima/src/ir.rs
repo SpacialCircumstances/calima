@@ -1,8 +1,46 @@
 use crate::ast::NumberType;
 use crate::formatting::{format_iter, format_iter_end};
+use crate::modules::TypedModuleData;
 use crate::symbol_names::IText;
+use crate::typechecker::ValueTypeContext;
 use std::collections::HashSet;
 use std::fmt::{Display, Formatter};
+
+pub trait FormatWithValueTypeContext {
+    fn format(&self, vtc: &ValueTypeContext, f: &mut Formatter<'_>) -> std::fmt::Result;
+}
+
+fn format_ctx_iter<'a, T: FormatWithValueTypeContext + 'a, I: Iterator<Item = &'a T>>(
+    vtc: &ValueTypeContext,
+    f: &mut Formatter<'_>,
+    mut iter: I,
+    sep: &str,
+) -> std::fmt::Result {
+    let mut next = iter.next();
+
+    while let Some(ni) = next.take() {
+        ni.format(vtc, f)?;
+        next = iter.next();
+
+        if let Some(_) = &next {
+            write!(f, "{}", sep)?;
+        }
+    }
+
+    Ok(())
+}
+
+struct WithVTC<'a, T: FormatWithValueTypeContext>(&'a T, &'a ValueTypeContext);
+
+impl<'a, T: FormatWithValueTypeContext> Display for WithVTC<'a, T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        self.0.format(&self.1, f)
+    }
+}
+
+pub fn format_to_string<T: FormatWithValueTypeContext>(t: &T, vtc: &ValueTypeContext) -> String {
+    WithVTC(t, vtc).to_string()
+}
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Constant {
@@ -12,8 +50,8 @@ pub enum Constant {
     Boolean(bool),
 }
 
-impl Display for Constant {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+impl FormatWithValueTypeContext for Constant {
+    fn format(&self, vtc: &ValueTypeContext, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Constant::Unit => write!(f, "()"),
             Constant::String(t) => write!(f, "\"{}\"", t),
@@ -42,22 +80,42 @@ pub enum Expr {
     Generalize(Val),
 }
 
-impl Display for Expr {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+impl FormatWithValueTypeContext for Expr {
+    fn format(&self, vtc: &ValueTypeContext, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Expr::List(vals) => write!(f, "[{}]", format_iter(vals.iter(), ", ")),
+            Expr::List(vals) => {
+                write!(f, "[")?;
+                format_ctx_iter(vtc, f, vals.iter(), ", ")?;
+                write!(f, "]")
+            }
             Expr::FunctionCall { func, args } => {
-                write!(f, "{} {}", func, format_iter(args.iter(), " "))
+                func.format(vtc, f)?;
+                write!(f, " ")?;
+                format_ctx_iter(vtc, f, args.iter(), " ")
             }
             Expr::Lambda { params, block } => {
-                write!(f, "fun {} -> {}", format_iter(params.iter(), " "), block)
+                write!(f, "fun ")?;
+                format_ctx_iter(vtc, f, params.iter(), " ")?;
+                write!(f, " -> ")?;
+                block.format(vtc, f)
             }
             Expr::If {
                 condition,
                 if_true,
                 if_false,
-            } => write!(f, "if {} then {} else {} end", condition, if_true, if_false),
-            Expr::Generalize(v) => write!(f, "$generalize {}", v),
+            } => {
+                write!(f, "if ")?;
+                condition.format(vtc, f)?;
+                write!(f, " then ")?;
+                if_true.format(vtc, f)?;
+                write!(f, " else ")?;
+                if_false.format(vtc, f)?;
+                write!(f, " end")
+            }
+            Expr::Generalize(v) => {
+                write!(f, "generalize ")?;
+                v.format(vtc, f)
+            }
         }
     }
 }
@@ -65,8 +123,8 @@ impl Display for Expr {
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
 pub struct VarRef(pub usize);
 
-impl Display for VarRef {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+impl FormatWithValueTypeContext for VarRef {
+    fn format(&self, vtc: &ValueTypeContext, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "v{}", self.0)
     }
 }
@@ -77,11 +135,11 @@ pub enum Val {
     Constant(Constant),
 }
 
-impl Display for Val {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+impl FormatWithValueTypeContext for Val {
+    fn format(&self, vtc: &ValueTypeContext, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Val::Var(v) => write!(f, "{}", v),
-            Val::Constant(c) => write!(f, "{}", c),
+            Val::Var(v) => v.format(vtc, f),
+            Val::Constant(c) => c.format(vtc, f),
         }
     }
 }
@@ -92,10 +150,10 @@ pub enum BindTarget {
     Discard,
 }
 
-impl Display for BindTarget {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+impl FormatWithValueTypeContext for BindTarget {
+    fn format(&self, vtc: &ValueTypeContext, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            BindTarget::Var(v) => write!(f, "{}", v),
+            BindTarget::Var(v) => v.format(vtc, f),
             BindTarget::Discard => write!(f, "_"),
         }
     }
@@ -104,23 +162,23 @@ impl Display for BindTarget {
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Binding(pub BindTarget, pub Expr);
 
-impl Display for Binding {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} = {}", self.0, self.1)
+impl FormatWithValueTypeContext for Binding {
+    fn format(&self, vtc: &ValueTypeContext, f: &mut Formatter<'_>) -> std::fmt::Result {
+        self.0.format(vtc, f)?;
+        write!(f, " = ")?;
+        self.1.format(vtc, f)
     }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Block(pub Vec<Binding>, pub Val);
 
-impl Display for Block {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{{\n{}{}\n}}",
-            format_iter_end(self.0.iter(), ";\n"),
-            self.1
-        )
+impl FormatWithValueTypeContext for Block {
+    fn format(&self, vtc: &ValueTypeContext, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{{\n")?;
+        format_ctx_iter(vtc, f, self.0.iter(), ";\n")?;
+        self.1.format(vtc, f)?;
+        write!(f, "\n}}")
     }
 }
 
@@ -131,16 +189,21 @@ pub struct Module {
     pub(crate) export: Vec<Val>,
 }
 
-impl Display for Module {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+impl FormatWithValueTypeContext for Module {
+    fn format(&self, vtc: &ValueTypeContext, f: &mut Formatter<'_>) -> std::fmt::Result {
         for ext in &self.externs {
-            write!(f, "extern {}\n", ext)?
+            write!(f, "extern ")?;
+            ext.format(vtc, f)?;
+            write!(f, "\n")?;
         }
 
-        write!(f, "{}\n", self.main_block)?;
+        self.main_block.format(vtc, f)?;
+        write!(f, "\n")?;
 
         for exp in &self.export {
-            write!(f, "export {}\n", exp)?;
+            write!(f, "export ")?;
+            exp.format(vtc, f)?;
+            write!(f, "\n")?;
         }
 
         Ok(())
