@@ -30,6 +30,20 @@ fn format_ctx_iter<'a, T: FormatWithValueTypeContext + 'a, I: Iterator<Item = &'
     Ok(())
 }
 
+fn format_ctx_iter_end<'a, T: FormatWithValueTypeContext + 'a, I: Iterator<Item = &'a T>>(
+    vtc: &ValueTypeContext,
+    f: &mut Formatter<'_>,
+    mut iter: I,
+    sep: &str,
+) -> std::fmt::Result {
+    for it in iter {
+        it.format(vtc, f)?;
+        write!(f, "{}", sep)?;
+    }
+
+    Ok(())
+}
+
 struct WithVTC<'a, T: FormatWithValueTypeContext>(&'a T, &'a ValueTypeContext);
 
 impl<'a, T: FormatWithValueTypeContext> Display for WithVTC<'a, T> {
@@ -113,7 +127,7 @@ impl FormatWithValueTypeContext for Expr {
                 write!(f, " end")
             }
             Expr::Generalize(v) => {
-                write!(f, "generalize ")?;
+                write!(f, "$generalize ")?;
                 v.format(vtc, f)
             }
         }
@@ -176,7 +190,7 @@ pub struct Block(pub Vec<Binding>, pub Val);
 impl FormatWithValueTypeContext for Block {
     fn format(&self, vtc: &ValueTypeContext, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{{\n")?;
-        format_ctx_iter(vtc, f, self.0.iter(), ";\n")?;
+        format_ctx_iter_end(vtc, f, self.0.iter(), ";\n")?;
         self.1.format(vtc, f)?;
         write!(f, "\n}}")
     }
