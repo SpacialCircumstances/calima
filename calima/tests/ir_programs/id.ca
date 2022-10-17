@@ -1,16 +1,16 @@
 {
-v14 = fun v13 -> {
-v13
+v14 = fun v13(x) -> {
+v13(x)
 };
-v15 = $generalize v14;
-v16 = v15 2;
-v17 = $generalize v16;
-v18 = v15 "test";
-v19 = $generalize v18;
+v15(id) = $generalize v14;
+v16 = v15(id) 2;
+v17(a) = $generalize v16;
+v18 = v15(id) "test";
+v19(b) = $generalize v18;
 v21 = fun _ -> {
-v20 = v15 v17;
+v20 = v15(id) v17(a);
 v20
 };
-v22 = $generalize v21;
+v22(main) = $generalize v21;
 ()
 }

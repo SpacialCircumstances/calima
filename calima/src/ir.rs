@@ -139,7 +139,10 @@ pub struct VarRef(pub usize);
 
 impl FormatWithValueTypeContext for VarRef {
     fn format(&self, vtc: &ValueTypeContext, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "v{}", self.0)
+        match vtc.get_name_hint(self) {
+            None => write!(f, "v{}", self.0),
+            Some(nh) => write!(f, "v{}({})", self.0, nh),
+        }
     }
 }
 
