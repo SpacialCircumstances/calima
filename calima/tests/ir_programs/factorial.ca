@@ -16,6 +16,6 @@ v21<Int> = v20(fac)<forall t1. Int -> Int> 5;
 v22<Unit> = v12(println)<forall t1. Int -> Unit> v21<Int>;
 v22<Unit>
 };
-v24(main)<forall t11 t7. Unit -> Unit> = $generalize v23<Unit -> Unit>;
+v24(main)<forall t7 t11. Unit -> Unit> = $generalize v23<Unit -> Unit>;
 ()
 }

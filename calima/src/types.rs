@@ -6,7 +6,7 @@ use std::collections::HashSet;
 use std::convert::TryFrom;
 use std::fmt::{Display, Formatter};
 
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct GenericId(pub usize);
 
 impl Display for GenericId {
@@ -145,7 +145,14 @@ impl Display for Scheme {
         if self.0.is_empty() {
             write!(f, "{}", self.1)
         } else {
-            write!(f, "forall {}. {}", format_iter(self.0.iter(), " "), self.1)
+            let mut gen_vars: Vec<GenericId> = self.0.iter().cloned().collect();
+            gen_vars.sort();
+            write!(
+                f,
+                "forall {}. {}",
+                format_iter(gen_vars.iter(), " "),
+                self.1
+            )
         }
     }
 }
