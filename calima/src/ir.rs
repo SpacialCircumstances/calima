@@ -3,6 +3,7 @@ use crate::formatting::{format_iter, format_iter_end};
 use crate::modules::TypedModuleData;
 use crate::symbol_names::IText;
 use crate::typechecker::ValueTypeContext;
+use crate::types::{Scheme, Type};
 use std::collections::HashSet;
 use std::fmt::{Display, Formatter};
 
@@ -139,9 +140,12 @@ pub struct VarRef(pub usize);
 
 impl FormatWithValueTypeContext for VarRef {
     fn format(&self, vtc: &ValueTypeContext, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let sch = vtc
+            .get_type(&Val::Var(*self))
+            .unwrap_or_else(|| Scheme::simple(Type::Error));
         match vtc.get_name_hint(self) {
-            None => write!(f, "v{}", self.0),
-            Some(nh) => write!(f, "v{}({})", self.0, nh),
+            None => write!(f, "v{}<{}>", self.0, sch),
+            Some(nh) => write!(f, "v{}({})<{}>", self.0, nh, sch),
         }
     }
 }
