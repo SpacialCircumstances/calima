@@ -12,7 +12,7 @@ use crate::symbol_names::{IText, StringInterner};
 use crate::typechecker::environment::{ClosedEnvironment, ScopeEnvironment};
 use crate::typechecker::ir_lowering::*;
 use crate::typechecker::prelude::prelude;
-use crate::typechecker::substitution::{substitute, Substitution};
+use crate::typechecker::substitution::{substitute, substitute_scheme, Substitution};
 use crate::types::*;
 use quetta::Text;
 use std::collections::{HashMap, HashSet};
@@ -165,6 +165,17 @@ impl ValueTypeContext {
 
     pub fn get_name_hint(&self, vr: &VarRef) -> Option<&IText> {
         self.name_hints.get(vr)
+    }
+
+    fn fully_substituted(&self, subst: &Substitution<Type>) -> Self {
+        Self {
+            name_hints: self.name_hints.clone(),
+            types: self
+                .types
+                .iter()
+                .map(|(v, sch)| (*v, substitute_scheme(subst, sch)))
+                .collect(),
+        }
     }
 }
 
@@ -871,6 +882,8 @@ fn typecheck_module(
 
     context.publish_errors(error_context);
 
+    let vtc = context.vtc.fully_substituted(&context.type_subst);
+
     error_context.handle_errors().map(|_| {
         let mod_data = TypedModuleData {
             name: unchecked.0.name.clone(),
@@ -878,7 +891,7 @@ fn typecheck_module(
             deps,
             ir_module,
             subst: context.type_subst,
-            vtc: context.vtc,
+            vtc,
             env: ClosedEnvironment::new(env),
         };
         TypedModule(Rc::new(mod_data))
