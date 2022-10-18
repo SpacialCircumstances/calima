@@ -1,5 +1,4 @@
-use crate::ir::{Binding, Block, Constant, Expr, Val, VarRef};
-use crate::symbol_names::IText;
+use crate::ir::{Binding, Block, Val};
 
 #[derive(Debug, Clone)]
 struct PartialBlock(Vec<Binding>);

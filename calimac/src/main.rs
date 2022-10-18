@@ -1,5 +1,5 @@
 use calima::{compile, CompilerArguments};
-use clap::{Parser, Subcommand};
+use clap::Parser;
 
 #[derive(Parser)]
 #[command(author = "SpacialCircumstances", version = "0.2.0")]

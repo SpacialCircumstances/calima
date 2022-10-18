@@ -8,7 +8,6 @@ use crate::types::{bool, build_function, float, int, string, unit, GenericId, Sc
 use quetta::Text;
 use std::collections::HashSet;
 use std::fmt::Debug;
-use std::rc::Rc;
 
 fn int_op() -> Scheme {
     Scheme::simple(build_function(&[int(), int()], &int()))

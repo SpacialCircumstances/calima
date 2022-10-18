@@ -4,7 +4,7 @@ use std::iter::once;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use crate::ast::{find_imported_modules, TopLevelBlock};
+use crate::ast::find_imported_modules;
 use crate::common::*;
 use crate::errors::CompilerError::*;
 use crate::errors::{CompilerError, ErrorContext};

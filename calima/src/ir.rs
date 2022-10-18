@@ -1,12 +1,9 @@
 use crate::ast::NumberType;
 use crate::formatting::context::{format_ctx_iter, format_ctx_iter_end, FormatWithContext};
-use crate::formatting::{format_iter, format_iter_end};
-use crate::modules::TypedModuleData;
 use crate::symbol_names::IText;
 use crate::typechecker::ValueTypeContext;
 use crate::types::{Scheme, Type};
-use std::collections::HashSet;
-use std::fmt::{Display, Formatter};
+use std::fmt::Formatter;
 
 pub struct FormattingContext<'a> {
     vtc: &'a ValueTypeContext,

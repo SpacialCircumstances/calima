@@ -14,11 +14,9 @@ use crate::typechecker::ir_lowering::*;
 use crate::typechecker::prelude::prelude;
 use crate::typechecker::substitution::{substitute, substitute_scheme, Substitution};
 use crate::types::*;
-use quetta::Text;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fmt::Debug;
-use std::marker::PhantomData;
 use std::rc::Rc;
 
 pub mod environment;
@@ -581,7 +579,7 @@ fn function_call<Data: Copy + Debug>(
     args: Vec<(Val, Type)>,
     loc: Data,
 ) -> (ir::Expr, Type) {
-    let argtypes: Vec<Type> = args.iter().map(|(a, b)| b.clone()).collect();
+    let argtypes: Vec<Type> = args.iter().map(|(_, b)| b.clone()).collect();
     let ret = ctx.new_generic();
     let mut arg_fun_type = build_function(&argtypes, &ret);
     ctx.unify(

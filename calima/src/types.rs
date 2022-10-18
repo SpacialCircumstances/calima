@@ -1,5 +1,5 @@
+use crate::formatting::format_iter;
 use crate::formatting::tree::{format_children, TreeFormat};
-use crate::formatting::{format_iter, format_iter_end};
 use crate::symbol_names::IText;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;

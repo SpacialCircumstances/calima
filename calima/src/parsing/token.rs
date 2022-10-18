@@ -1,5 +1,4 @@
 use crate::symbol_names::IText;
-use quetta::Text;
 use std::fmt::{Display, Formatter};
 use std::ops::Range;
 

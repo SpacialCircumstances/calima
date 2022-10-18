@@ -1,13 +1,10 @@
-use std::cell::RefCell;
-use std::collections::hash_map::{DefaultHasher, Entry};
-use std::collections::{HashMap, HashSet};
+use std::collections::hash_map::Entry;
+use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
-use std::hash::{Hash, Hasher};
-use std::process::exit;
-use std::rc::Rc;
+use std::hash::Hash;
 
 use quetta::Text;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, Mutex};
 
 //TODO: If we can access the underlying textdata directly, we can optimize partialeq/hash impls. Maybe move string interning feature into quetta?
 

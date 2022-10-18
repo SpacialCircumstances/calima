@@ -1,5 +1,5 @@
 use crate::ast::OperatorSpecification;
-use crate::ir::{Val, VarRef};
+use crate::ir::Val;
 use crate::symbol_names::IText;
 use crate::typechecker::Context;
 use crate::types::{GenericId, Scheme, Type};
