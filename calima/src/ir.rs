@@ -12,6 +12,12 @@ pub struct FormattingContext<'a> {
     vtc: &'a ValueTypeContext,
 }
 
+impl<'a> FormattingContext<'a> {
+    pub fn new(vtc: &'a ValueTypeContext) -> Self {
+        Self { vtc }
+    }
+}
+
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Constant {
     Unit,

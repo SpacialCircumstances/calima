@@ -959,7 +959,8 @@ pub fn typecheck(
 #[cfg(test)]
 mod ir_gen_tests {
     use crate::common::ModuleIdentifier;
-    use crate::ir::format_to_string;
+    use crate::formatting::context::format_to_string;
+    use crate::ir::FormattingContext;
     use crate::modules::{UntypedModule, UntypedModuleData};
     use crate::parsing::parser::parse;
     use crate::typechecker::typecheck_module;
@@ -997,7 +998,8 @@ mod ir_gen_tests {
                         let checked =
                             typecheck_module(&module, vec![], &mut error_context, &interner)
                                 .expect("Typechecking error");
-                        let ir_text = format_to_string(&checked.0.ir_module, &checked.0.vtc);
+                        let mut fc = FormattingContext::new(&checked.0.vtc);
+                        let ir_text = format_to_string(&checked.0.ir_module, &mut fc);
                         write!(parsed_file, "{}", ir_text).unwrap();
                     }
                 }
