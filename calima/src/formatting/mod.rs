@@ -1,6 +1,7 @@
 use crate::symbol_names::IText;
 use std::fmt::{Display, Formatter};
 
+pub mod context;
 pub mod tree;
 
 pub fn format_iter<T: Display, I: Iterator<Item = T>>(iter: I, sep: &str) -> String {
