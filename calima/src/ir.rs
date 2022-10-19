@@ -4,15 +4,25 @@ use crate::symbol_names::IText;
 use crate::typechecker::ValueTypeContext;
 use crate::types::{Scheme, Type};
 use std::fmt::Formatter;
+use std::iter::once;
 
 pub struct FormattingContext<'a> {
     vtc: &'a ValueTypeContext,
+    indent: usize,
 }
 
 impl<'a> FormattingContext<'a> {
     pub fn new(vtc: &'a ValueTypeContext) -> Self {
-        Self { vtc }
+        Self { vtc, indent: 0 }
     }
+}
+
+fn format_indent(f: &mut Formatter<'_>, ctx: &FormattingContext) -> std::fmt::Result {
+    write!(
+        f,
+        "{}",
+        once(' ').cycle().take(ctx.indent).collect::<String>()
+    )
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -156,6 +166,7 @@ impl<'a> FormatWithContext<'a> for Binding {
     type Context = FormattingContext<'a>;
 
     fn format(&'a self, ctx: &mut Self::Context, f: &mut Formatter<'_>) -> std::fmt::Result {
+        format_indent(f, &ctx)?;
         self.0.format(ctx, f)?;
         write!(f, " = ")?;
         self.1.format(ctx, f)
@@ -170,9 +181,15 @@ impl<'a> FormatWithContext<'a> for Block {
 
     fn format(&'a self, ctx: &mut Self::Context, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{{\n")?;
+        ctx.indent += 4;
         format_ctx_iter_end(ctx, f, self.0.iter(), ";\n")?;
+        format_indent(f, &ctx)?;
         self.1.format(ctx, f)?;
-        write!(f, "\n}}")
+        ctx.indent -= 4;
+        write!(f, "\n")?;
+        format_indent(f, &ctx)?;
+        write!(f, "}}")?;
+        Ok(())
     }
 }
 

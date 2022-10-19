@@ -1,16 +1,16 @@
 {
-v14<t0 -> t0> = fun v13(x)<t0> -> {
-v13(x)<t0>
-};
-v15(id)<forall t0. t0 -> t0> = $generalize v14<t0 -> t0>;
-v16<Int> = v15(id)<forall t0. t0 -> t0> 2;
-v17(a)<forall t2. Int> = $generalize v16<Int>;
-v18<String> = v15(id)<forall t0. t0 -> t0> "test";
-v19(b)<forall t4. String> = $generalize v18<String>;
-v21<Unit -> t7> = fun _ -> {
-v20<t7> = v15(id)<forall t0. t0 -> t0> v17(a)<forall t2. Int>;
-v20<t7>
-};
-v22(main)<forall t5 t8. Unit -> t7> = $generalize v21<Unit -> t7>;
-()
+    v14<t0 -> t0> = fun v13(x)<t0> -> {
+        v13(x)<t0>
+    };
+    v15(id)<forall t0. t0 -> t0> = $generalize v14<t0 -> t0>;
+    v16<Int> = v15(id)<forall t0. t0 -> t0> 2;
+    v17(a)<forall t2. Int> = $generalize v16<Int>;
+    v18<String> = v15(id)<forall t0. t0 -> t0> "test";
+    v19(b)<forall t4. String> = $generalize v18<String>;
+    v21<Unit -> t7> = fun _ -> {
+        v20<t7> = v15(id)<forall t0. t0 -> t0> v17(a)<forall t2. Int>;
+        v20<t7>
+    };
+    v22(main)<forall t5 t8. Unit -> t7> = $generalize v21<Unit -> t7>;
+    ()
 }

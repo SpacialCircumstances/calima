@@ -1,21 +1,21 @@
 {
-v19<Int -> Int> = fun v14(i)<Int> -> {
-v15<Bool> = v9(==)<forall t1. Int -> Int -> Bool> v14(i)<Int> 0;
-v18<Int> = if v15<Bool> then {
-1
-} else {
-v16<Int> = v2(-)<Int -> Int -> Int> v14(i)<Int> 1;
-v17<Int> = v13(fac)<Int -> Int> v16<Int>;
-v17<Int>
-} end;
-v18<Int>
-};
-v20(fac)<forall t1. Int -> Int> = $generalize v19<Int -> Int>;
-v23<Unit -> Unit> = fun _ -> {
-v21<Int> = v20(fac)<forall t1. Int -> Int> 5;
-v22<Unit> = v12(println)<forall t1. Int -> Unit> v21<Int>;
-v22<Unit>
-};
-v24(main)<forall t7 t11. Unit -> Unit> = $generalize v23<Unit -> Unit>;
-()
+    v19<Int -> Int> = fun v14(i)<Int> -> {
+        v15<Bool> = v9(==)<forall t1. Int -> Int -> Bool> v14(i)<Int> 0;
+        v18<Int> = if v15<Bool> then {
+            1
+        } else {
+            v16<Int> = v2(-)<Int -> Int -> Int> v14(i)<Int> 1;
+            v17<Int> = v13(fac)<Int -> Int> v16<Int>;
+            v17<Int>
+        } end;
+        v18<Int>
+    };
+    v20(fac)<forall t1. Int -> Int> = $generalize v19<Int -> Int>;
+    v23<Unit -> Unit> = fun _ -> {
+        v21<Int> = v20(fac)<forall t1. Int -> Int> 5;
+        v22<Unit> = v12(println)<forall t1. Int -> Unit> v21<Int>;
+        v22<Unit>
+    };
+    v24(main)<forall t7 t11. Unit -> Unit> = $generalize v23<Unit -> Unit>;
+    ()
 }

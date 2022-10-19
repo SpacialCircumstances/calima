@@ -1,19 +1,19 @@
 {
-v15<t0 -> t1 -> Unit> = fun v13(a)<t0> v14(b)<t1> -> {
-()
-};
-v16(drop)<forall t0 t1. t0 -> t1 -> Unit> = $generalize v15<t0 -> t1 -> Unit>;
-v20<t2 -> t2> = fun v17(x)<t2> -> {
-v19(a)<t2> = $generalize v17(x)<t2>;
-v19(a)<t2>
-};
-v21(id)<forall t2. t2 -> t2> = $generalize v20<t2 -> t2>;
-v25<Unit -> Unit> = fun _ -> {
-v22<Bool> = v21(id)<forall t2. t2 -> t2> true;
-v23<Int> = v21(id)<forall t2. t2 -> t2> 2;
-v24<Unit> = v16(drop)<forall t0 t1. t0 -> t1 -> Unit> v22<Bool> v23<Int>;
-v24<Unit>
-};
-v26(main)<forall t4 t11. Unit -> Unit> = $generalize v25<Unit -> Unit>;
-()
+    v15<t0 -> t1 -> Unit> = fun v13(a)<t0> v14(b)<t1> -> {
+        ()
+    };
+    v16(drop)<forall t0 t1. t0 -> t1 -> Unit> = $generalize v15<t0 -> t1 -> Unit>;
+    v20<t2 -> t2> = fun v17(x)<t2> -> {
+        v19(a)<t2> = $generalize v17(x)<t2>;
+        v19(a)<t2>
+    };
+    v21(id)<forall t2. t2 -> t2> = $generalize v20<t2 -> t2>;
+    v25<Unit -> Unit> = fun _ -> {
+        v22<Bool> = v21(id)<forall t2. t2 -> t2> true;
+        v23<Int> = v21(id)<forall t2. t2 -> t2> 2;
+        v24<Unit> = v16(drop)<forall t0 t1. t0 -> t1 -> Unit> v22<Bool> v23<Int>;
+        v24<Unit>
+    };
+    v26(main)<forall t4 t11. Unit -> Unit> = $generalize v25<Unit -> Unit>;
+    ()
 }
