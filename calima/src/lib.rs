@@ -1,6 +1,8 @@
 #[macro_use]
 extern crate lalrpop_util;
 
+use quetta::Text;
+use std::path::{Path, PathBuf};
 use symbol_names::StringInterner;
 
 use crate::errors::ErrorContext;
@@ -18,27 +20,19 @@ mod typechecker;
 mod types;
 
 #[derive(Debug)]
-pub struct CompilerArguments<'a, S: AsRef<str>> {
-    entrypoint: &'a str,
-    search_paths: &'a Vec<S>,
-    project_root_name: Option<&'a str>,
+pub struct CompilerArguments {
+    entrypoint: PathBuf,
+    search_paths: Vec<PathBuf>,
+    output_name: PathBuf,
 }
 
-impl<'a, S: AsRef<str>> CompilerArguments<'a, S> {
-    pub fn new(
-        entrypoint: &'a str,
-        search_paths: &'a Vec<S>,
-        project_root_name: Option<&'a str>,
-    ) -> Self {
-        CompilerArguments {
-            entrypoint,
-            search_paths,
-            project_root_name,
-        }
+impl CompilerArguments {
+    pub fn new(entrypoint: &str, search_paths: &Vec<String>, output_name: &Option<String>) -> Self {
+        todo!()
     }
 }
 
-pub fn compile<S: AsRef<str>>(args: CompilerArguments<S>) -> Result<(), ()> {
+pub fn compile(args: CompilerArguments) -> Result<(), ()> {
     let mut errors = ErrorContext::new();
     let interner = StringInterner::new();
     let module_context = parse_all_modules(&mut errors, &interner, args)?;

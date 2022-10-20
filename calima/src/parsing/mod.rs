@@ -39,16 +39,16 @@ fn try_resolve_module(
         .collect()
 }
 
-pub fn parse_all_modules<S: AsRef<str>>(
+pub fn parse_all_modules(
     error_context: &mut ErrorContext,
     interner: &StringInterner,
-    args: CompilerArguments<S>,
+    args: CompilerArguments,
 ) -> Result<UntypedModuleTree, ()> {
-    let entrypoint_path = PathBuf::from(args.entrypoint);
+    let entrypoint_path = args.entrypoint.clone();
     if !entrypoint_path.is_file() {
         error_context.add_error(GeneralError(
             None,
-            format!("Entrypoint file {} not found", args.entrypoint),
+            format!("Entrypoint file {} not found", &args.entrypoint.display()),
         ));
     }
     //Get directory of entrypoint
@@ -63,15 +63,13 @@ pub fn parse_all_modules<S: AsRef<str>>(
         Some(filename) => filename.to_string_lossy().to_string(),
     };
 
-    let project_name = args
-        .project_root_name
-        .map_or_else(|| entrypoint_module_name.clone(), |s| String::from(s));
+    let project_name = args.output_name.display().to_string();
     let entrypoint_mod = ModuleIdentifier::from_filename(entrypoint_module_name);
 
     let (search_dirs, errors): (Vec<PathBuf>, Vec<PathBuf>) = args
         .search_paths
         .iter()
-        .map(|dir| PathBuf::from(dir.as_ref()))
+        .cloned()
         .partition(|dir| dir.is_dir());
 
     if !errors.is_empty() {
