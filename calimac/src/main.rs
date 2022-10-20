@@ -5,8 +5,8 @@ use clap::Parser;
 #[command(author = "SpacialCircumstances", version = "0.2.0")]
 struct Options {
     main_file: String,
-    #[arg(short, long, value_name = "Module roots")]
-    roots: Vec<String>,
+    #[arg(short, long, value_name = "Module paths")]
+    module_paths: Vec<String>,
     #[arg(short, long, value_name = "Output name")]
     output_name: Option<String>,
 }
