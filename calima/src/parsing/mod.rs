@@ -10,7 +10,7 @@ use crate::errors::CompilerError::*;
 use crate::errors::{CompilerError, ErrorContext};
 use crate::modules::{UntypedModule, UntypedModuleData, UntypedModuleTree};
 use crate::symbol_names::StringInterner;
-use crate::CompilerArguments;
+use crate::CompilerState;
 
 pub mod lexer;
 pub mod parser;
@@ -42,7 +42,7 @@ fn try_resolve_module(
 pub fn parse_all_modules(
     error_context: &mut ErrorContext,
     interner: &StringInterner,
-    args: CompilerArguments,
+    args: CompilerState,
 ) -> Result<UntypedModuleTree, ()> {
     let entrypoint_path = args.entrypoint.clone();
     if !entrypoint_path.is_file() {
@@ -63,11 +63,10 @@ pub fn parse_all_modules(
         Some(filename) => filename.to_string_lossy().to_string(),
     };
 
-    let project_name = args.output_name.display().to_string();
     let entrypoint_mod = ModuleIdentifier::from_filename(entrypoint_module_name);
 
     let (search_dirs, errors): (Vec<PathBuf>, Vec<PathBuf>) = args
-        .search_paths
+        .module_paths
         .iter()
         .cloned()
         .partition(|dir| dir.is_dir());

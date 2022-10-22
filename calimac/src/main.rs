@@ -1,22 +1,19 @@
-use calima::{compile, CompilerArguments};
+use calima::compile;
 use clap::Parser;
+use std::path::PathBuf;
 
 #[derive(Parser)]
 #[command(author = "SpacialCircumstances", version = "0.2.0")]
 struct Options {
-    main_file: String,
+    main_file: PathBuf,
     #[arg(short, long, value_name = "Module paths")]
-    module_paths: Vec<String>,
-    #[arg(short, long, value_name = "Output name")]
-    output_name: Option<String>,
+    module_paths: Vec<PathBuf>,
+    #[arg(short, long, value_name = "Output file")]
+    output_file: Option<PathBuf>,
 }
 
 fn main() -> Result<(), ()> {
     let args = Options::parse();
 
-    compile(CompilerArguments::new(
-        &args.main_file,
-        &args.roots,
-        &args.output_name,
-    ))
+    compile(&args.main_file, &args.module_paths, &args.output_file)
 }
