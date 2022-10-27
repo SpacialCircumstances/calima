@@ -21,22 +21,7 @@ fn try_resolve_module(
     from_path: &PathBuf,
     name: &ModuleIdentifier,
 ) -> Result<PathBuf, Vec<PathBuf>> {
-    let mut module_dir = from_path.to_path_buf();
-    module_dir.pop();
-    once(&module_dir)
-        .chain(search_dirs.iter())
-        .map(|dir| {
-            let path = name.path_relative_to(dir);
-            match path.is_file() {
-                true => Ok(path),
-                false => {
-                    let mut search_dirs = search_dirs.to_vec();
-                    search_dirs.insert(0, module_dir.clone());
-                    Err(search_dirs)
-                }
-            }
-        })
-        .collect()
+    todo!()
 }
 
 pub fn parse_all_modules(

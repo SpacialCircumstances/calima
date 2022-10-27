@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate lalrpop_util;
 
+use crate::common::ModuleIdentifier;
 use quetta::Text;
 use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
@@ -25,12 +26,14 @@ pub struct CompilerState {
     project_name: Text,
     output_file: PathBuf,
     entrypoint: PathBuf,
+    error_context: ErrorContext,
+    interner: StringInterner,
 }
 
 impl CompilerState {
     pub fn construct(
-        error_context: &mut ErrorContext,
-        interner: &StringInterner,
+        mut error_context: ErrorContext,
+        interner: StringInterner,
         entrypoint: &PathBuf,
         search_paths: &Vec<PathBuf>,
         output_file: &Option<PathBuf>,
@@ -72,6 +75,8 @@ impl CompilerState {
                         entrypoint: entrypoint.clone(),
                         project_name,
                         output_file,
+                        error_context,
+                        interner,
                     })
                 }
                 None => {
@@ -94,6 +99,31 @@ impl CompilerState {
             }
         }
     }
+
+    fn resolve_within_search_dir(
+        search_dir: &PathBuf,
+        module: &ModuleIdentifier,
+    ) -> Option<PathBuf> {
+        let mut resolved_from_here = search_dir.clone();
+
+        for x in module.identifier() {
+            resolved_from_here.push(Path::new(x.as_str()));
+        }
+
+        resolved_from_here.set_extension(".ca");
+
+        match resolved_from_here.exists() {
+            true => Some(resolved_from_here),
+            false => None,
+        }
+    }
+
+    pub fn resolve(&mut self, module: ModuleIdentifier) -> Result<PathBuf, ()> {
+        self.module_paths
+            .iter()
+            .find_map(|sd| Self::resolve_within_search_dir(sd, &module))
+            .ok_or(())
+    }
 }
 
 pub fn compile(
@@ -103,13 +133,7 @@ pub fn compile(
 ) -> Result<(), ()> {
     let mut errors = ErrorContext::new();
     let interner = StringInterner::new();
-    let state = CompilerState::construct(
-        &mut errors,
-        &interner,
-        entrypoint,
-        search_paths,
-        output_file,
-    )?;
+    let state = CompilerState::construct(errors, interner, entrypoint, search_paths, output_file)?;
     let module_context = parse_all_modules(&mut errors, &interner, state)?;
     let typed_context = typechecker::typecheck(&mut errors, module_context, &interner)?;
     Ok(())
