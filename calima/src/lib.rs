@@ -44,7 +44,7 @@ impl CompilerState {
                 Some(parent) => {
                     let entrypoint_parent = parent.to_path_buf();
                     let mut search_paths = search_paths.clone();
-                    search_paths.push(entrypoint_parent.clone());
+                    search_paths.insert(0, entrypoint_parent.clone());
 
                     for path in &search_paths {
                         if !path.is_dir() {
