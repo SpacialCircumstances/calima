@@ -3,6 +3,8 @@ extern crate lalrpop_util;
 
 use crate::common::ModuleIdentifier;
 use quetta::Text;
+use std::collections::hash_map::Entry;
+use std::collections::HashMap;
 use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 use symbol_names::StringInterner;
@@ -28,6 +30,7 @@ pub struct CompilerState {
     entrypoint: PathBuf,
     error_context: ErrorContext,
     interner: StringInterner,
+    mod_resolution_table: HashMap<ModuleIdentifier, PathBuf>,
 }
 
 impl CompilerState {
@@ -77,6 +80,7 @@ impl CompilerState {
                         output_file,
                         error_context,
                         interner,
+                        mod_resolution_table: HashMap::new(),
                     })
                 }
                 None => {
@@ -119,10 +123,18 @@ impl CompilerState {
     }
 
     pub fn resolve(&mut self, module: ModuleIdentifier) -> Result<PathBuf, ()> {
-        self.module_paths
-            .iter()
-            .find_map(|sd| Self::resolve_within_search_dir(sd, &module))
-            .ok_or(())
+        match self.mod_resolution_table.entry(module) {
+            Entry::Occupied(occ) => Ok(occ.get().clone()),
+            Entry::Vacant(entr) => {
+                let path = self
+                    .module_paths
+                    .iter()
+                    .find_map(|sd| Self::resolve_within_search_dir(sd, &module))
+                    .ok_or(())?;
+                entr.insert(path.clone());
+                Ok(path)
+            }
+        }
     }
 }
 
