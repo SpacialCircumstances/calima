@@ -30,8 +30,8 @@ pub struct CompilerState {
     entrypoint: PathBuf,
     error_context: ErrorContext,
     interner: StringInterner,
-    mod_resolution_table: HashMap<ModuleIdentifier, PathBuf>,
-    mod_parsed_table: HashMap<ModuleIdentifier, UntypedModule>,
+    mod_resolution_table: HashMap<ModuleIdentifier, Result<PathBuf, ()>>,
+    mod_parsed_table: HashMap<ModuleIdentifier, Result<UntypedModule, ()>>,
 }
 
 impl CompilerState {
@@ -124,37 +124,72 @@ impl CompilerState {
         }
     }
 
-    pub fn resolve(&mut self, module: &ModuleIdentifier) -> Result<PathBuf, ()> {
-        match self.mod_resolution_table.entry(module.clone()) {
-            Entry::Occupied(occ) => Ok(occ.get().clone()),
+    fn resolve_cached(
+        mrt: &mut HashMap<ModuleIdentifier, Result<PathBuf, ()>>,
+        errors: &mut ErrorContext,
+        module_paths: &Vec<PathBuf>,
+        module: &ModuleIdentifier,
+    ) -> Result<PathBuf, ()> {
+        match mrt.entry(module.clone()) {
+            Entry::Occupied(occ) => occ.get().clone(),
             Entry::Vacant(entr) => {
-                let path = self
-                    .module_paths
+                match module_paths
                     .iter()
                     .find_map(|sd| Self::resolve_within_search_dir(sd, module))
-                    .ok_or(())?;
-                entr.insert(path.clone());
-                Ok(path)
+                {
+                    None => {
+                        errors.add_error(CompilerError::GeneralError(
+                            None,
+                            format!("Could not resolve module {}", module), //TODO: Specific error type
+                        ));
+                        entr.insert(Err(()));
+                        Err(())
+                    }
+                    Some(path) => {
+                        entr.insert(Ok(path.clone()));
+                        Ok(path)
+                    }
+                }
             }
         }
     }
 
-    // TODO: Put resolution into parse
-    // TODO: Cache failures as well? Why try parsing twice?
-    pub fn parse(&mut self, module: ModuleIdentifier, path: PathBuf) -> Result<UntypedModule, ()> {
+    pub fn resolve(&mut self, module: &ModuleIdentifier) -> Result<PathBuf, ()> {
+        Self::resolve_cached(
+            &mut self.mod_resolution_table,
+            &mut self.error_context,
+            &self.module_paths,
+            module,
+        )
+    }
+
+    pub fn parse(&mut self, module: &ModuleIdentifier) -> Result<UntypedModule, ()> {
         match self.mod_parsed_table.entry(module.clone()) {
-            Entry::Occupied(occ) => Ok(occ.get().clone()),
+            Entry::Occupied(occ) => occ.get().clone(),
             Entry::Vacant(vac) => {
-                match parsing::parse(module, path, &mut self.error_context, &self.interner) {
-                    Ok(module) => {
-                        vac.insert(module.clone());
-                        Ok(module)
+                let res = if let Ok(path) = Self::resolve_cached(
+                    &mut self.mod_resolution_table,
+                    &mut self.error_context,
+                    &self.module_paths,
+                    module,
+                ) {
+                    match parsing::parse(
+                        module.clone(),
+                        path,
+                        &mut self.error_context,
+                        &self.interner,
+                    ) {
+                        Ok(p) => Ok(p),
+                        Err(e) => {
+                            self.error_context.add_error(e);
+                            Err(())
+                        }
                     }
-                    Err(e) => {
-                        self.error_context.add_error(e);
-                        Err(())
-                    }
-                }
+                } else {
+                    Err(())
+                };
+                vac.insert(res.clone());
+                res
             }
         }
     }
@@ -170,8 +205,7 @@ pub fn compile(
     let mut state =
         CompilerState::construct(errors, interner, entrypoint, search_paths, output_file)?;
     let main_mod_id = ModuleIdentifier::from_name(state.project_name.clone());
-    let main_mod_path = state.resolve(&main_mod_id)?;
-    let main_mod = state.parse(main_mod_id, main_mod_path);
+    let main_mod = state.parse(&main_mod_id);
     todo!();
     Ok(())
 }
