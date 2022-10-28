@@ -31,6 +31,7 @@ pub struct CompilerState {
     error_context: ErrorContext,
     interner: StringInterner,
     mod_resolution_table: HashMap<ModuleIdentifier, PathBuf>,
+    mod_parsed_table: HashMap<ModuleIdentifier, UntypedModule>,
 }
 
 impl CompilerState {
@@ -81,6 +82,7 @@ impl CompilerState {
                         error_context,
                         interner,
                         mod_resolution_table: HashMap::new(),
+                        mod_parsed_table: HashMap::new(),
                     })
                 }
                 None => {
@@ -137,12 +139,22 @@ impl CompilerState {
         }
     }
 
+    // TODO: Put resolution into parse
+    // TODO: Cache failures as well? Why try parsing twice?
     pub fn parse(&mut self, module: ModuleIdentifier, path: PathBuf) -> Result<UntypedModule, ()> {
-        match parsing::parse(module, path, &mut self.error_context, &self.interner) {
-            Ok(module) => Ok(module),
-            Err(e) => {
-                self.error_context.add_error(e);
-                Err(())
+        match self.mod_parsed_table.entry(module.clone()) {
+            Entry::Occupied(occ) => Ok(occ.get().clone()),
+            Entry::Vacant(vac) => {
+                match parsing::parse(module, path, &mut self.error_context, &self.interner) {
+                    Ok(module) => {
+                        vac.insert(module.clone());
+                        Ok(module)
+                    }
+                    Err(e) => {
+                        self.error_context.add_error(e);
+                        Err(())
+                    }
+                }
             }
         }
     }
