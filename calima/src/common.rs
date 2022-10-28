@@ -1,3 +1,4 @@
+use crate::ast::Name;
 use crate::formatting::format_iter;
 use crate::symbol_names::IText;
 use quetta::Text;
@@ -24,5 +25,11 @@ impl ModuleIdentifier {
 impl Display for ModuleIdentifier {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", format_iter(self.0.iter(), "."))
+    }
+}
+
+impl<Data: Copy> From<&Name<Data>> for ModuleIdentifier {
+    fn from(name: &Name<Data>) -> Self {
+        ModuleIdentifier::new(name.0.iter().map(|n| n.text().clone()).collect())
     }
 }

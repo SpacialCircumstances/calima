@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use symbol_names::StringInterner;
 
 use crate::errors::{CompilerError, ErrorContext};
-use crate::parsing::parse_all_modules;
+use crate::modules::UntypedModule;
 
 mod ast;
 mod common;
@@ -122,17 +122,27 @@ impl CompilerState {
         }
     }
 
-    pub fn resolve(&mut self, module: ModuleIdentifier) -> Result<PathBuf, ()> {
-        match self.mod_resolution_table.entry(module) {
+    pub fn resolve(&mut self, module: &ModuleIdentifier) -> Result<PathBuf, ()> {
+        match self.mod_resolution_table.entry(module.clone()) {
             Entry::Occupied(occ) => Ok(occ.get().clone()),
             Entry::Vacant(entr) => {
                 let path = self
                     .module_paths
                     .iter()
-                    .find_map(|sd| Self::resolve_within_search_dir(sd, &module))
+                    .find_map(|sd| Self::resolve_within_search_dir(sd, module))
                     .ok_or(())?;
                 entr.insert(path.clone());
                 Ok(path)
+            }
+        }
+    }
+
+    pub fn parse(&mut self, module: ModuleIdentifier, path: PathBuf) -> Result<UntypedModule, ()> {
+        match parsing::parse(module, path, &mut self.error_context, &self.interner) {
+            Ok(module) => Ok(module),
+            Err(e) => {
+                self.error_context.add_error(e);
+                Err(())
             }
         }
     }
@@ -145,8 +155,11 @@ pub fn compile(
 ) -> Result<(), ()> {
     let mut errors = ErrorContext::new();
     let interner = StringInterner::new();
-    let state = CompilerState::construct(errors, interner, entrypoint, search_paths, output_file)?;
-    let module_context = parse_all_modules(&mut errors, &interner, state)?;
-    let typed_context = typechecker::typecheck(&mut errors, module_context, &interner)?;
+    let mut state =
+        CompilerState::construct(errors, interner, entrypoint, search_paths, output_file)?;
+    let main_mod_id = ModuleIdentifier::from_name(state.project_name.clone());
+    let main_mod_path = state.resolve(&main_mod_id)?;
+    let main_mod = state.parse(main_mod_id, main_mod_path);
+    todo!();
     Ok(())
 }

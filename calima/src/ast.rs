@@ -556,12 +556,14 @@ impl<Name: Display, Symbol: Display, Data> Display for Expr<Name, Symbol, Data> 
     }
 }
 
-pub fn find_imported_modules<Name: Display, Symbol: Display, D: Copy>(
-    ast: &TopLevelBlock<Name, Symbol, D>,
-) -> Vec<(ModuleIdentifier, D)> {
+pub fn find_imported_modules<Data: Copy>(
+    ast: &TopLevelBlock<Name<Data>, IText, Data>,
+) -> Vec<ModuleIdentifier> {
     ast.0.iter().fold(Vec::new(), |mut imports, statement| {
         match statement {
-            TopLevelStatement::Import { module, data, .. } => {}
+            TopLevelStatement::Import { module, data, .. } => {
+                imports.push(ModuleIdentifier::from(module))
+            }
             _ => (),
         }
         imports

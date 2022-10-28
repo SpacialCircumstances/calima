@@ -15,7 +15,7 @@ use std::rc::Rc;
 pub struct UntypedModuleData {
     pub(crate) name: ModuleIdentifier,
     pub(crate) ast: TopLevelBlock<Name<Span>, IText, Span>,
-    pub(crate) dependencies: Vec<UntypedModule>,
+    pub(crate) dependencies: Vec<ModuleIdentifier>,
     pub(crate) path: PathBuf,
 }
 

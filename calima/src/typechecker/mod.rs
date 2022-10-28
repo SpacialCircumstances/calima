@@ -896,24 +896,6 @@ fn typecheck_module(
     })
 }
 
-fn typecheck_tree(
-    tree: &mut HashMap<ModuleIdentifier, TypedModule>,
-    untyped: &UntypedModule,
-    err: &mut ErrorContext,
-    interner: &StringInterner,
-) -> Result<TypedModule, ()> {
-    let dependencies: Result<Vec<TypedModule>, ()> = untyped
-        .0
-        .dependencies
-        .iter()
-        .map(|ud| match tree.get(&ud.0.name) {
-            Some(d) => Ok(d.clone()),
-            None => typecheck_tree(tree, ud, err, interner),
-        })
-        .collect();
-    dependencies.and_then(|d| typecheck_module(untyped, d, err, interner))
-}
-
 fn verify_main_module(
     main_mod: &TypedModule,
     errors: &mut ErrorContext,
@@ -942,11 +924,11 @@ fn verify_main_module(
 
 pub fn typecheck(
     errors: &mut ErrorContext,
-    module_ctx: UntypedModuleTree,
+    main_module: UntypedModule,
     interner: &StringInterner,
 ) -> Result<TypedModuleTree, ()> {
     let mut lookup = HashMap::new();
-    let main_mod = typecheck_tree(&mut lookup, &module_ctx.main_module, errors, interner)?;
+    let main_mod = typecheck_module(&main_module, vec![], errors, interner)?;
     verify_main_module(&main_mod, errors, interner);
     errors.handle_errors().map(|_| TypedModuleTree {
         main_module: main_mod,
@@ -964,6 +946,7 @@ mod ir_gen_tests {
     use crate::typechecker::typecheck_module;
     use crate::{ErrorContext, StringInterner};
     use goldenfile::Mint;
+    use quetta::Text;
     use std::fs::read_dir;
     use std::io::Write;
     use std::rc::Rc;
@@ -985,9 +968,9 @@ mod ir_gen_tests {
                             format!("Error parsing {}", filename.to_string_lossy()).as_ref(),
                         );
                         let module: UntypedModule = UntypedModule(Rc::new(UntypedModuleData {
-                            name: ModuleIdentifier::from_filename(
-                                filename.to_string_lossy().to_string(),
-                            ),
+                            name: ModuleIdentifier::from_name(Text::new(
+                                filename.to_string_lossy().to_string().as_str(),
+                            )),
                             ast: parsed,
                             dependencies: vec![],
                             path: entry_path,
