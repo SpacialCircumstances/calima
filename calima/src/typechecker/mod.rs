@@ -896,11 +896,11 @@ pub fn typecheck_module(
     })
 }
 
-fn verify_main_module(
+pub fn verify_main_module(
     main_mod: &TypedModule,
     errors: &mut ErrorContext,
     interner: &StringInterner,
-) {
+) -> Result<(), ()> {
     let main_name = interner.intern_str("main");
     let main_md = &main_mod.0;
     let main_val = main_md.env.lookup_value(&main_name);
@@ -912,13 +912,17 @@ fn verify_main_module(
             errors.add_error(CompilerError::MainFunctionError(
                 main_mod.0.name.clone(),
                 MainFunctionErrorKind::SignatureWrong,
-            ))
+            ));
+            Err(())
+        } else {
+            Ok(())
         }
     } else {
         errors.add_error(CompilerError::MainFunctionError(
             main_mod.0.name.clone(),
             MainFunctionErrorKind::Missing,
-        ))
+        ));
+        Err(())
     }
 }
 

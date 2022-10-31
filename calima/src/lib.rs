@@ -196,7 +196,11 @@ impl CompilerState {
         }
     }
 
-    pub fn typecheck(&mut self, module: &ModuleIdentifier) -> Result<TypedModule, ()> {
+    pub fn typecheck(
+        &mut self,
+        module: &ModuleIdentifier,
+        is_main: bool,
+    ) -> Result<TypedModule, ()> {
         match self.mod_typed_table.get(module) {
             None => {
                 let parsed_module = self.parse(module)?;
@@ -204,14 +208,26 @@ impl CompilerState {
                     .0
                     .dependencies
                     .iter()
-                    .map(|dep| self.typecheck(dep))
+                    .map(|dep| self.typecheck(dep, false))
                     .collect::<Result<Vec<TypedModule>, ()>>()?;
                 let res = typechecker::typecheck_module(
                     &parsed_module,
                     dependencies,
                     &mut self.error_context,
                     &self.interner,
-                ); //TODO: What about main module check?
+                )
+                .and_then(|tm| {
+                    if is_main {
+                        typechecker::verify_main_module(
+                            &tm,
+                            &mut self.error_context,
+                            &self.interner,
+                        )
+                        .map(|_| tm)
+                    } else {
+                        Ok(tm)
+                    }
+                });
                 self.mod_typed_table.insert(module.clone(), res.clone());
                 res
             }
@@ -230,7 +246,7 @@ pub fn compile(
     let mut state =
         CompilerState::construct(errors, interner, entrypoint, search_paths, output_file)?;
     let main_mod_id = ModuleIdentifier::from_name(state.project_name.clone());
-    let main_mod = state.typecheck(&main_mod_id)?;
+    let main_mod = state.typecheck(&main_mod_id, true)?;
     todo!();
     Ok(())
 }
