@@ -853,7 +853,7 @@ fn infer_top_level_block<Data: Copy + Debug>(
     block_builder.end(Val::Constant(Constant::Unit))
 }
 
-fn typecheck_module(
+pub fn typecheck_module(
     unchecked: &UntypedModule,
     deps: Vec<TypedModule>,
     error_context: &mut ErrorContext,
@@ -920,20 +920,6 @@ fn verify_main_module(
             MainFunctionErrorKind::Missing,
         ))
     }
-}
-
-pub fn typecheck(
-    errors: &mut ErrorContext,
-    main_module: UntypedModule,
-    interner: &StringInterner,
-) -> Result<TypedModuleTree, ()> {
-    let mut lookup = HashMap::new();
-    let main_mod = typecheck_module(&main_module, vec![], errors, interner)?;
-    verify_main_module(&main_mod, errors, interner);
-    errors.handle_errors().map(|_| TypedModuleTree {
-        main_module: main_mod,
-        lookup,
-    })
 }
 
 #[cfg(test)]

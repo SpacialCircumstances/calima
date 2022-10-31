@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use symbol_names::StringInterner;
 
 use crate::errors::{CompilerError, ErrorContext};
-use crate::modules::UntypedModule;
+use crate::modules::{TypedModule, UntypedModule};
 
 mod ast;
 mod common;
@@ -32,6 +32,7 @@ pub struct CompilerState {
     interner: StringInterner,
     mod_resolution_table: HashMap<ModuleIdentifier, Result<PathBuf, ()>>,
     mod_parsed_table: HashMap<ModuleIdentifier, Result<UntypedModule, ()>>,
+    mod_typed_table: HashMap<ModuleIdentifier, Result<TypedModule, ()>>,
 }
 
 impl CompilerState {
@@ -83,6 +84,7 @@ impl CompilerState {
                         interner,
                         mod_resolution_table: HashMap::new(),
                         mod_parsed_table: HashMap::new(),
+                        mod_typed_table: HashMap::new(),
                     })
                 }
                 None => {
@@ -193,6 +195,29 @@ impl CompilerState {
             }
         }
     }
+
+    pub fn typecheck(&mut self, module: &ModuleIdentifier) -> Result<TypedModule, ()> {
+        match self.mod_typed_table.get(module) {
+            None => {
+                let parsed_module = self.parse(module)?;
+                let dependencies = parsed_module
+                    .0
+                    .dependencies
+                    .iter()
+                    .map(|dep| self.typecheck(dep))
+                    .collect::<Result<Vec<TypedModule>, ()>>()?;
+                let res = typechecker::typecheck_module(
+                    &parsed_module,
+                    dependencies,
+                    &mut self.error_context,
+                    &self.interner,
+                ); //TODO: What about main module check?
+                self.mod_typed_table.insert(module.clone(), res.clone());
+                res
+            }
+            Some(res) => res.clone(),
+        }
+    }
 }
 
 pub fn compile(
@@ -205,7 +230,7 @@ pub fn compile(
     let mut state =
         CompilerState::construct(errors, interner, entrypoint, search_paths, output_file)?;
     let main_mod_id = ModuleIdentifier::from_name(state.project_name.clone());
-    let main_mod = state.parse(&main_mod_id);
+    let main_mod = state.typecheck(&main_mod_id)?;
     todo!();
     Ok(())
 }
