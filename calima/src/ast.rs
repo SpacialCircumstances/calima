@@ -1,4 +1,4 @@
-use crate::common::ModuleIdentifier;
+use crate::common::ModuleName;
 use crate::formatting::tree::{format_children, TreeFormat};
 use crate::formatting::*;
 use crate::symbol_names::IText;
@@ -558,11 +558,11 @@ impl<Name: Display, Symbol: Display, Data> Display for Expr<Name, Symbol, Data> 
 
 pub fn find_imported_modules<Data: Copy>(
     ast: &TopLevelBlock<Name<Data>, IText, Data>,
-) -> Vec<ModuleIdentifier> {
+) -> Vec<ModuleName> {
     ast.0.iter().fold(Vec::new(), |mut imports, statement| {
         match statement {
             TopLevelStatement::Import { module, data, .. } => {
-                imports.push(ModuleIdentifier::from(module))
+                imports.push(ModuleName::from(module))
             }
             _ => (),
         }

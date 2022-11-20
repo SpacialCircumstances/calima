@@ -1,4 +1,4 @@
-use crate::common::ModuleIdentifier;
+use crate::common::ModuleName;
 use crate::parsing::token::{Location, Span, Token};
 use crate::typechecker::TypeError;
 use codespan_reporting::diagnostic::{Diagnostic, Label, Severity};
@@ -68,15 +68,15 @@ impl From<lalrpop_util::ParseError<Location, Token, crate::parsing::lexer::Error
 #[derive(Debug)]
 pub enum CompilerError {
     GeneralError(Option<Box<dyn Error>>, String),
-    ParserError(ParserError, ModuleIdentifier),
+    ParserError(ParserError, ModuleName),
     ImportError {
-        importing_mod: ModuleIdentifier,
+        importing_mod: ModuleName,
         location: Span,
-        imported: ModuleIdentifier,
+        imported: ModuleName,
         search_dirs: Vec<PathBuf>,
     },
-    TypeError(TypeError<Span>, ModuleIdentifier),
-    MainFunctionError(ModuleIdentifier, MainFunctionErrorKind),
+    TypeError(TypeError<Span>, ModuleName),
+    MainFunctionError(ModuleName, MainFunctionErrorKind),
 }
 
 struct CompilerFile {
@@ -100,7 +100,7 @@ impl CompilerFile {
 
 struct CompilerFiles {
     file_map: HashMap<u32, CompilerFile>,
-    path_map: HashMap<ModuleIdentifier, u32>,
+    path_map: HashMap<ModuleName, u32>,
     file_id: u32,
 }
 
@@ -113,7 +113,7 @@ impl CompilerFiles {
         }
     }
 
-    fn add_module(&mut self, module: &ModuleIdentifier, path: &PathBuf, code: String) -> u32 {
+    fn add_module(&mut self, module: &ModuleName, path: &PathBuf, code: String) -> u32 {
         let id = self.file_id;
         self.file_id += 1;
         let cf = CompilerFile::new(path.clone(), code);
@@ -122,7 +122,7 @@ impl CompilerFiles {
         id
     }
 
-    fn get_module(&self, module: &ModuleIdentifier) -> Option<u32> {
+    fn get_module(&self, module: &ModuleName) -> Option<u32> {
         self.path_map.get(module).copied()
     }
 
@@ -201,7 +201,7 @@ impl ErrorContext {
         }
     }
 
-    pub fn add_file(&mut self, module: &ModuleIdentifier, path: &PathBuf, code: String) {
+    pub fn add_file(&mut self, module: &ModuleName, path: &PathBuf, code: String) {
         self.files.add_module(module, path, code);
     }
 

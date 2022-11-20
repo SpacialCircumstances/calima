@@ -1,5 +1,5 @@
 use crate::ast::*;
-use crate::common::ModuleIdentifier;
+use crate::common::ModuleName;
 use crate::errors::{CompilerError, ErrorContext, MainFunctionErrorKind};
 use crate::formatting::format_iter;
 use crate::ir;
@@ -181,13 +181,13 @@ pub struct Context<Data: Copy + Debug> {
     generic_id: usize,
     type_subst: Substitution<Type>,
     errors: Vec<TypeError<Data>>,
-    module: ModuleIdentifier,
+    module: ModuleName,
     var_id: usize,
     vtc: ValueTypeContext,
 }
 
 impl<Data: Copy + Debug> Context<Data> {
-    pub fn new(module: ModuleIdentifier) -> Self {
+    pub fn new(module: ModuleName) -> Self {
         Context {
             generic_id: 0,
             type_subst: Substitution::new(),
@@ -928,7 +928,7 @@ pub fn verify_main_module(
 
 #[cfg(test)]
 mod ir_gen_tests {
-    use crate::common::ModuleIdentifier;
+    use crate::common::ModuleName;
     use crate::formatting::context::format_to_string;
     use crate::ir::FormattingContext;
     use crate::modules::{UntypedModule, UntypedModuleData};
@@ -958,7 +958,7 @@ mod ir_gen_tests {
                             format!("Error parsing {}", filename.to_string_lossy()).as_ref(),
                         );
                         let module: UntypedModule = UntypedModule(Rc::new(UntypedModuleData {
-                            name: ModuleIdentifier::from_name(Text::new(
+                            name: ModuleName::from_name(Text::new(
                                 filename.to_string_lossy().to_string().as_str(),
                             )),
                             ast: parsed,

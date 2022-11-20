@@ -1,6 +1,6 @@
 use crate::ast::Name;
 use crate::ast::TopLevelBlock;
-use crate::common::ModuleIdentifier;
+use crate::common::ModuleName;
 use crate::ir;
 use crate::parsing::token::Span;
 use crate::symbol_names::IText;
@@ -13,9 +13,9 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 pub struct UntypedModuleData {
-    pub(crate) name: ModuleIdentifier,
+    pub(crate) name: ModuleName,
     pub(crate) ast: TopLevelBlock<Name<Span>, IText, Span>,
-    pub(crate) dependencies: Vec<ModuleIdentifier>,
+    pub(crate) dependencies: Vec<ModuleName>,
     pub(crate) path: PathBuf,
 }
 
@@ -30,11 +30,11 @@ impl Clone for UntypedModule {
 pub struct UntypedModuleTree {
     pub(crate) search_dirs: Vec<PathBuf>,
     pub(crate) main_module: UntypedModule,
-    pub(crate) lookup: HashMap<ModuleIdentifier, UntypedModule>,
+    pub(crate) lookup: HashMap<ModuleName, UntypedModule>,
 }
 
 pub struct TypedModuleData {
-    pub(crate) name: ModuleIdentifier,
+    pub(crate) name: ModuleName,
     pub(crate) path: PathBuf,
     pub(crate) deps: Vec<TypedModule>,
     pub(crate) ir_module: ir::Module,
@@ -53,5 +53,5 @@ impl Clone for TypedModule {
 
 pub struct TypedModuleTree {
     pub(crate) main_module: TypedModule,
-    pub(crate) lookup: HashMap<ModuleIdentifier, TypedModule>,
+    pub(crate) lookup: HashMap<ModuleName, TypedModule>,
 }

@@ -6,9 +6,9 @@ use std::fmt::{Display, Formatter};
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ModuleIdentifier(Vec<Text>);
+pub struct ModuleName(Vec<Text>);
 
-impl ModuleIdentifier {
+impl ModuleName {
     pub fn new(id: Vec<Text>) -> Self {
         Self(id)
     }
@@ -22,14 +22,23 @@ impl ModuleIdentifier {
     }
 }
 
-impl Display for ModuleIdentifier {
+impl Display for ModuleName {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", format_iter(self.0.iter(), "."))
     }
 }
 
-impl<Data: Copy> From<&Name<Data>> for ModuleIdentifier {
+impl<Data: Copy> From<&Name<Data>> for ModuleName {
     fn from(name: &Name<Data>) -> Self {
-        ModuleIdentifier::new(name.0.iter().map(|n| n.text().clone()).collect())
+        ModuleName::new(name.0.iter().map(|n| n.text().clone()).collect())
+    }
+}
+
+#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
+pub struct ModuleId(usize);
+
+impl ModuleId {
+    pub(crate) fn new(id: usize) -> Self {
+        Self(id)
     }
 }

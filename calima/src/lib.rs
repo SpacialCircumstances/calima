@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate lalrpop_util;
 
-use crate::common::ModuleIdentifier;
+use crate::common::{ModuleId, ModuleName};
 use quetta::Text;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
@@ -30,9 +30,11 @@ pub struct CompilerState {
     entrypoint: PathBuf,
     error_context: ErrorContext,
     interner: StringInterner,
-    mod_resolution_table: HashMap<ModuleIdentifier, Result<PathBuf, ()>>,
-    mod_parsed_table: HashMap<ModuleIdentifier, Result<UntypedModule, ()>>,
-    mod_typed_table: HashMap<ModuleIdentifier, Result<TypedModule, ()>>,
+    mod_identifier_table: HashMap<ModuleName, ModuleId>,
+    mod_resolution_table: HashMap<ModuleName, Result<PathBuf, ()>>,
+    mod_parsed_table: HashMap<ModuleName, Result<UntypedModule, ()>>,
+    mod_typed_table: HashMap<ModuleName, Result<TypedModule, ()>>,
+    current_mod_id: usize,
 }
 
 impl CompilerState {
@@ -82,9 +84,11 @@ impl CompilerState {
                         output_file,
                         error_context,
                         interner,
+                        mod_identifier_table: HashMap::new(),
                         mod_resolution_table: HashMap::new(),
                         mod_parsed_table: HashMap::new(),
                         mod_typed_table: HashMap::new(),
+                        current_mod_id: 0,
                     })
                 }
                 None => {
@@ -108,10 +112,7 @@ impl CompilerState {
         }
     }
 
-    fn resolve_within_search_dir(
-        search_dir: &PathBuf,
-        module: &ModuleIdentifier,
-    ) -> Option<PathBuf> {
+    fn resolve_within_search_dir(search_dir: &PathBuf, module: &ModuleName) -> Option<PathBuf> {
         let mut resolved_from_here = search_dir.clone();
 
         for x in module.identifier() {
@@ -127,10 +128,10 @@ impl CompilerState {
     }
 
     fn resolve_cached(
-        mrt: &mut HashMap<ModuleIdentifier, Result<PathBuf, ()>>,
+        mrt: &mut HashMap<ModuleName, Result<PathBuf, ()>>,
         errors: &mut ErrorContext,
         module_paths: &Vec<PathBuf>,
-        module: &ModuleIdentifier,
+        module: &ModuleName,
     ) -> Result<PathBuf, ()> {
         match mrt.entry(module.clone()) {
             Entry::Occupied(occ) => occ.get().clone(),
@@ -156,7 +157,20 @@ impl CompilerState {
         }
     }
 
-    pub fn resolve(&mut self, module: &ModuleIdentifier) -> Result<PathBuf, ()> {
+    pub fn identify(&mut self, module: &ModuleName) -> ModuleId {
+        let mod_id = &mut self.current_mod_id;
+
+        *self
+            .mod_identifier_table
+            .entry(module.clone())
+            .or_insert_with(|| {
+                let rmid = *mod_id;
+                *mod_id += 1;
+                ModuleId::new(rmid)
+            })
+    }
+
+    pub fn resolve(&mut self, module: &ModuleName) -> Result<PathBuf, ()> {
         Self::resolve_cached(
             &mut self.mod_resolution_table,
             &mut self.error_context,
@@ -165,7 +179,7 @@ impl CompilerState {
         )
     }
 
-    pub fn parse(&mut self, module: &ModuleIdentifier) -> Result<UntypedModule, ()> {
+    pub fn parse(&mut self, module: &ModuleName) -> Result<UntypedModule, ()> {
         match self.mod_parsed_table.entry(module.clone()) {
             Entry::Occupied(occ) => occ.get().clone(),
             Entry::Vacant(vac) => {
@@ -196,11 +210,7 @@ impl CompilerState {
         }
     }
 
-    pub fn typecheck(
-        &mut self,
-        module: &ModuleIdentifier,
-        is_main: bool,
-    ) -> Result<TypedModule, ()> {
+    pub fn typecheck(&mut self, module: &ModuleName, is_main: bool) -> Result<TypedModule, ()> {
         match self.mod_typed_table.get(module) {
             None => {
                 let parsed_module = self.parse(module)?;
@@ -245,7 +255,7 @@ pub fn compile(
     let interner = StringInterner::new();
     let mut state =
         CompilerState::construct(errors, interner, entrypoint, search_paths, output_file)?;
-    let main_mod_id = ModuleIdentifier::from_name(state.project_name.clone());
+    let main_mod_id = ModuleName::from_name(state.project_name.clone());
     let main_mod = state.typecheck(&main_mod_id, true)?;
     todo!();
     Ok(())

@@ -17,7 +17,7 @@ pub mod parser;
 pub mod token;
 
 pub fn parse<'input>(
-    name: ModuleIdentifier,
+    name: ModuleName,
     path: PathBuf,
     err: &mut ErrorContext,
     interner: &StringInterner,
