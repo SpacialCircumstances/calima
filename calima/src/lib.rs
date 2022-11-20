@@ -31,9 +31,9 @@ pub struct CompilerState {
     error_context: ErrorContext,
     interner: StringInterner,
     mod_identifier_table: HashMap<ModuleName, ModuleId>,
-    mod_resolution_table: HashMap<ModuleName, Result<PathBuf, ()>>,
-    mod_parsed_table: HashMap<ModuleName, Result<UntypedModule, ()>>,
-    mod_typed_table: HashMap<ModuleName, Result<TypedModule, ()>>,
+    mod_resolution_table: HashMap<ModuleId, Result<PathBuf, ()>>,
+    mod_parsed_table: HashMap<ModuleId, Result<UntypedModule, ()>>,
+    mod_typed_table: HashMap<ModuleId, Result<TypedModule, ()>>,
     current_mod_id: usize,
 }
 
@@ -128,12 +128,13 @@ impl CompilerState {
     }
 
     fn resolve_cached(
-        mrt: &mut HashMap<ModuleName, Result<PathBuf, ()>>,
+        mrt: &mut HashMap<ModuleId, Result<PathBuf, ()>>,
         errors: &mut ErrorContext,
         module_paths: &Vec<PathBuf>,
+        mod_id: ModuleId,
         module: &ModuleName,
     ) -> Result<PathBuf, ()> {
-        match mrt.entry(module.clone()) {
+        match mrt.entry(mod_id) {
             Entry::Occupied(occ) => occ.get().clone(),
             Entry::Vacant(entr) => {
                 match module_paths
@@ -171,22 +172,27 @@ impl CompilerState {
     }
 
     pub fn resolve(&mut self, module: &ModuleName) -> Result<PathBuf, ()> {
+        let mod_id = self.identify(module);
         Self::resolve_cached(
             &mut self.mod_resolution_table,
             &mut self.error_context,
             &self.module_paths,
+            mod_id,
             module,
         )
     }
 
     pub fn parse(&mut self, module: &ModuleName) -> Result<UntypedModule, ()> {
-        match self.mod_parsed_table.entry(module.clone()) {
+        let mod_id = self.identify(module);
+
+        match self.mod_parsed_table.entry(mod_id) {
             Entry::Occupied(occ) => occ.get().clone(),
             Entry::Vacant(vac) => {
                 let res = if let Ok(path) = Self::resolve_cached(
                     &mut self.mod_resolution_table,
                     &mut self.error_context,
                     &self.module_paths,
+                    mod_id,
                     module,
                 ) {
                     match parsing::parse(
@@ -211,7 +217,9 @@ impl CompilerState {
     }
 
     pub fn typecheck(&mut self, module: &ModuleName, is_main: bool) -> Result<TypedModule, ()> {
-        match self.mod_typed_table.get(module) {
+        let mod_id = self.identify(module);
+
+        match self.mod_typed_table.get(&mod_id) {
             None => {
                 let parsed_module = self.parse(module)?;
                 let dependencies = parsed_module
@@ -238,7 +246,7 @@ impl CompilerState {
                         Ok(tm)
                     }
                 });
-                self.mod_typed_table.insert(module.clone(), res.clone());
+                self.mod_typed_table.insert(mod_id, res.clone());
                 res
             }
             Some(res) => res.clone(),
