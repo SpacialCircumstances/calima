@@ -1,9 +1,9 @@
 use crate::ast::*;
-use crate::common::ModuleName;
+use crate::common::{ModuleId, ModuleName};
 use crate::errors::{CompilerError, ErrorContext, MainFunctionErrorKind};
 use crate::formatting::format_iter;
 use crate::ir;
-use crate::ir::{BindTarget, Binding, Constant, Module, Val, VarRef};
+use crate::ir::{BindTarget, Binding, Constant, Module, Val, VarId, VarRef};
 use crate::modules::{
     TypedModule, TypedModuleData, TypedModuleTree, UntypedModule, UntypedModuleTree,
 };
@@ -182,17 +182,19 @@ pub struct Context<Data: Copy + Debug> {
     type_subst: Substitution<Type>,
     errors: Vec<TypeError<Data>>,
     module: ModuleName,
+    mod_id: ModuleId,
     var_id: usize,
     vtc: ValueTypeContext,
 }
 
 impl<Data: Copy + Debug> Context<Data> {
-    pub fn new(module: ModuleName) -> Self {
+    pub fn new(mod_id: ModuleId, module: ModuleName) -> Self {
         Context {
             generic_id: 0,
             type_subst: Substitution::new(),
             errors: Vec::new(),
             module,
+            mod_id,
             var_id: 0,
             vtc: ValueTypeContext::new(),
         }
@@ -203,7 +205,11 @@ impl<Data: Copy + Debug> Context<Data> {
     }
 
     pub fn new_var(&mut self, sch: Scheme, name_hint: Option<IText>) -> VarRef {
-        let v = VarRef(self.var_id);
+        let v = VarRef {
+            var_id: VarId(self.var_id),
+            mod_id: self.mod_id,
+        };
+
         self.var_id += 1;
 
         if let Some(nh) = name_hint {
@@ -859,7 +865,7 @@ pub fn typecheck_module(
     error_context: &mut ErrorContext,
     interner: &StringInterner,
 ) -> Result<TypedModule, ()> {
-    let mut context = Context::new(unchecked.0.name.clone());
+    let mut context = Context::new(unchecked.0.id, unchecked.0.name.clone());
     let mut block_builder = BlockBuilder::new();
     let mut env = ScopeEnvironment::new();
     context.import_prelude(&mut env, interner);
@@ -891,6 +897,7 @@ pub fn typecheck_module(
             subst: context.type_subst,
             vtc,
             env: ClosedEnvironment::new(env),
+            id: unchecked.0.id,
         };
         TypedModule(Rc::new(mod_data))
     })
@@ -907,7 +914,7 @@ pub fn verify_main_module(
     let main_type = main_val.and_then(|v| main_md.vtc.get_type(v));
 
     if let Some(main_sch) = main_type {
-        let mut ctx: Context<Span> = Context::new(main_mod.0.name.clone());
+        let mut ctx: Context<Span> = Context::new(main_mod.0.id, main_mod.0.name.clone());
         if let Err(_e) = ctx.unify_rec(&main_sch.1, &build_function(&[unit()], &unit())) {
             errors.add_error(CompilerError::MainFunctionError(
                 main_mod.0.name.clone(),
@@ -928,7 +935,7 @@ pub fn verify_main_module(
 
 #[cfg(test)]
 mod ir_gen_tests {
-    use crate::common::ModuleName;
+    use crate::common::{ModuleId, ModuleName};
     use crate::formatting::context::format_to_string;
     use crate::ir::FormattingContext;
     use crate::modules::{UntypedModule, UntypedModuleData};
@@ -964,6 +971,7 @@ mod ir_gen_tests {
                             ast: parsed,
                             dependencies: vec![],
                             path: entry_path,
+                            id: ModuleId::new(0),
                         }));
                         let mut error_context = ErrorContext::new();
                         let checked =

@@ -1,9 +1,10 @@
 use crate::ast::NumberType;
+use crate::common::ModuleId;
 use crate::formatting::context::{format_ctx_iter, format_ctx_iter_end, FormatWithContext};
 use crate::symbol_names::IText;
 use crate::typechecker::ValueTypeContext;
 use crate::types::{Scheme, Type};
-use std::fmt::Formatter;
+use std::fmt::{Display, Formatter};
 use std::iter::once;
 
 pub struct FormattingContext<'a> {
@@ -108,7 +109,19 @@ impl<'a> FormatWithContext<'a> for Expr {
 }
 
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
-pub struct VarRef(pub usize);
+pub struct VarId(pub(crate) usize);
+
+impl Display for VarId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "v{}", self.0)
+    }
+}
+
+#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
+pub struct VarRef {
+    pub(crate) var_id: VarId,
+    pub(crate) mod_id: ModuleId,
+}
 
 impl<'a> FormatWithContext<'a> for VarRef {
     type Context = FormattingContext<'a>;
@@ -119,8 +132,8 @@ impl<'a> FormatWithContext<'a> for VarRef {
             .get_type(&Val::Var(*self))
             .unwrap_or_else(|| Scheme::simple(Type::Error));
         match ctx.vtc.get_name_hint(self) {
-            None => write!(f, "v{}<{}>", self.0, sch),
-            Some(nh) => write!(f, "v{}({})<{}>", self.0, nh, sch),
+            None => write!(f, "{}/{}<{}>", self.mod_id, self.var_id, sch),
+            Some(nh) => write!(f, "{}/{}({})<{}>", self.mod_id, self.var_id, nh, sch),
         }
     }
 }

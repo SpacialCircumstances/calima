@@ -1,6 +1,6 @@
 use crate::ast::Name;
 use crate::ast::TopLevelBlock;
-use crate::common::ModuleName;
+use crate::common::{ModuleId, ModuleName};
 use crate::ir;
 use crate::parsing::token::Span;
 use crate::symbol_names::IText;
@@ -17,6 +17,7 @@ pub struct UntypedModuleData {
     pub(crate) ast: TopLevelBlock<Name<Span>, IText, Span>,
     pub(crate) dependencies: Vec<ModuleName>,
     pub(crate) path: PathBuf,
+    pub(crate) id: ModuleId,
 }
 
 pub struct UntypedModule(pub Rc<UntypedModuleData>);
@@ -41,6 +42,7 @@ pub struct TypedModuleData {
     pub(crate) subst: Substitution<Type>,
     pub(crate) vtc: ValueTypeContext,
     pub(crate) env: ClosedEnvironment<Span>,
+    pub(crate) id: ModuleId,
 }
 
 pub struct TypedModule(pub Rc<TypedModuleData>);

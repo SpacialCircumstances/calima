@@ -197,6 +197,7 @@ impl CompilerState {
                 ) {
                     match parsing::parse(
                         module.clone(),
+                        mod_id,
                         path,
                         &mut self.error_context,
                         &self.interner,

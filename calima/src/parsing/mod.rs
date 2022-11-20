@@ -18,6 +18,7 @@ pub mod token;
 
 pub fn parse<'input>(
     name: ModuleName,
+    id: ModuleId,
     path: PathBuf,
     err: &mut ErrorContext,
     interner: &StringInterner,
@@ -41,6 +42,7 @@ pub fn parse<'input>(
         ast,
         dependencies,
         path,
+        id,
     };
 
     let module = UntypedModule(Rc::new(module_data));

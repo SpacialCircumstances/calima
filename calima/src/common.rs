@@ -42,3 +42,9 @@ impl ModuleId {
         Self(id)
     }
 }
+
+impl Display for ModuleId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "m{}", self.0)
+    }
+}
