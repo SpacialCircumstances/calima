@@ -2,18 +2,18 @@ use crate::ast::NumberType;
 use crate::common::ModuleId;
 use crate::formatting::context::{format_ctx_iter, format_ctx_iter_end, FormatWithContext};
 use crate::symbol_names::IText;
-use crate::typechecker::type_context::ValueTypeContext;
+use crate::typechecker::type_resolution::TypeResolution;
 use crate::types::{Scheme, Type};
 use std::fmt::{Display, Formatter};
 use std::iter::once;
 
 pub struct FormattingContext<'a> {
-    vtc: &'a ValueTypeContext,
+    vtc: &'a TypeResolution,
     indent: usize,
 }
 
 impl<'a> FormattingContext<'a> {
-    pub fn new(vtc: &'a ValueTypeContext) -> Self {
+    pub fn new(vtc: &'a TypeResolution) -> Self {
         Self { vtc, indent: 0 }
     }
 }

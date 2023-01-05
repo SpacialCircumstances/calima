@@ -13,7 +13,7 @@ use crate::typechecker::environment::{ClosedEnvironment, ScopeEnvironment};
 use crate::typechecker::ir_lowering::*;
 use crate::typechecker::prelude::prelude;
 use crate::typechecker::substitution::{substitute, substitute_scheme, Substitution};
-use crate::typechecker::type_context::ValueTypeContext;
+use crate::typechecker::type_resolution::TypeResolution;
 use crate::types::*;
 use std::collections::HashMap;
 use std::convert::TryFrom;
@@ -24,7 +24,7 @@ pub mod environment;
 mod ir_lowering;
 mod prelude;
 pub mod substitution;
-pub mod type_context;
+pub mod type_resolution;
 
 //TODO: Additional information
 #[derive(Debug, Clone)]
@@ -56,8 +56,8 @@ impl<Data: Copy + Debug> TypeError<Data> {
     }
 
     pub fn unification(
-        ctx: &Context<Data>,
-        vtc: &ValueTypeContext,
+        ctx: &ModuleTypecheckContext<Data>,
+        vtc: &TypeResolution,
         ue: UnificationError,
         expected: &Type,
         actual: &Type,
@@ -130,7 +130,7 @@ pub enum UnificationSource {
     PatternMatching,
 }
 
-pub struct Context<Data: Copy + Debug> {
+pub struct ModuleTypecheckContext<Data: Copy + Debug> {
     generic_id: usize,
     errors: Vec<TypeError<Data>>,
     module: ModuleName,
@@ -138,9 +138,9 @@ pub struct Context<Data: Copy + Debug> {
     var_id: usize,
 }
 
-impl<Data: Copy + Debug> Context<Data> {
+impl<Data: Copy + Debug> ModuleTypecheckContext<Data> {
     pub fn new(mod_id: ModuleId, module: ModuleName) -> Self {
-        Context {
+        ModuleTypecheckContext {
             generic_id: 0,
             errors: Vec::new(),
             module,
@@ -151,7 +151,7 @@ impl<Data: Copy + Debug> Context<Data> {
 
     pub fn new_var(
         &mut self,
-        vtc: &mut ValueTypeContext,
+        vtc: &mut TypeResolution,
         sch: Scheme,
         name_hint: Option<IText>,
     ) -> VarRef {
@@ -169,7 +169,7 @@ impl<Data: Copy + Debug> Context<Data> {
     pub fn add_operator(
         &mut self,
         env: &mut ScopeEnvironment<Data>,
-        vtc: &mut ValueTypeContext,
+        vtc: &mut TypeResolution,
         name: IText,
         sch: Scheme,
         op_spec: OperatorSpecification,
@@ -182,7 +182,7 @@ impl<Data: Copy + Debug> Context<Data> {
     pub fn add(
         &mut self,
         env: &mut ScopeEnvironment<Data>,
-        vtc: &mut ValueTypeContext,
+        vtc: &mut TypeResolution,
         name: IText,
         sch: Scheme,
     ) -> VarRef {
@@ -209,7 +209,7 @@ impl<Data: Copy + Debug> Context<Data> {
     fn import_prelude(
         &mut self,
         env: &mut ScopeEnvironment<Data>,
-        vtc: &mut ValueTypeContext,
+        vtc: &mut TypeResolution,
         interner: &StringInterner,
     ) {
         prelude(self, env, vtc, interner);
@@ -217,7 +217,7 @@ impl<Data: Copy + Debug> Context<Data> {
 
     fn bind(
         &mut self,
-        vtc: &mut ValueTypeContext,
+        vtc: &mut TypeResolution,
         gid: GenericId,
         t2: &Type,
     ) -> Result<(), UnificationError> {
@@ -228,7 +228,7 @@ impl<Data: Copy + Debug> Context<Data> {
         }
     }
 
-    fn check_occurs(&self, vtc: &ValueTypeContext, gid: GenericId, t: &Type) -> Result<(), ()> {
+    fn check_occurs(&self, vtc: &TypeResolution, gid: GenericId, t: &Type) -> Result<(), ()> {
         match t {
             Type::Var(i) => {
                 if gid == *i {
@@ -253,7 +253,7 @@ impl<Data: Copy + Debug> Context<Data> {
 
     fn unify_rec(
         &mut self,
-        vtc: &mut ValueTypeContext,
+        vtc: &mut TypeResolution,
         t1: &Type,
         t2: &Type,
     ) -> Result<(), UnificationError> {
@@ -286,7 +286,7 @@ impl<Data: Copy + Debug> Context<Data> {
 
     fn unify(
         &mut self,
-        vtc: &mut ValueTypeContext,
+        vtc: &mut TypeResolution,
         target: &mut Type,
         with: &Type,
         source: UnificationSource,
@@ -300,7 +300,7 @@ impl<Data: Copy + Debug> Context<Data> {
 
     fn unify_check(
         &mut self,
-        vtc: &mut ValueTypeContext,
+        vtc: &mut TypeResolution,
         target: &mut Type,
         unify_target: &Type,
         with: &Type,
@@ -330,7 +330,7 @@ impl<Data: Copy + Debug> Context<Data> {
         ta: &TypeAnnotation<Name<Data>, IText, Data>,
     ) -> Type {
         fn to_type<Data: Copy + Debug>(
-            ctx: &mut Context<Data>,
+            ctx: &mut ModuleTypecheckContext<Data>,
             env: &mut ScopeEnvironment<Data>,
             ta: &TypeAnnotation<Name<Data>, IText, Data>,
         ) -> Result<Type, TypeError<Data>> {
@@ -369,7 +369,7 @@ impl<Data: Copy + Debug> Context<Data> {
     fn bind_to_pattern_parameter(
         &mut self,
         env: &mut ScopeEnvironment<Data>,
-        vtc: &mut ValueTypeContext,
+        vtc: &mut TypeResolution,
         pattern: &BindPattern<IText, TypeAnnotation<Name<Data>, IText, Data>, Data>,
         tp: &mut Type,
         vals: &mut Vec<ir::BindTarget>,
@@ -392,7 +392,7 @@ impl<Data: Copy + Debug> Context<Data> {
     fn bind_to_pattern_types(
         &mut self,
         env: &mut ScopeEnvironment<Data>,
-        vtc: &mut ValueTypeContext,
+        vtc: &mut TypeResolution,
         pattern: &BindPattern<IText, TypeAnnotation<Name<Data>, IText, Data>, Data>,
         tp: &mut Type,
     ) {
@@ -408,7 +408,7 @@ impl<Data: Copy + Debug> Context<Data> {
     fn bind_to_pattern_generalized(
         &mut self,
         env: &mut ScopeEnvironment<Data>,
-        vtc: &mut ValueTypeContext,
+        vtc: &mut TypeResolution,
         pattern: &BindPattern<IText, TypeAnnotation<Name<Data>, IText, Data>, Data>,
         block_builder: &mut BlockBuilder,
         bind_val: Val,
@@ -429,7 +429,7 @@ impl<Data: Copy + Debug> Context<Data> {
     }
 }
 
-impl Context<Span> {
+impl ModuleTypecheckContext<Span> {
     fn publish_errors(&mut self, error_ctx: &mut ErrorContext) {
         let name = self.module.clone();
         self.errors
@@ -439,9 +439,9 @@ impl Context<Span> {
 }
 
 fn call_operator<Data: Copy + Debug>(
-    ctx: &mut Context<Data>,
+    ctx: &mut ModuleTypecheckContext<Data>,
     env: &ScopeEnvironment<Data>,
-    vtc: &mut ValueTypeContext,
+    vtc: &mut TypeResolution,
     block_builder: &mut BlockBuilder,
     vals: &mut Vec<ir::Val>,
     last_name: &IText,
@@ -464,9 +464,9 @@ fn call_operator<Data: Copy + Debug>(
 }
 
 fn transform_operators<Data: Copy + Debug>(
-    ctx: &mut Context<Data>,
+    ctx: &mut ModuleTypecheckContext<Data>,
     env: &mut ScopeEnvironment<Data>,
-    vtc: &mut ValueTypeContext,
+    vtc: &mut TypeResolution,
     block_builder: &mut BlockBuilder,
     elements: &Vec<OperatorElement<Name<Data>, IText, Data>>,
     top_location: Data,
@@ -580,8 +580,8 @@ fn replace<F: Fn(GenericId) -> Option<Type>>(tp: &Type, mapper: &F) -> Type {
 }
 
 fn function_call<Data: Copy + Debug>(
-    ctx: &mut Context<Data>,
-    vtc: &mut ValueTypeContext,
+    ctx: &mut ModuleTypecheckContext<Data>,
+    vtc: &mut TypeResolution,
     func_val: Val,
     func_tp: &Type,
     args: Vec<(Val, Type)>,
@@ -606,8 +606,8 @@ fn function_call<Data: Copy + Debug>(
 
 fn infer_expr<Data: Copy + Debug>(
     env: &mut ScopeEnvironment<Data>,
-    ctx: &mut Context<Data>,
-    vtc: &mut ValueTypeContext,
+    ctx: &mut ModuleTypecheckContext<Data>,
+    vtc: &mut TypeResolution,
     block_builder: &mut BlockBuilder,
     expr: &Expr<Name<Data>, IText, Data>,
 ) -> (ir::Val, Type) {
@@ -737,8 +737,8 @@ fn get_literal_type(lit: &Literal) -> Type {
 
 fn infer_let<Data: Copy + Debug>(
     env: &mut ScopeEnvironment<Data>,
-    ctx: &mut Context<Data>,
-    vtc: &mut ValueTypeContext,
+    ctx: &mut ModuleTypecheckContext<Data>,
+    vtc: &mut TypeResolution,
     block_builder: &mut BlockBuilder,
     l: &Let<Name<Data>, IText, Data>,
     export: bool,
@@ -765,8 +765,8 @@ fn infer_let<Data: Copy + Debug>(
 
 fn infer_let_operator<Data: Copy + Debug>(
     env: &mut ScopeEnvironment<Data>,
-    ctx: &mut Context<Data>,
-    vtc: &mut ValueTypeContext,
+    ctx: &mut ModuleTypecheckContext<Data>,
+    vtc: &mut TypeResolution,
     block_builder: &mut BlockBuilder,
     l: &LetOperator<Name<Data>, IText, Data>,
     export: bool,
@@ -825,8 +825,8 @@ fn infer_let_operator<Data: Copy + Debug>(
 
 fn infer_statement<Data: Copy + Debug>(
     env: &mut ScopeEnvironment<Data>,
-    ctx: &mut Context<Data>,
-    vtc: &mut ValueTypeContext,
+    ctx: &mut ModuleTypecheckContext<Data>,
+    vtc: &mut TypeResolution,
     block_builder: &mut BlockBuilder,
     statement: &Statement<Name<Data>, IText, Data>,
 ) {
@@ -841,8 +841,8 @@ fn infer_statement<Data: Copy + Debug>(
 
 fn infer_block<Data: Copy + Debug>(
     env: &mut ScopeEnvironment<Data>,
-    ctx: &mut Context<Data>,
-    vtc: &mut ValueTypeContext,
+    ctx: &mut ModuleTypecheckContext<Data>,
+    vtc: &mut TypeResolution,
     block_builder: &mut BlockBuilder,
     block: &Block<Name<Data>, IText, Data>,
 ) -> (ir::Block, Type) {
@@ -861,8 +861,8 @@ fn infer_block<Data: Copy + Debug>(
 
 fn infer_top_level<Data: Copy + Debug>(
     env: &mut ScopeEnvironment<Data>,
-    ctx: &mut Context<Data>,
-    vtc: &mut ValueTypeContext,
+    ctx: &mut ModuleTypecheckContext<Data>,
+    vtc: &mut TypeResolution,
     block_builder: &mut BlockBuilder,
     tls: &TopLevelStatement<Name<Data>, IText, Data>,
 ) {
@@ -890,8 +890,8 @@ fn infer_top_level<Data: Copy + Debug>(
 
 fn infer_top_level_block<Data: Copy + Debug>(
     env: &mut ScopeEnvironment<Data>,
-    ctx: &mut Context<Data>,
-    vtc: &mut ValueTypeContext,
+    ctx: &mut ModuleTypecheckContext<Data>,
+    vtc: &mut TypeResolution,
     block_builder: &mut BlockBuilder,
     tlb: &TopLevelBlock<Name<Data>, IText, Data>,
 ) -> ir::Block {
@@ -907,9 +907,9 @@ pub fn typecheck_module(
     deps: Vec<TypedModule>,
     error_context: &mut ErrorContext,
     interner: &StringInterner,
-    vtc: &mut ValueTypeContext,
+    vtc: &mut TypeResolution,
 ) -> Result<TypedModule, ()> {
-    let mut context = Context::new(unchecked.0.id, unchecked.0.name.clone());
+    let mut context = ModuleTypecheckContext::new(unchecked.0.id, unchecked.0.name.clone());
     let mut block_builder = BlockBuilder::new();
     let mut env = ScopeEnvironment::new();
     context.import_prelude(&mut env, vtc, interner);
@@ -949,7 +949,7 @@ pub fn typecheck_module(
 
 pub fn verify_main_module(
     main_mod: &TypedModule,
-    vtc: &mut ValueTypeContext,
+    vtc: &mut TypeResolution,
     errors: &mut ErrorContext,
     interner: &StringInterner,
 ) -> Result<(), ()> {
@@ -959,7 +959,8 @@ pub fn verify_main_module(
     let main_type = main_val.and_then(|v| vtc.get_type(v));
 
     if let Some(main_sch) = main_type {
-        let mut ctx: Context<Span> = Context::new(main_mod.0.id, main_mod.0.name.clone());
+        let mut ctx: ModuleTypecheckContext<Span> =
+            ModuleTypecheckContext::new(main_mod.0.id, main_mod.0.name.clone());
         if let Err(_e) = ctx.unify_rec(vtc, &main_sch.1, &build_function(&[unit()], &unit())) {
             errors.add_error(CompilerError::MainFunctionError(
                 main_mod.0.name.clone(),
@@ -985,7 +986,7 @@ mod ir_gen_tests {
     use crate::ir::FormattingContext;
     use crate::modules::{UntypedModule, UntypedModuleData};
     use crate::parsing::parser::parse;
-    use crate::typechecker::type_context::ValueTypeContext;
+    use crate::typechecker::type_resolution::TypeResolution;
     use crate::typechecker::typecheck_module;
     use crate::{ErrorContext, StringInterner};
     use goldenfile::Mint;
@@ -1020,7 +1021,7 @@ mod ir_gen_tests {
                             id: ModuleId::new(0),
                         }));
                         let mut error_context = ErrorContext::new();
-                        let mut vtc = ValueTypeContext::new();
+                        let mut vtc = TypeResolution::new();
                         let checked = typecheck_module(
                             &module,
                             vec![],

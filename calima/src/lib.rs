@@ -11,7 +11,7 @@ use symbol_names::StringInterner;
 
 use crate::errors::{CompilerError, ErrorContext};
 use crate::modules::{TypedModule, UntypedModule};
-use crate::typechecker::type_context::ValueTypeContext;
+use crate::typechecker::type_resolution::TypeResolution;
 
 mod ast;
 mod common;
@@ -30,7 +30,7 @@ pub struct CompilerState {
     output_file: PathBuf,
     entrypoint: PathBuf,
     error_context: ErrorContext,
-    vtc: ValueTypeContext,
+    vtc: TypeResolution,
     interner: StringInterner,
     mod_identifier_table: HashMap<ModuleName, ModuleId>,
     mod_resolution_table: HashMap<ModuleId, Result<PathBuf, ()>>,
@@ -91,7 +91,7 @@ impl CompilerState {
                         mod_parsed_table: HashMap::new(),
                         mod_typed_table: HashMap::new(),
                         current_mod_id: 0,
-                        vtc: ValueTypeContext::new(),
+                        vtc: TypeResolution::new(),
                     })
                 }
                 None => {

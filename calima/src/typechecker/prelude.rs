@@ -3,8 +3,8 @@ use crate::ast::Associativity::Left;
 use crate::ast::OperatorSpecification::{Infix, Prefix};
 use crate::symbol_names::StringInterner;
 use crate::typechecker::environment::ScopeEnvironment;
-use crate::typechecker::type_context::ValueTypeContext;
-use crate::typechecker::Context;
+use crate::typechecker::type_resolution::TypeResolution;
+use crate::typechecker::ModuleTypecheckContext;
 use crate::types::{bool, build_function, float, int, string, unit, GenericId, Scheme, Type};
 use quetta::Text;
 use std::collections::HashSet;
@@ -43,9 +43,9 @@ fn eq_type() -> Scheme {
 }
 
 pub fn prelude<Data: Copy + Debug>(
-    ctx: &mut Context<Data>,
+    ctx: &mut ModuleTypecheckContext<Data>,
     env: &mut ScopeEnvironment<Data>,
-    vtc: &mut ValueTypeContext,
+    vtc: &mut TypeResolution,
     interner: &StringInterner,
 ) {
     ctx.add_operator(

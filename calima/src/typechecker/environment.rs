@@ -1,7 +1,7 @@
 use crate::ast::OperatorSpecification;
 use crate::ir::Val;
 use crate::symbol_names::IText;
-use crate::typechecker::Context;
+use crate::typechecker::ModuleTypecheckContext;
 use crate::types::{GenericId, Scheme, Type};
 use std::collections::hash_map::Iter;
 use std::collections::{HashMap, HashSet};
@@ -34,7 +34,7 @@ impl<Data: Copy + Debug> ScopeEnvironment<Data> {
 
     pub fn get_or_create_generic(
         &mut self,
-        ctx: &mut Context<Data>,
+        ctx: &mut ModuleTypecheckContext<Data>,
         name: &IText,
         location: Data,
     ) -> GenericId {

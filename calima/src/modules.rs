@@ -6,7 +6,7 @@ use crate::parsing::token::Span;
 use crate::symbol_names::IText;
 use crate::typechecker::environment::ClosedEnvironment;
 use crate::typechecker::substitution::Substitution;
-use crate::typechecker::type_context::ValueTypeContext;
+use crate::typechecker::type_resolution::TypeResolution;
 use crate::types::Type;
 use std::collections::HashMap;
 use std::path::PathBuf;
