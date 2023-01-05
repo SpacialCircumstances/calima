@@ -2,7 +2,7 @@ use crate::ast::NumberType;
 use crate::common::ModuleId;
 use crate::formatting::context::{format_ctx_iter, format_ctx_iter_end, FormatWithContext};
 use crate::symbol_names::IText;
-use crate::typechecker::ValueTypeContext;
+use crate::typechecker::type_context::ValueTypeContext;
 use crate::types::{Scheme, Type};
 use std::fmt::{Display, Formatter};
 use std::iter::once;
@@ -129,7 +129,7 @@ impl<'a> FormatWithContext<'a> for VarRef {
     fn format(&'a self, ctx: &mut Self::Context, f: &mut Formatter<'_>) -> std::fmt::Result {
         let sch = ctx
             .vtc
-            .get_type(&Val::Var(*self))
+            .get_type_subst(&Val::Var(*self))
             .unwrap_or_else(|| Scheme::simple(Type::Error));
         match ctx.vtc.get_name_hint(self) {
             None => write!(f, "{}/{}<{}>", self.mod_id, self.var_id, sch),

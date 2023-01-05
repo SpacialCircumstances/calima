@@ -11,6 +11,7 @@ use symbol_names::StringInterner;
 
 use crate::errors::{CompilerError, ErrorContext};
 use crate::modules::{TypedModule, UntypedModule};
+use crate::typechecker::type_context::ValueTypeContext;
 
 mod ast;
 mod common;
@@ -29,6 +30,7 @@ pub struct CompilerState {
     output_file: PathBuf,
     entrypoint: PathBuf,
     error_context: ErrorContext,
+    vtc: ValueTypeContext,
     interner: StringInterner,
     mod_identifier_table: HashMap<ModuleName, ModuleId>,
     mod_resolution_table: HashMap<ModuleId, Result<PathBuf, ()>>,
@@ -89,6 +91,7 @@ impl CompilerState {
                         mod_parsed_table: HashMap::new(),
                         mod_typed_table: HashMap::new(),
                         current_mod_id: 0,
+                        vtc: ValueTypeContext::new(),
                     })
                 }
                 None => {
@@ -234,11 +237,13 @@ impl CompilerState {
                     dependencies,
                     &mut self.error_context,
                     &self.interner,
+                    &mut self.vtc,
                 )
                 .and_then(|tm| {
                     if is_main {
                         typechecker::verify_main_module(
                             &tm,
+                            &mut self.vtc,
                             &mut self.error_context,
                             &self.interner,
                         )

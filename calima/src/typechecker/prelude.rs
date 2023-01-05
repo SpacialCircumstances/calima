@@ -3,6 +3,7 @@ use crate::ast::Associativity::Left;
 use crate::ast::OperatorSpecification::{Infix, Prefix};
 use crate::symbol_names::StringInterner;
 use crate::typechecker::environment::ScopeEnvironment;
+use crate::typechecker::type_context::ValueTypeContext;
 use crate::typechecker::Context;
 use crate::types::{bool, build_function, float, int, string, unit, GenericId, Scheme, Type};
 use quetta::Text;
@@ -44,77 +45,96 @@ fn eq_type() -> Scheme {
 pub fn prelude<Data: Copy + Debug>(
     ctx: &mut Context<Data>,
     env: &mut ScopeEnvironment<Data>,
+    vtc: &mut ValueTypeContext,
     interner: &StringInterner,
 ) {
     ctx.add_operator(
         env,
+        vtc,
         interner.intern(Text::new("+")),
         int_op(),
         Infix(60, Left),
     );
     ctx.add_operator(
         env,
+        vtc,
         interner.intern(Text::new(".+")),
         float_op(),
         Infix(60, Left),
     );
     ctx.add_operator(
         env,
+        vtc,
         interner.intern(Text::new("-")),
         int_op(),
         Infix(60, Left),
     );
     ctx.add_operator(
         env,
+        vtc,
         interner.intern(Text::new(".-")),
         float_op(),
         Infix(60, Left),
     );
     ctx.add_operator(
         env,
+        vtc,
         interner.intern(Text::new("*")),
         int_op(),
         Infix(80, Left),
     );
     ctx.add_operator(
         env,
+        vtc,
         interner.intern(Text::new(".*")),
         float_op(),
         Infix(80, Left),
     );
     ctx.add_operator(
         env,
+        vtc,
         interner.intern(Text::new("/")),
         int_op(),
         Infix(80, Left),
     );
     ctx.add_operator(
         env,
+        vtc,
         interner.intern(Text::new("./")),
         float_op(),
         Infix(80, Left),
     );
     ctx.add_operator(
         env,
+        vtc,
         interner.intern(Text::new("..")),
         Scheme::simple(build_function(&[string(), string()], &string())),
         Infix(60, Left),
     );
     ctx.add_operator(
         env,
+        vtc,
         interner.intern(Text::new("==")),
         eq_type(),
         Infix(50, Associativity::None),
     );
-    ctx.add_operator(env, interner.intern(Text::new("~")), int_unary_op(), Prefix);
     ctx.add_operator(
         env,
+        vtc,
+        interner.intern(Text::new("~")),
+        int_unary_op(),
+        Prefix,
+    );
+    ctx.add_operator(
+        env,
+        vtc,
         interner.intern(Text::new(".~")),
         float_unary_op(),
         Prefix,
     );
     ctx.add(
         env,
+        vtc,
         interner.intern(Text::new("println")),
         scheme(
             &[GenericId(1)],

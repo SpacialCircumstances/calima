@@ -13,6 +13,7 @@ use crate::typechecker::environment::{ClosedEnvironment, ScopeEnvironment};
 use crate::typechecker::ir_lowering::*;
 use crate::typechecker::prelude::prelude;
 use crate::typechecker::substitution::{substitute, substitute_scheme, Substitution};
+use crate::typechecker::type_context::ValueTypeContext;
 use crate::types::*;
 use std::collections::HashMap;
 use std::convert::TryFrom;
@@ -23,6 +24,7 @@ pub mod environment;
 mod ir_lowering;
 mod prelude;
 pub mod substitution;
+pub mod type_context;
 
 //TODO: Additional information
 #[derive(Debug, Clone)]
@@ -55,13 +57,14 @@ impl<Data: Copy + Debug> TypeError<Data> {
 
     pub fn unification(
         ctx: &Context<Data>,
+        vtc: &ValueTypeContext,
         ue: UnificationError,
         expected: &Type,
         actual: &Type,
         location: Data,
     ) -> Self {
-        let expected = substitute(&ctx.type_subst, expected);
-        let actual = substitute(&ctx.type_subst, actual);
+        let expected = substitute(&vtc.subst, expected);
+        let actual = substitute(&vtc.subst, actual);
         let message = match ue {
             UnificationError::RecursiveType => String::from("Recursive type detected"),
             UnificationError::UnificationError => format!(
@@ -127,84 +130,31 @@ pub enum UnificationSource {
     PatternMatching,
 }
 
-pub struct ValueTypeContext {
-    name_hints: HashMap<VarRef, IText>,
-    types: HashMap<VarRef, Scheme>, //TODO: Use symbol table once generic enough
-}
-
-impl ValueTypeContext {
-    fn new() -> Self {
-        Self {
-            name_hints: HashMap::new(),
-            types: HashMap::new(),
-        }
-    }
-
-    pub fn get_type(&self, v: &Val) -> Option<Scheme> {
-        match v {
-            Val::Var(vr) => self.types.get(vr).cloned(),
-            Val::Constant(Constant::Unit) => Some(Scheme::simple(Type::Basic(TypeDef::Primitive(
-                PrimitiveType::Unit,
-            )))),
-            Val::Constant(Constant::String(_)) => Some(Scheme::simple(Type::Basic(
-                TypeDef::Primitive(PrimitiveType::String),
-            ))),
-            Val::Constant(Constant::Number(_, NumberType::Float)) => Some(Scheme::simple(
-                Type::Basic(TypeDef::Primitive(PrimitiveType::Float)),
-            )),
-            Val::Constant(Constant::Number(_, NumberType::Integer)) => Some(Scheme::simple(
-                Type::Basic(TypeDef::Primitive(PrimitiveType::Int)),
-            )),
-            Val::Constant(Constant::Boolean(_)) => Some(Scheme::simple(Type::Basic(
-                TypeDef::Primitive(PrimitiveType::Bool),
-            ))),
-        }
-    }
-
-    pub fn get_name_hint(&self, vr: &VarRef) -> Option<&IText> {
-        self.name_hints.get(vr)
-    }
-
-    fn fully_substituted(&self, subst: &Substitution<Type>) -> Self {
-        Self {
-            name_hints: self.name_hints.clone(),
-            types: self
-                .types
-                .iter()
-                .map(|(v, sch)| (*v, substitute_scheme(subst, sch)))
-                .collect(),
-        }
-    }
-}
-
 pub struct Context<Data: Copy + Debug> {
     generic_id: usize,
-    type_subst: Substitution<Type>,
     errors: Vec<TypeError<Data>>,
     module: ModuleName,
     mod_id: ModuleId,
     var_id: usize,
-    vtc: ValueTypeContext,
 }
 
 impl<Data: Copy + Debug> Context<Data> {
     pub fn new(mod_id: ModuleId, module: ModuleName) -> Self {
         Context {
             generic_id: 0,
-            type_subst: Substitution::new(),
             errors: Vec::new(),
             module,
             mod_id,
             var_id: 0,
-            vtc: ValueTypeContext::new(),
         }
     }
 
-    pub fn get_type(&self, v: &Val) -> Option<Scheme> {
-        self.vtc.get_type(v)
-    }
-
-    pub fn new_var(&mut self, sch: Scheme, name_hint: Option<IText>) -> VarRef {
+    pub fn new_var(
+        &mut self,
+        vtc: &mut ValueTypeContext,
+        sch: Scheme,
+        name_hint: Option<IText>,
+    ) -> VarRef {
         let v = VarRef {
             var_id: VarId(self.var_id),
             mod_id: self.mod_id,
@@ -212,31 +162,31 @@ impl<Data: Copy + Debug> Context<Data> {
 
         self.var_id += 1;
 
-        if let Some(nh) = name_hint {
-            self.vtc.name_hints.insert(v.clone(), nh);
-        }
-        self.vtc.types.insert(v, sch);
+        vtc.set_type(v, sch, name_hint);
         v
-    }
-
-    pub fn get_name_hint(&self, vr: &VarRef) -> Option<&IText> {
-        self.vtc.get_name_hint(vr)
     }
 
     pub fn add_operator(
         &mut self,
         env: &mut ScopeEnvironment<Data>,
+        vtc: &mut ValueTypeContext,
         name: IText,
         sch: Scheme,
         op_spec: OperatorSpecification,
     ) -> VarRef {
-        let v = self.new_var(sch, Some(name.clone()));
+        let v = self.new_var(vtc, sch, Some(name.clone()));
         env.bind_operator(name, Val::Var(v), op_spec);
         v
     }
 
-    pub fn add(&mut self, env: &mut ScopeEnvironment<Data>, name: IText, sch: Scheme) -> VarRef {
-        let v = self.new_var(sch, Some(name.clone()));
+    pub fn add(
+        &mut self,
+        env: &mut ScopeEnvironment<Data>,
+        vtc: &mut ValueTypeContext,
+        name: IText,
+        sch: Scheme,
+    ) -> VarRef {
+        let v = self.new_var(vtc, sch, Some(name.clone()));
         env.bind(name, Val::Var(v));
         v
     }
@@ -252,42 +202,61 @@ impl<Data: Copy + Debug> Context<Data> {
         Type::Var(tr)
     }
 
-    fn import_prelude(&mut self, env: &mut ScopeEnvironment<Data>, interner: &StringInterner) {
-        prelude(self, env, interner);
+    fn import(&mut self, env: &mut ScopeEnvironment<Data>, other: &TypedModule) {
+        // TODO
     }
 
-    fn bind(&mut self, gid: GenericId, t2: &Type) -> Result<(), UnificationError> {
-        let existing = self.type_subst[gid.0].clone();
+    fn import_prelude(
+        &mut self,
+        env: &mut ScopeEnvironment<Data>,
+        vtc: &mut ValueTypeContext,
+        interner: &StringInterner,
+    ) {
+        prelude(self, env, vtc, interner);
+    }
+
+    fn bind(
+        &mut self,
+        vtc: &mut ValueTypeContext,
+        gid: GenericId,
+        t2: &Type,
+    ) -> Result<(), UnificationError> {
+        let existing = vtc.subst[gid.0].clone();
         match existing {
-            Some(t) => self.unify_rec(&t, t2),
-            None => Ok(self.type_subst.add(gid.0, t2.clone())),
+            Some(t) => self.unify_rec(vtc, &t, t2),
+            None => Ok(vtc.subst.add(gid.0, t2.clone())),
         }
     }
 
-    fn check_occurs(&self, gid: GenericId, t: &Type) -> Result<(), ()> {
+    fn check_occurs(&self, vtc: &ValueTypeContext, gid: GenericId, t: &Type) -> Result<(), ()> {
         match t {
             Type::Var(i) => {
                 if gid == *i {
                     Err(())
-                } else if let Some(next) = &self.type_subst[(*i).0] {
-                    self.check_occurs(gid, next)
+                } else if let Some(next) = &vtc.subst[(*i).0] {
+                    self.check_occurs(vtc, gid, next)
                 } else {
                     Ok(())
                 }
             }
             Type::Parameterized(_, params) => {
                 for p in params {
-                    self.check_occurs(gid, p)?;
+                    self.check_occurs(vtc, gid, p)?;
                 }
                 Ok(())
             }
             Type::Basic(_) => Ok(()),
-            Type::Reference(t) => self.check_occurs(gid, &*t),
+            Type::Reference(t) => self.check_occurs(vtc, gid, &*t),
             Type::Error => panic!("Cannot occurs_check on erroneous type"),
         }
     }
 
-    fn unify_rec(&mut self, t1: &Type, t2: &Type) -> Result<(), UnificationError> {
+    fn unify_rec(
+        &mut self,
+        vtc: &mut ValueTypeContext,
+        t1: &Type,
+        t2: &Type,
+    ) -> Result<(), UnificationError> {
         match (t1, t2) {
             (Type::Error, _) => Err(UnificationError::Propagation),
             (_, Type::Error) => Err(UnificationError::Propagation),
@@ -296,11 +265,11 @@ impl<Data: Copy + Debug> Context<Data> {
                 Err(UnificationError::UnificationError)
             }
             (Type::Var(gid), _) => {
-                self.check_occurs(*gid, t2)
+                self.check_occurs(vtc, *gid, t2)
                     .map_err(|()| UnificationError::RecursiveType)?;
-                self.bind(*gid, t2)
+                self.bind(vtc, *gid, t2)
             }
-            (_, Type::Var(gid)) => self.bind(*gid, t1),
+            (_, Type::Var(gid)) => self.bind(vtc, *gid, t1),
             (Type::Parameterized(p1, params1), Type::Parameterized(p2, params2)) => {
                 if p1 != p2 || params1.len() != params2.len() {
                     Err(UnificationError::UnificationError)
@@ -308,30 +277,45 @@ impl<Data: Copy + Debug> Context<Data> {
                     params1
                         .iter()
                         .zip(params2.iter())
-                        .try_for_each(|(p1, p2)| self.unify_rec(p1, p2))
+                        .try_for_each(|(p1, p2)| self.unify_rec(vtc, p1, p2))
                 }
             }
             _ => unimplemented!(),
         }
     }
 
-    fn unify(&mut self, target: &mut Type, with: &Type, source: UnificationSource, loc: Data) {
-        if let Err(e) = self.unify_rec(target, with) {
-            self.add_error(TypeError::unification(self, e, &with, &target, loc));
+    fn unify(
+        &mut self,
+        vtc: &mut ValueTypeContext,
+        target: &mut Type,
+        with: &Type,
+        source: UnificationSource,
+        loc: Data,
+    ) {
+        if let Err(e) = self.unify_rec(vtc, target, with) {
+            self.add_error(TypeError::unification(self, vtc, e, &with, &target, loc));
             *target = Type::Error;
         }
     }
 
     fn unify_check(
         &mut self,
+        vtc: &mut ValueTypeContext,
         target: &mut Type,
         unify_target: &Type,
         with: &Type,
         source: UnificationSource,
         loc: Data,
     ) {
-        if let Err(e) = self.unify_rec(unify_target, with) {
-            self.add_error(TypeError::unification(self, e, &with, &unify_target, loc));
+        if let Err(e) = self.unify_rec(vtc, unify_target, with) {
+            self.add_error(TypeError::unification(
+                self,
+                vtc,
+                e,
+                &with,
+                &unify_target,
+                loc,
+            ));
             *target = Type::Error;
         }
     }
@@ -385,6 +369,7 @@ impl<Data: Copy + Debug> Context<Data> {
     fn bind_to_pattern_parameter(
         &mut self,
         env: &mut ScopeEnvironment<Data>,
+        vtc: &mut ValueTypeContext,
         pattern: &BindPattern<IText, TypeAnnotation<Name<Data>, IText, Data>, Data>,
         tp: &mut Type,
         vals: &mut Vec<ir::BindTarget>,
@@ -393,11 +378,11 @@ impl<Data: Copy + Debug> Context<Data> {
             BindPattern::Any(_) => vals.push(BindTarget::Discard),
             BindPattern::Name(name, ta, _) => {
                 // TODO: Check type annotation
-                let v = self.add(env, name.clone(), Scheme::simple(tp.clone()));
+                let v = self.add(env, vtc, name.clone(), Scheme::simple(tp.clone()));
                 vals.push(BindTarget::Var(v));
             }
             BindPattern::UnitLiteral(data) => {
-                self.unify(tp, &unit(), UnificationSource::PatternMatching, *data);
+                self.unify(vtc, tp, &unit(), UnificationSource::PatternMatching, *data);
                 vals.push(BindTarget::Discard);
             }
             _ => todo!(),
@@ -407,13 +392,14 @@ impl<Data: Copy + Debug> Context<Data> {
     fn bind_to_pattern_types(
         &mut self,
         env: &mut ScopeEnvironment<Data>,
+        vtc: &mut ValueTypeContext,
         pattern: &BindPattern<IText, TypeAnnotation<Name<Data>, IText, Data>, Data>,
         tp: &mut Type,
     ) {
         match pattern {
             BindPattern::Any(_) => (),
             BindPattern::Name(name, ta, _) => {
-                self.add(env, name.clone(), Scheme::simple(tp.clone()));
+                self.add(env, vtc, name.clone(), Scheme::simple(tp.clone()));
             }
             _ => todo!(),
         }
@@ -422,6 +408,7 @@ impl<Data: Copy + Debug> Context<Data> {
     fn bind_to_pattern_generalized(
         &mut self,
         env: &mut ScopeEnvironment<Data>,
+        vtc: &mut ValueTypeContext,
         pattern: &BindPattern<IText, TypeAnnotation<Name<Data>, IText, Data>, Data>,
         block_builder: &mut BlockBuilder,
         bind_val: Val,
@@ -431,7 +418,7 @@ impl<Data: Copy + Debug> Context<Data> {
             BindPattern::Any(_) => (),
             BindPattern::Name(name, ta, _) => {
                 let generalized = env.generalize(&tp);
-                let gen_var = self.add(env, name.clone(), generalized);
+                let gen_var = self.add(env, vtc, name.clone(), generalized);
                 block_builder.add_binding(Binding(
                     BindTarget::Var(gen_var),
                     ir::Expr::Generalize(bind_val),
@@ -454,6 +441,7 @@ impl Context<Span> {
 fn call_operator<Data: Copy + Debug>(
     ctx: &mut Context<Data>,
     env: &ScopeEnvironment<Data>,
+    vtc: &mut ValueTypeContext,
     block_builder: &mut BlockBuilder,
     vals: &mut Vec<ir::Val>,
     last_name: &IText,
@@ -463,13 +451,14 @@ fn call_operator<Data: Copy + Debug>(
     //TODO: Error handling
     let r = vals.pop().unwrap();
     let l = vals.pop().unwrap();
-    let r_tp = ctx.inst(&ctx.get_type(&r).unwrap());
-    let l_tp = ctx.inst(&ctx.get_type(&l).unwrap());
+    let r_tp = ctx.inst(&vtc.get_type(&r).unwrap());
+    let l_tp = ctx.inst(&vtc.get_type(&l).unwrap());
     let (op_val, _op_spec) = env.lookup_operator(last_name).unwrap();
-    let op_tp = ctx.inst(&ctx.get_type(&op_val).unwrap());
-    let (op_expr, res_tp) = function_call(ctx, op_val, &op_tp, vec![(l, l_tp), (r, r_tp)], loc);
+    let op_tp = ctx.inst(&vtc.get_type(&op_val).unwrap());
+    let (op_expr, res_tp) =
+        function_call(ctx, vtc, op_val, &op_tp, vec![(l, l_tp), (r, r_tp)], loc);
 
-    let res_var = ctx.new_var(Scheme::simple(res_tp), None);
+    let res_var = ctx.new_var(vtc, Scheme::simple(res_tp), None);
     block_builder.add_binding(Binding(BindTarget::Var(res_var), op_expr));
     vals.push(Val::Var(res_var));
 }
@@ -477,6 +466,7 @@ fn call_operator<Data: Copy + Debug>(
 fn transform_operators<Data: Copy + Debug>(
     ctx: &mut Context<Data>,
     env: &mut ScopeEnvironment<Data>,
+    vtc: &mut ValueTypeContext,
     block_builder: &mut BlockBuilder,
     elements: &Vec<OperatorElement<Name<Data>, IText, Data>>,
     top_location: Data,
@@ -490,7 +480,7 @@ fn transform_operators<Data: Copy + Debug>(
             OperatorElement::Operator(name, data) => {
                 let data = *data;
                 let (op_val, op_spec) = env.lookup_operator(name).unwrap();
-                let op_tp = ctx.inst(&ctx.get_type(&op_val).unwrap());
+                let op_tp = ctx.inst(&vtc.get_type(&op_val).unwrap());
                 match op_spec {
                     OperatorSpecification::Infix(op_prec, assoc) => match bin_ops.last() {
                         None => bin_ops.push((name.clone(), op_tp, op_prec, assoc, data)),
@@ -509,6 +499,7 @@ fn transform_operators<Data: Copy + Debug>(
                                     call_operator(
                                         ctx,
                                         env,
+                                        vtc,
                                         block_builder,
                                         &mut vals,
                                         &last_name,
@@ -521,6 +512,7 @@ fn transform_operators<Data: Copy + Debug>(
                                 call_operator(
                                     ctx,
                                     env,
+                                    vtc,
                                     block_builder,
                                     &mut vals,
                                     &last_name,
@@ -535,12 +527,12 @@ fn transform_operators<Data: Copy + Debug>(
                 }
             }
             OperatorElement::Expression(oexpr, loc) => {
-                let mut last_val = infer_expr(env, ctx, block_builder, oexpr);
+                let mut last_val = infer_expr(env, ctx, vtc, block_builder, oexpr);
 
                 while let Some((op_name, op_tp)) = un_ops.pop() {
                     let (op_val, _) = env.lookup_operator(&op_name).unwrap();
-                    let (fc, tp) = function_call(ctx, op_val, &op_tp, vec![last_val], *loc);
-                    let fcv = ctx.new_var(Scheme::simple(tp.clone()), None);
+                    let (fc, tp) = function_call(ctx, vtc, op_val, &op_tp, vec![last_val], *loc);
+                    let fcv = ctx.new_var(vtc, Scheme::simple(tp.clone()), None);
                     block_builder.add_binding(Binding(BindTarget::Var(fcv), fc));
                     last_val = (Val::Var(fcv), tp)
                 }
@@ -559,11 +551,20 @@ fn transform_operators<Data: Copy + Debug>(
     }
 
     while let Some((op_name, op_type, _, _, data)) = bin_ops.pop() {
-        call_operator(ctx, env, block_builder, &mut vals, &op_name, &op_type, data);
+        call_operator(
+            ctx,
+            env,
+            vtc,
+            block_builder,
+            &mut vals,
+            &op_name,
+            &op_type,
+            data,
+        );
     }
 
     let res = vals.pop().unwrap();
-    let res_tp = ctx.inst(&ctx.get_type(&res).unwrap());
+    let res_tp = ctx.inst(&vtc.get_type(&res).unwrap());
     (res, res_tp)
 }
 
@@ -580,6 +581,7 @@ fn replace<F: Fn(GenericId) -> Option<Type>>(tp: &Type, mapper: &F) -> Type {
 
 fn function_call<Data: Copy + Debug>(
     ctx: &mut Context<Data>,
+    vtc: &mut ValueTypeContext,
     func_val: Val,
     func_tp: &Type,
     args: Vec<(Val, Type)>,
@@ -589,6 +591,7 @@ fn function_call<Data: Copy + Debug>(
     let ret = ctx.new_generic();
     let mut arg_fun_type = build_function(&argtypes, &ret);
     ctx.unify(
+        vtc,
         &mut arg_fun_type,
         func_tp,
         UnificationSource::FunctionCall,
@@ -604,6 +607,7 @@ fn function_call<Data: Copy + Debug>(
 fn infer_expr<Data: Copy + Debug>(
     env: &mut ScopeEnvironment<Data>,
     ctx: &mut Context<Data>,
+    vtc: &mut ValueTypeContext,
     block_builder: &mut BlockBuilder,
     expr: &Expr<Name<Data>, IText, Data>,
 ) -> (ir::Val, Type) {
@@ -623,7 +627,7 @@ fn infer_expr<Data: Copy + Debug>(
             let val = env
                 .lookup_value(&varname.0[0])
                 .expect(&format!("Variable not found: {}", varname.to_string())); //TODO: Lookup into data structures
-            let vartp = ctx.get_type(val).unwrap();
+            let vartp = vtc.get_type(val).unwrap();
             (val.clone(), ctx.inst(&vartp))
         }
         Expr::Lambda {
@@ -638,34 +642,34 @@ fn infer_expr<Data: Copy + Debug>(
                 let gen = ctx.next_id();
                 body_env.add_monomorphic_var(gen);
                 let mut tp = Type::Var(gen);
-                ctx.bind_to_pattern_parameter(&mut body_env, param, &mut tp, &mut param_vals);
+                ctx.bind_to_pattern_parameter(&mut body_env, vtc, param, &mut tp, &mut param_vals);
                 param_types.push(tp);
             }
 
-            let (block, ret_tp) = infer_block(&mut body_env, ctx, block_builder, body);
+            let (block, ret_tp) = infer_block(&mut body_env, ctx, vtc, block_builder, body);
             let lambda = ir::Expr::Lambda {
                 params: param_vals,
                 block,
             };
             let func_tp = build_function(&param_types, &ret_tp);
             let func_sch = Scheme::simple(func_tp.clone());
-            let lambda_var = ctx.new_var(func_sch, None);
+            let lambda_var = ctx.new_var(vtc, func_sch, None);
             block_builder.add_binding(Binding(BindTarget::Var(lambda_var), lambda));
             (Val::Var(lambda_var), func_tp)
         }
         Expr::FunctionCall(func, args, loc) => {
             let targs = args
                 .iter()
-                .map(|e| infer_expr(env, ctx, block_builder, e))
+                .map(|e| infer_expr(env, ctx, vtc, block_builder, e))
                 .collect();
-            let (tfunc, functp) = infer_expr(env, ctx, block_builder, func);
-            let (func_call, ret_tp) = function_call(ctx, tfunc, &functp, targs, *loc);
-            let funcc_var = ctx.new_var(Scheme::simple(ret_tp.clone()), None);
+            let (tfunc, functp) = infer_expr(env, ctx, vtc, block_builder, func);
+            let (func_call, ret_tp) = function_call(ctx, vtc, tfunc, &functp, targs, *loc);
+            let funcc_var = ctx.new_var(vtc, Scheme::simple(ret_tp.clone()), None);
             block_builder.add_binding(Binding(BindTarget::Var(funcc_var), func_call));
             (Val::Var(funcc_var), ret_tp)
         }
         Expr::OperatorCall(elements, loc) => {
-            transform_operators(ctx, env, block_builder, elements, *loc)
+            transform_operators(ctx, env, vtc, block_builder, elements, *loc)
         }
         Expr::If {
             data: loc,
@@ -673,32 +677,39 @@ fn infer_expr<Data: Copy + Debug>(
             if_true,
             if_false,
         } => {
-            let (tcond, cond_tp) = infer_expr(env, ctx, block_builder, &*cond);
+            let (tcond, cond_tp) = infer_expr(env, ctx, vtc, block_builder, &*cond);
             let mut true_env = env.clone();
             let mut false_env = env.clone();
-            let (ttrue, true_tp) = infer_block(&mut true_env, ctx, block_builder, if_true);
-            let (tfalse, false_tp) = infer_block(&mut false_env, ctx, block_builder, if_false);
+            let (ttrue, true_tp) = infer_block(&mut true_env, ctx, vtc, block_builder, if_true);
+            let (tfalse, false_tp) = infer_block(&mut false_env, ctx, vtc, block_builder, if_false);
             let mut rett = true_tp.clone();
             ctx.unify_check(
+                vtc,
                 &mut rett,
                 &cond_tp,
                 &Type::Basic(TypeDef::Primitive(PrimitiveType::Bool)),
                 UnificationSource::If,
                 *loc,
             );
-            ctx.unify(&mut rett, &false_tp, UnificationSource::BlockReturn, *loc);
+            ctx.unify(
+                vtc,
+                &mut rett,
+                &false_tp,
+                UnificationSource::BlockReturn,
+                *loc,
+            );
             let if_expr = ir::Expr::If {
                 condition: tcond,
                 if_true: ttrue,
                 if_false: tfalse,
             };
-            let res_var = ctx.new_var(Scheme::simple(rett.clone()), None);
+            let res_var = ctx.new_var(vtc, Scheme::simple(rett.clone()), None);
             block_builder.add_binding(Binding(BindTarget::Var(res_var), if_expr));
             (Val::Var(res_var), rett)
         }
         Expr::OperatorAsFunction(name, loc) => {
             let val = env.lookup_value(name).expect("Variable not found"); //TODO: Lookup into data structures
-            let vartp = ctx.get_type(val).unwrap();
+            let vartp = vtc.get_type(val).unwrap();
             (val.clone(), ctx.inst(&vartp))
         }
         Expr::Tuple(exprs, _) => {
@@ -727,6 +738,7 @@ fn get_literal_type(lit: &Literal) -> Type {
 fn infer_let<Data: Copy + Debug>(
     env: &mut ScopeEnvironment<Data>,
     ctx: &mut Context<Data>,
+    vtc: &mut ValueTypeContext,
     block_builder: &mut BlockBuilder,
     l: &Let<Name<Data>, IText, Data>,
     export: bool,
@@ -734,20 +746,27 @@ fn infer_let<Data: Copy + Debug>(
     let (lval, tp) = if l.mods.contains(&Modifier::Rec) {
         let mut rec_tp = ctx.new_generic();
         let mut body_env = env.clone();
-        ctx.bind_to_pattern_types(&mut body_env, &l.pattern, &mut rec_tp);
-        let (val, tp) = infer_expr(&mut body_env, ctx, block_builder, &l.value);
-        ctx.unify(&mut rec_tp, &tp, UnificationSource::TypeInference, l.data);
+        ctx.bind_to_pattern_types(&mut body_env, vtc, &l.pattern, &mut rec_tp);
+        let (val, tp) = infer_expr(&mut body_env, ctx, vtc, block_builder, &l.value);
+        ctx.unify(
+            vtc,
+            &mut rec_tp,
+            &tp,
+            UnificationSource::TypeInference,
+            l.data,
+        );
         (val, tp)
     } else {
         let mut body_env = env.clone();
-        infer_expr(&mut body_env, ctx, block_builder, &l.value)
+        infer_expr(&mut body_env, ctx, vtc, block_builder, &l.value)
     };
-    ctx.bind_to_pattern_generalized(env, &l.pattern, block_builder, lval, tp);
+    ctx.bind_to_pattern_generalized(env, vtc, &l.pattern, block_builder, lval, tp);
 }
 
 fn infer_let_operator<Data: Copy + Debug>(
     env: &mut ScopeEnvironment<Data>,
     ctx: &mut Context<Data>,
+    vtc: &mut ValueTypeContext,
     block_builder: &mut BlockBuilder,
     l: &LetOperator<Name<Data>, IText, Data>,
     export: bool,
@@ -757,16 +776,23 @@ fn infer_let_operator<Data: Copy + Debug>(
         let mut body_env = env.clone();
         ctx.add_operator(
             &mut body_env,
+            vtc,
             l.name.clone(),
             Scheme::simple(rec_tp.clone()),
             l.op,
         );
-        let (val, tp) = infer_expr(&mut body_env, ctx, block_builder, &l.value);
-        ctx.unify(&mut rec_tp, &tp, UnificationSource::TypeInference, l.data);
+        let (val, tp) = infer_expr(&mut body_env, ctx, vtc, block_builder, &l.value);
+        ctx.unify(
+            vtc,
+            &mut rec_tp,
+            &tp,
+            UnificationSource::TypeInference,
+            l.data,
+        );
         (val, tp)
     } else {
         let mut body_env = env.clone();
-        infer_expr(&mut body_env, ctx, block_builder, &l.value)
+        infer_expr(&mut body_env, ctx, vtc, block_builder, &l.value)
     };
 
     match l.op {
@@ -774,6 +800,7 @@ fn infer_let_operator<Data: Copy + Debug>(
             let expected_type =
                 build_function(&[ctx.new_generic(), ctx.new_generic()], &ctx.new_generic());
             ctx.unify(
+                vtc,
                 &mut op_type,
                 &expected_type,
                 UnificationSource::OperatorConstraint(l.op),
@@ -783,6 +810,7 @@ fn infer_let_operator<Data: Copy + Debug>(
         OperatorSpecification::Prefix => {
             let expected_type = build_function(&[ctx.new_generic()], &ctx.new_generic());
             ctx.unify(
+                vtc,
                 &mut op_type,
                 &expected_type,
                 UnificationSource::OperatorConstraint(l.op),
@@ -791,13 +819,14 @@ fn infer_let_operator<Data: Copy + Debug>(
         }
     }
     let scheme = env.generalize(&op_type);
-    let op_var = ctx.add_operator(env, l.name.clone(), scheme, l.op);
+    let op_var = ctx.add_operator(env, vtc, l.name.clone(), scheme, l.op);
     block_builder.add_binding(Binding(BindTarget::Var(op_var), ir::Expr::Generalize(lval)))
 }
 
 fn infer_statement<Data: Copy + Debug>(
     env: &mut ScopeEnvironment<Data>,
     ctx: &mut Context<Data>,
+    vtc: &mut ValueTypeContext,
     block_builder: &mut BlockBuilder,
     statement: &Statement<Name<Data>, IText, Data>,
 ) {
@@ -805,14 +834,15 @@ fn infer_statement<Data: Copy + Debug>(
         Statement::Do(expr, _) => {
             todo!()
         }
-        Statement::Let(l) => infer_let(env, ctx, block_builder, l, false),
-        Statement::LetOperator(l) => infer_let_operator(env, ctx, block_builder, l, false),
+        Statement::Let(l) => infer_let(env, ctx, vtc, block_builder, l, false),
+        Statement::LetOperator(l) => infer_let_operator(env, ctx, vtc, block_builder, l, false),
     }
 }
 
 fn infer_block<Data: Copy + Debug>(
     env: &mut ScopeEnvironment<Data>,
     ctx: &mut Context<Data>,
+    vtc: &mut ValueTypeContext,
     block_builder: &mut BlockBuilder,
     block: &Block<Name<Data>, IText, Data>,
 ) -> (ir::Block, Type) {
@@ -822,25 +852,37 @@ fn infer_block<Data: Copy + Debug>(
     block
         .statements
         .iter()
-        .for_each(|s| infer_statement(&mut block_env, ctx, block_builder, s));
+        .for_each(|s| infer_statement(&mut block_env, ctx, vtc, block_builder, s));
 
-    let (result_val, result_tp) = infer_expr(&mut block_env, ctx, block_builder, &block.result);
+    let (result_val, result_tp) =
+        infer_expr(&mut block_env, ctx, vtc, block_builder, &block.result);
     (block_builder.end(result_val), result_tp)
 }
 
 fn infer_top_level<Data: Copy + Debug>(
     env: &mut ScopeEnvironment<Data>,
     ctx: &mut Context<Data>,
+    vtc: &mut ValueTypeContext,
     block_builder: &mut BlockBuilder,
     tls: &TopLevelStatement<Name<Data>, IText, Data>,
 ) {
     match tls {
-        TopLevelStatement::Let(vis, l) => {
-            infer_let(env, ctx, block_builder, l, vis == &Some(Visibility::Public))
-        }
-        TopLevelStatement::LetOperator(vis, l) => {
-            infer_let_operator(env, ctx, block_builder, l, vis == &Some(Visibility::Public))
-        }
+        TopLevelStatement::Let(vis, l) => infer_let(
+            env,
+            ctx,
+            vtc,
+            block_builder,
+            l,
+            vis == &Some(Visibility::Public),
+        ),
+        TopLevelStatement::LetOperator(vis, l) => infer_let_operator(
+            env,
+            ctx,
+            vtc,
+            block_builder,
+            l,
+            vis == &Some(Visibility::Public),
+        ),
         TopLevelStatement::Import { .. } => (), //Imports are resolved before typechecking
         TopLevelStatement::Type { .. } => unimplemented!(),
     }
@@ -849,12 +891,13 @@ fn infer_top_level<Data: Copy + Debug>(
 fn infer_top_level_block<Data: Copy + Debug>(
     env: &mut ScopeEnvironment<Data>,
     ctx: &mut Context<Data>,
+    vtc: &mut ValueTypeContext,
     block_builder: &mut BlockBuilder,
     tlb: &TopLevelBlock<Name<Data>, IText, Data>,
 ) -> ir::Block {
     block_builder.begin();
     for st in &tlb.0 {
-        infer_top_level(env, ctx, block_builder, st);
+        infer_top_level(env, ctx, vtc, block_builder, st);
     }
     block_builder.end(Val::Constant(Constant::Unit))
 }
@@ -864,19 +907,24 @@ pub fn typecheck_module(
     deps: Vec<TypedModule>,
     error_context: &mut ErrorContext,
     interner: &StringInterner,
+    vtc: &mut ValueTypeContext,
 ) -> Result<TypedModule, ()> {
     let mut context = Context::new(unchecked.0.id, unchecked.0.name.clone());
     let mut block_builder = BlockBuilder::new();
     let mut env = ScopeEnvironment::new();
-    context.import_prelude(&mut env, interner);
+    context.import_prelude(&mut env, vtc, interner);
 
-    /*for dep in &deps {
-        //TODO
-        env.import(&dep.0.name, &dep.0.env, Opening::All, Location::External)
-    }*/
+    for dep in &deps {
+        context.import(&mut env, dep);
+    }
 
-    let ir_block =
-        infer_top_level_block(&mut env, &mut context, &mut block_builder, &unchecked.0.ast);
+    let ir_block = infer_top_level_block(
+        &mut env,
+        &mut context,
+        vtc,
+        &mut block_builder,
+        &unchecked.0.ast,
+    );
 
     let ir_module = Module {
         externs: vec![],
@@ -886,16 +934,12 @@ pub fn typecheck_module(
 
     context.publish_errors(error_context);
 
-    let vtc = context.vtc.fully_substituted(&context.type_subst);
-
     error_context.handle_errors().map(|_| {
         let mod_data = TypedModuleData {
             name: unchecked.0.name.clone(),
             path: unchecked.0.path.clone(),
             deps,
             ir_module,
-            subst: context.type_subst,
-            vtc,
             env: ClosedEnvironment::new(env),
             id: unchecked.0.id,
         };
@@ -905,17 +949,18 @@ pub fn typecheck_module(
 
 pub fn verify_main_module(
     main_mod: &TypedModule,
+    vtc: &mut ValueTypeContext,
     errors: &mut ErrorContext,
     interner: &StringInterner,
 ) -> Result<(), ()> {
     let main_name = interner.intern_str("main");
     let main_md = &main_mod.0;
     let main_val = main_md.env.lookup_value(&main_name);
-    let main_type = main_val.and_then(|v| main_md.vtc.get_type(v));
+    let main_type = main_val.and_then(|v| vtc.get_type(v));
 
     if let Some(main_sch) = main_type {
         let mut ctx: Context<Span> = Context::new(main_mod.0.id, main_mod.0.name.clone());
-        if let Err(_e) = ctx.unify_rec(&main_sch.1, &build_function(&[unit()], &unit())) {
+        if let Err(_e) = ctx.unify_rec(vtc, &main_sch.1, &build_function(&[unit()], &unit())) {
             errors.add_error(CompilerError::MainFunctionError(
                 main_mod.0.name.clone(),
                 MainFunctionErrorKind::SignatureWrong,
@@ -940,6 +985,7 @@ mod ir_gen_tests {
     use crate::ir::FormattingContext;
     use crate::modules::{UntypedModule, UntypedModuleData};
     use crate::parsing::parser::parse;
+    use crate::typechecker::type_context::ValueTypeContext;
     use crate::typechecker::typecheck_module;
     use crate::{ErrorContext, StringInterner};
     use goldenfile::Mint;
@@ -974,10 +1020,16 @@ mod ir_gen_tests {
                             id: ModuleId::new(0),
                         }));
                         let mut error_context = ErrorContext::new();
-                        let checked =
-                            typecheck_module(&module, vec![], &mut error_context, &interner)
-                                .expect("Typechecking error");
-                        let mut fc = FormattingContext::new(&checked.0.vtc);
+                        let mut vtc = ValueTypeContext::new();
+                        let checked = typecheck_module(
+                            &module,
+                            vec![],
+                            &mut error_context,
+                            &interner,
+                            &mut vtc,
+                        )
+                        .expect("Typechecking error");
+                        let mut fc = FormattingContext::new(&vtc);
                         let ir_text = format_to_string(&checked.0.ir_module, &mut fc);
                         write!(parsed_file, "{}", ir_text).unwrap();
                     }
