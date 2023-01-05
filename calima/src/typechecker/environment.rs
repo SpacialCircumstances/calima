@@ -3,6 +3,7 @@ use crate::ir::Val;
 use crate::symbol_names::IText;
 use crate::typechecker::Context;
 use crate::types::{GenericId, Scheme, Type};
+use std::collections::hash_map::Iter;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::marker::PhantomData;
@@ -118,5 +119,13 @@ impl<Data: Copy + Debug> ClosedEnvironment<Data> {
         self.lookup_value(name)
             .cloned()
             .and_then(|v| self.operators.get(name).map(|n| (v, *n)))
+    }
+
+    pub fn iter_values(&self) -> impl Iterator<Item = (&IText, &Val)> {
+        self.values.iter()
+    }
+
+    pub fn iter_operators(&self) -> impl Iterator<Item = (&IText, &OperatorSpecification)> {
+        self.operators.iter()
     }
 }
