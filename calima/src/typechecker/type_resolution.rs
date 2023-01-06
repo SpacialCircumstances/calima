@@ -9,7 +9,6 @@ use std::collections::HashMap;
 pub struct TypeResolution {
     name_hints: HashMap<VarRef, IText>,
     types: HashMap<VarRef, Scheme>, //TODO: Use symbol table once generic enough
-    var_id: usize,
     pub(crate) subst: Substitution<Type>, //TODO: Use getter
 }
 
@@ -18,7 +17,6 @@ impl TypeResolution {
         Self {
             name_hints: HashMap::new(),
             types: HashMap::new(),
-            var_id: 0,
             subst: Substitution::new(),
         }
     }
