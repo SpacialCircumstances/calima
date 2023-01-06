@@ -40,7 +40,7 @@ pub struct ModuleId(usize);
 
 impl ModuleId {
     pub const PRELUDE: ModuleId = Self(0);
-    pub const FIRST: ModuleId = Self(1);
+    pub const FIRST_ID: usize = 1;
 
     pub(crate) fn new(id: usize) -> Self {
         Self(id)

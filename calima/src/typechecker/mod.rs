@@ -1021,7 +1021,7 @@ mod ir_gen_tests {
                             ast: parsed,
                             dependencies: vec![],
                             path: entry_path,
-                            id: ModuleId::new(0),
+                            id: ModuleId::new(1),
                         }));
                         let mut error_context = ErrorContext::new();
                         let mut vtc = TypeResolution::new();

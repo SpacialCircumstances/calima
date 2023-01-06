@@ -90,7 +90,7 @@ impl CompilerState {
                         mod_resolution_table: HashMap::new(),
                         mod_parsed_table: HashMap::new(),
                         mod_typed_table: HashMap::new(),
-                        current_mod_id: 0,
+                        current_mod_id: ModuleId::FIRST_ID,
                         vtc: TypeResolution::new(),
                     })
                 }
