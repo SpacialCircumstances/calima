@@ -1,3 +1,4 @@
+use crate::common::ModuleId;
 use crate::formatting::format_iter;
 use crate::formatting::tree::{format_children, TreeFormat};
 use crate::symbol_names::IText;
@@ -7,11 +8,14 @@ use std::convert::TryFrom;
 use std::fmt::{Display, Formatter};
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, PartialOrd, Ord, Serialize, Deserialize)]
-pub struct GenericId(pub usize);
+pub struct GenericId {
+    pub id: usize,
+    pub mod_id: ModuleId,
+}
 
 impl Display for GenericId {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "t{}", self.0)
+        write!(f, "t{}_{}", self.id, self.mod_id)
     }
 }
 

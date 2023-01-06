@@ -1,6 +1,6 @@
 {
     m0/v19<Int -> Int> = fun m0/v14(i)<Int> -> {
-        m0/v15<Bool> = m0/v9(==)<forall t1. Int -> Int -> Bool> m0/v14(i)<Int> 0;
+        m0/v15<Bool> = m0/v9(==)<forall t0_m0. Int -> Int -> Int -> Int -> Bool> m0/v14(i)<Int> 0;
         m0/v18<Int> = if m0/v15<Bool> then {
             1
         } else {
@@ -10,12 +10,12 @@
         } end;
         m0/v18<Int>
     };
-    m0/v20(fac)<forall t1. Int -> Int> = $generalize m0/v19<Int -> Int>;
+    m0/v20(fac)<forall t1_m0. Int -> Int> = $generalize m0/v19<Int -> Int>;
     m0/v23<Unit -> Unit> = fun _ -> {
-        m0/v21<Int> = m0/v20(fac)<forall t1. Int -> Int> 5;
-        m0/v22<Unit> = m0/v12(println)<forall t1. Int -> Unit> m0/v21<Int>;
+        m0/v21<Int> = m0/v20(fac)<forall t1_m0. Int -> Int> 5;
+        m0/v22<Unit> = m0/v12(println)<forall t2_m0. t2_m0 -> Unit> m0/v21<Int>;
         m0/v22<Unit>
     };
-    m0/v24(main)<forall t7 t11. Unit -> Unit> = $generalize m0/v23<Unit -> Unit>;
+    m0/v24(main)<forall t7_m0 t11_m0. Unit -> Unit> = $generalize m0/v23<Unit -> Unit>;
     ()
 }

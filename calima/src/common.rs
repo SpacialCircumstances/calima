@@ -2,6 +2,7 @@ use crate::ast::Name;
 use crate::formatting::format_iter;
 use crate::symbol_names::IText;
 use quetta::Text;
+use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::path::{Path, PathBuf};
 
@@ -34,10 +35,13 @@ impl<Data: Copy> From<&Name<Data>> for ModuleName {
     }
 }
 
-#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct ModuleId(usize);
 
 impl ModuleId {
+    pub const PRELUDE: ModuleId = Self(0);
+    pub const FIRST: ModuleId = Self(1);
+
     pub(crate) fn new(id: usize) -> Self {
         Self(id)
     }

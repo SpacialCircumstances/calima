@@ -194,7 +194,10 @@ impl<Data: Copy + Debug> ModuleTypecheckContext<Data> {
     fn next_id(&mut self) -> GenericId {
         let id = self.generic_id;
         self.generic_id += 1;
-        GenericId(id)
+        GenericId {
+            mod_id: self.mod_id,
+            id,
+        }
     }
 
     fn new_generic(&mut self) -> Type {
@@ -221,10 +224,10 @@ impl<Data: Copy + Debug> ModuleTypecheckContext<Data> {
         gid: GenericId,
         t2: &Type,
     ) -> Result<(), UnificationError> {
-        let existing = vtc.subst[gid.0].clone();
+        let existing = vtc.subst.resolve(&gid);
         match existing {
             Some(t) => self.unify_rec(vtc, &t, t2),
-            None => Ok(vtc.subst.add(gid.0, t2.clone())),
+            None => Ok(vtc.subst.add(gid, t2.clone())),
         }
     }
 
@@ -233,7 +236,7 @@ impl<Data: Copy + Debug> ModuleTypecheckContext<Data> {
             Type::Var(i) => {
                 if gid == *i {
                     Err(())
-                } else if let Some(next) = &vtc.subst[(*i).0] {
+                } else if let Some(next) = &vtc.subst.resolve(i) {
                     self.check_occurs(vtc, gid, next)
                 } else {
                     Ok(())

@@ -1,39 +1,29 @@
-use crate::types::{Scheme, Type};
+use crate::types::{GenericId, Scheme, Type};
+use std::collections::HashMap;
 use std::ops::Index;
 
 #[derive(Debug, Clone)]
-pub struct Substitution<T: Clone> {
-    subst: Vec<Option<T>>,
-}
+pub struct Substitution(HashMap<GenericId, Type>);
 
-impl<T: Clone> Substitution<T> {
+impl Substitution {
     pub fn new() -> Self {
-        Substitution {
-            subst: (1..10).map(|_| None).collect(),
-        }
+        Substitution(HashMap::new())
     }
 
-    pub fn add(&mut self, idx: usize, value: T) {
-        if idx >= self.subst.len() {
-            self.subst.resize(idx + 1, Option::None);
-        }
-        self.subst[idx] = Some(value);
+    pub fn add(&mut self, gen_id: GenericId, tp: Type) {
+        self.0.insert(gen_id, tp);
     }
-}
 
-impl<T: Clone> Index<usize> for Substitution<T> {
-    type Output = Option<T>;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        self.subst.get(index).unwrap_or(&Option::None)
+    pub fn resolve(&self, gen_id: &GenericId) -> Option<Type> {
+        self.0.get(gen_id).cloned()
     }
 }
 
-pub fn substitute(subst: &Substitution<Type>, typ: &Type) -> Type {
+pub fn substitute(subst: &Substitution, typ: &Type) -> Type {
     match typ {
         Type::Basic(_) => typ.clone(),
-        Type::Var(v) => match subst[(*v).0].as_ref() {
-            Some(t) => substitute(subst, t),
+        Type::Var(v) => match subst.resolve(v) {
+            Some(t) => substitute(subst, &t),
             None => typ.clone(),
         },
         Type::Parameterized(t, params) => {
@@ -44,7 +34,7 @@ pub fn substitute(subst: &Substitution<Type>, typ: &Type) -> Type {
     }
 }
 
-pub fn substitute_scheme(subst: &Substitution<Type>, schem: &Scheme) -> Scheme {
+pub fn substitute_scheme(subst: &Substitution, schem: &Scheme) -> Scheme {
     //All variables in scheme cannot be substituted, because they should be general
     let subst_type = substitute(subst, &schem.1);
     Scheme(schem.0.clone(), subst_type)

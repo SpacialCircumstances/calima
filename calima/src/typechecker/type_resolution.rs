@@ -9,7 +9,7 @@ use std::collections::HashMap;
 pub struct TypeResolution {
     name_hints: HashMap<VarRef, IText>,
     types: HashMap<VarRef, Scheme>, //TODO: Use symbol table once generic enough
-    pub(crate) subst: Substitution<Type>, //TODO: Use getter
+    pub(crate) subst: Substitution, //TODO: Use getter
 }
 
 impl TypeResolution {

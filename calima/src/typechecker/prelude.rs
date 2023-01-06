@@ -1,6 +1,7 @@
 use crate::ast::Associativity;
 use crate::ast::Associativity::Left;
 use crate::ast::OperatorSpecification::{Infix, Prefix};
+use crate::common::ModuleId;
 use crate::symbol_names::StringInterner;
 use crate::typechecker::environment::ScopeEnvironment;
 use crate::typechecker::type_resolution::TypeResolution;
@@ -34,7 +35,10 @@ fn scheme(gen: &[GenericId], tp: Type) -> Scheme {
 
 fn eq_type() -> Scheme {
     let mut eq_set = HashSet::new();
-    let id = GenericId(1);
+    let id = GenericId {
+        id: 0,
+        mod_id: ModuleId::PRELUDE,
+    };
     eq_set.insert(id);
     Scheme(
         eq_set,
@@ -137,8 +141,17 @@ pub fn prelude<Data: Copy + Debug>(
         vtc,
         interner.intern(Text::new("println")),
         scheme(
-            &[GenericId(1)],
-            build_function(&[Type::Var(GenericId(1))], &unit()),
+            &[GenericId {
+                mod_id: ModuleId::PRELUDE,
+                id: 2,
+            }],
+            build_function(
+                &[Type::Var(GenericId {
+                    mod_id: ModuleId::PRELUDE,
+                    id: 2,
+                })],
+                &unit(),
+            ),
         ),
     );
 }
