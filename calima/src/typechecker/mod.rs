@@ -991,7 +991,7 @@ mod ir_gen_tests {
     use crate::parsing::parser::parse;
     use crate::typechecker::type_resolution::TypeResolution;
     use crate::typechecker::typecheck_module;
-    use crate::{ErrorContext, StringInterner};
+    use crate::{CompilerState, ErrorContext, StringInterner};
     use goldenfile::Mint;
     use quetta::Text;
     use std::fs::read_dir;
@@ -1005,37 +1005,30 @@ mod ir_gen_tests {
         for entry in read_dir("tests/typechecking/").unwrap() {
             match entry {
                 Ok(entry) => {
-                    let interner = StringInterner::new();
                     let entry_path = entry.path();
                     if entry_path.is_file() {
                         let filename = entry_path.file_name().unwrap();
                         let mut parsed_file = mint_code.new_goldenfile(filename).unwrap();
-                        let file_content = std::fs::read_to_string(&entry_path).unwrap();
-                        let parsed = parse(&file_content, &interner).expect(
-                            format!("Error parsing {}", filename.to_string_lossy()).as_ref(),
-                        );
-                        let module: UntypedModule = UntypedModule(Rc::new(UntypedModuleData {
-                            name: ModuleName::from_name(Text::new(
-                                filename.to_string_lossy().to_string().as_str(),
-                            )),
-                            ast: parsed,
-                            dependencies: vec![],
-                            path: entry_path,
-                            id: ModuleId::new(1),
-                        }));
-                        let mut error_context = ErrorContext::new();
-                        let mut vtc = TypeResolution::new();
-                        let checked = typecheck_module(
-                            &module,
-                            vec![],
-                            &mut error_context,
-                            &interner,
-                            &mut vtc,
-                        )
-                        .expect("Typechecking error");
-                        let mut fc = FormattingContext::new(&vtc);
-                        let ir_text = format_to_string(&checked.0.ir_module, &mut fc);
-                        write!(parsed_file, "{}", ir_text).unwrap();
+
+                        let mut errors = ErrorContext::new();
+                        let interner = StringInterner::new();
+                        let mut state =
+                            CompilerState::construct(errors, interner, &entry_path, &vec![], &None)
+                                .expect("Failed to construct compiler state for test");
+                        let main_mod_id = ModuleName::from_name(state.project_name.clone());
+                        match state.typecheck(&main_mod_id, true) {
+                            Ok(main_mod) => {
+                                let mut fc = FormattingContext::new(&state.vtc);
+                                let ir_text = format_to_string(&main_mod.0.ir_module, &mut fc);
+                                write!(parsed_file, "{}", ir_text).unwrap();
+                            }
+                            Err(e) => {
+                                state
+                                    .error_context
+                                    .handle_errors()
+                                    .expect("Failed to typecheck");
+                            }
+                        }
                     }
                 }
                 Err(_) => (),
