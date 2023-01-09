@@ -122,7 +122,7 @@ impl CompilerState {
             resolved_from_here.push(Path::new(x.as_str()));
         }
 
-        resolved_from_here.set_extension(".ca");
+        resolved_from_here.set_extension("ca");
 
         match resolved_from_here.exists() {
             true => Some(resolved_from_here),
