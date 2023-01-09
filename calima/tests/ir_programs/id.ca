@@ -7,10 +7,10 @@
     m1/v17(a)<forall t2_m1. Int> = $generalize m1/v16<Int>;
     m1/v18<String> = m1/v15(id)<forall t0_m1. t0_m1 -> t0_m1> "test";
     m1/v19(b)<forall t4_m1. String> = $generalize m1/v18<String>;
-    m1/v21<Unit -> t7_m1> = fun _ -> {
-        m1/v20<t7_m1> = m1/v15(id)<forall t0_m1. t0_m1 -> t0_m1> m1/v17(a)<forall t2_m1. Int>;
-        m1/v20<t7_m1>
+    m1/v21<Unit -> Unit> = fun _ -> {
+        m1/v20<Unit> = m1/v15(id)<forall t0_m1. t0_m1 -> t0_m1> m1/v17(a)<forall t2_m1. Int>;
+        m1/v20<Unit>
     };
-    m1/v22(main)<forall t5_m1 t8_m1. Unit -> t7_m1> = $generalize m1/v21<Unit -> t7_m1>;
+    m1/v22(main)<forall t5_m1 t8_m1. Unit -> Unit> = $generalize m1/v21<Unit -> Unit>;
     ()
 }
