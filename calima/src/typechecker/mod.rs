@@ -996,6 +996,7 @@ mod ir_gen_tests {
     use quetta::Text;
     use std::fs::read_dir;
     use std::io::Write;
+    use std::path::PathBuf;
     use std::rc::Rc;
 
     #[test]
@@ -1008,7 +1009,8 @@ mod ir_gen_tests {
                     let entry_path = entry.path();
                     if entry_path.is_file() {
                         let filename = entry_path.file_name().unwrap();
-                        let mut parsed_file = mint_code.new_goldenfile(filename).unwrap();
+                        let ir_filename = PathBuf::from(filename).with_extension("ir");
+                        let mut parsed_file = mint_code.new_goldenfile(ir_filename).unwrap();
 
                         let mut errors = ErrorContext::new();
                         let interner = StringInterner::new();
