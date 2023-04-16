@@ -1,35 +1,176 @@
-use crate::ast_common::{BindPattern, Literal, MatchPattern, Name, OperatorSpecification};
-use crate::common::ModuleIdentifier;
+use crate::common::ModuleName;
 use crate::formatting::tree::{format_children, TreeFormat};
 use crate::formatting::*;
-use crate::parsing::token::Span;
-use crate::symbol_names::SymbolName;
+use crate::symbol_names::IText;
+use std::convert::TryFrom;
 use std::fmt::{Debug, Display, Formatter};
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct RegionVariable<Symbol: Display, Data>(pub Symbol, pub Data);
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct Name<Data>(pub Vec<IText>, pub Data);
 
-impl<Symbol: Display, Data> Display for RegionVariable<Symbol, Data> {
+impl<Data> Display for Name<Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "'{}", self.0)
+        write!(f, "{}", format_iter(self.0.iter(), "."))
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum RegionAnnotation<Symbol: Display, Data> {
-    Anonymous,
-    Stack,
-    Named(Symbol, Data),
-    Var(RegionVariable<Symbol, Data>),
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+pub enum NumberType {
+    Integer,
+    Float,
 }
 
-impl<Symbol: Display, Data> Display for RegionAnnotation<Symbol, Data> {
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+pub enum Associativity {
+    Left,
+    Right,
+    None,
+}
+
+impl Display for Associativity {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            RegionAnnotation::Stack => write!(f, "@."),
-            RegionAnnotation::Anonymous => write!(f, "@_"),
-            RegionAnnotation::Named(name, _) => write!(f, "@{}", name),
-            RegionAnnotation::Var(var) => write!(f, "@{}", var),
+            Associativity::Left => write!(f, "left"),
+            Associativity::Right => write!(f, "right"),
+            Associativity::None => write!(f, "none"),
+        }
+    }
+}
+
+impl TryFrom<&str> for Associativity {
+    type Error = ();
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "left" => Ok(Associativity::Left),
+            "right" => Ok(Associativity::Right),
+            "none" => Ok(Associativity::None),
+            _ => Err(()),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Copy, Clone, Eq)]
+pub enum OperatorSpecification {
+    Infix(u32, Associativity),
+    Prefix,
+}
+
+impl Display for OperatorSpecification {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            OperatorSpecification::Infix(prec, assoc) => write!(f, "infix {} {}", prec, assoc),
+            OperatorSpecification::Prefix => write!(f, "prefix"),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Literal {
+    String(IText),
+    Number(IText, NumberType),
+    Unit,
+    Boolean(bool),
+}
+
+impl Display for Literal {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Literal::String(string) => write!(f, "\"{}\"", string),
+            Literal::Boolean(b) => write!(f, "{}", b),
+            Literal::Unit => write!(f, "()"),
+            Literal::Number(num, _) => write!(f, "{}", num),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum BindPattern<Symbol: Display, TA: Display, Data> {
+    Any(Data),
+    UnitLiteral(Data),
+    Name(Symbol, Option<TA>, Data),
+    Tuple(Vec<BindPattern<Symbol, TA, Data>>, Data),
+    Record(Vec<(Symbol, BindPattern<Symbol, TA, Data>)>, Data),
+}
+
+impl<Symbol: Display, TA: Display, Data> Display for BindPattern<Symbol, TA, Data> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BindPattern::Any(_) => write!(f, "_"),
+            BindPattern::Name(id, ta, _) => match ta {
+                None => write!(f, "{}", id),
+                Some(ta) => write!(f, "({}: {})", id, ta),
+            },
+            BindPattern::Tuple(elements, _) => format_tuple(elements, f),
+            BindPattern::Record(rows, _) => write!(f, "{}", format_record(rows, ":", ", ")),
+            BindPattern::UnitLiteral(_) => write!(f, "()"),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum MatchPattern<Name: Display, Symbol: Display, TA: Display, Data> {
+    Any(Data),
+    Name(Symbol, Option<TA>, Data),
+    Tuple(Vec<MatchPattern<Name, Symbol, TA, Data>>, Data),
+    Literal(Literal, Data),
+    Record(Vec<(Symbol, MatchPattern<Name, Symbol, TA, Data>)>, Data),
+    SumUnwrap(
+        Name,
+        Option<Box<MatchPattern<Name, Symbol, TA, Data>>>,
+        Data,
+    ),
+}
+
+impl<Name: Display, Symbol: Display, TA: Display, Data> TreeFormat
+    for MatchPattern<Name, Symbol, TA, Data>
+{
+    fn get_precedence(&self) -> i32 {
+        match self {
+            Self::Any(_) => 0,
+            Self::Name(_, _, _) => 0,
+            Self::Tuple(_, _) => 0,
+            Self::Literal(_, _) => 0,
+            Self::Record(_, _) => 0,
+            Self::SumUnwrap(_, _, _) => 1,
+        }
+    }
+
+    fn format(&self) -> String {
+        match self {
+            MatchPattern::Any(_) => "_".to_string(),
+            MatchPattern::Name(id, ta, _) => match ta {
+                None => id.to_string(),
+                Some(ta) => format!("({}: {})", id, ta),
+            },
+            MatchPattern::Literal(lit, _) => lit.to_string(),
+            MatchPattern::Tuple(elements, _) => {
+                format!("({})", format_children(self, elements.iter(), ", "))
+            }
+            MatchPattern::Record(rows, _) => format_record(rows, ":", ", "),
+            MatchPattern::SumUnwrap(constr, None, _) => constr.to_string(),
+            MatchPattern::SumUnwrap(constr, Some(pat), _) => {
+                format!("{} {}", constr, self.format_child(&*pat))
+            }
+        }
+    }
+}
+
+impl<Name: Display, Symbol: Display, TA: Display, Data> Display
+    for MatchPattern<Name, Symbol, TA, Data>
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MatchPattern::Any(_) => write!(f, "_"),
+            MatchPattern::Name(id, ta, _) => match ta {
+                None => write!(f, "{}", id),
+                Some(ta) => write!(f, "({}: {})", id, ta),
+            },
+            MatchPattern::Literal(lit, _) => write!(f, "{}", lit),
+            MatchPattern::Tuple(elements, _) => format_tuple(elements, f),
+            MatchPattern::Record(rows, _) => write!(f, "{}", format_record(rows, ":", ", ")),
+            MatchPattern::SumUnwrap(constr, None, _) => write!(f, "{}", constr),
+            MatchPattern::SumUnwrap(constr, Some(pat), _) => write!(f, "{} {}", constr, *pat),
         }
     }
 }
@@ -53,10 +194,7 @@ pub enum TypeAnnotation<Name: Display, Symbol: Display, Data> {
     ),
     Tuple(Vec<TypeAnnotation<Name, Symbol, Data>>),
     Parameterized(Name, Vec<TypeAnnotation<Name, Symbol, Data>>),
-    Reference(
-        RegionAnnotation<Symbol, Data>,
-        Box<TypeAnnotation<Name, Symbol, Data>>,
-    ),
+    Reference(Box<TypeAnnotation<Name, Symbol, Data>>),
 }
 
 impl<Name: Display, Symbol: Display, Data> TreeFormat for TypeAnnotation<Name, Symbol, Data> {
@@ -67,7 +205,7 @@ impl<Name: Display, Symbol: Display, Data> TreeFormat for TypeAnnotation<Name, S
             TypeAnnotation::Tuple(_) => 0,
             TypeAnnotation::Function(_, _) => 1,
             TypeAnnotation::Parameterized(_, _) => 1,
-            TypeAnnotation::Reference(_, _) => 2,
+            TypeAnnotation::Reference(_) => 2,
         }
     }
 
@@ -84,7 +222,7 @@ impl<Name: Display, Symbol: Display, Data> TreeFormat for TypeAnnotation<Name, S
             TypeAnnotation::Tuple(elements) => {
                 format!("({})", format_children(self, elements.iter(), ", "))
             }
-            TypeAnnotation::Reference(reg, tp) => format!("{} {}", reg, self.format_child(&*tp)),
+            TypeAnnotation::Reference(tp) => format!("{}", self.format_child(&*tp)),
         }
     }
 }
@@ -186,7 +324,7 @@ pub enum Visibility {
 impl Display for Visibility {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Visibility::Public => write!(f, "public"),
+            Visibility::Public => write!(f, "public "),
         }
     }
 }
@@ -200,7 +338,6 @@ pub enum TopLevelStatement<Name: Display, Symbol: Display, Data> {
     },
     Type {
         name: Symbol,
-        regions: Vec<RegionVariable<Symbol, Data>>,
         params: Vec<GenericTypeKind<Symbol, Data>>,
         type_def: TypeDefinition<Name, Symbol, Data>,
         data: Data,
@@ -215,15 +352,13 @@ impl<Name: Display, Symbol: Display, Data> Display for TopLevelStatement<Name, S
             TopLevelStatement::Import { module, .. } => write!(f, "import {}", module),
             TopLevelStatement::Type {
                 name,
-                regions,
                 params,
                 type_def: typedef,
                 data: _,
             } => write!(
                 f,
-                "type {} {}{} = {}",
+                "type {} {} = {}",
                 name,
-                format_iter_end(regions.iter(), " "),
                 format_iter(params.iter(), " "),
                 typedef
             ),
@@ -244,13 +379,11 @@ pub enum Statement<Name: Display, Symbol: Display, Data> {
     Let(Let<Name, Symbol, Data>),
     LetOperator(LetOperator<Name, Symbol, Data>),
     Do(Expr<Name, Symbol, Data>, Data),
-    Region(Symbol, Data),
 }
 
 impl<Name: Display, Symbol: Display, Data> Display for Statement<Name, Symbol, Data> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Statement::Region(name, _) => write!(f, "region {}", name),
             Statement::Do(expr, _) => write!(f, "do {}", expr),
             Statement::Let(lets) => write!(f, "{}", lets),
             Statement::LetOperator(lets) => write!(f, "{}", lets),
@@ -339,11 +472,7 @@ pub enum Expr<Name: Display, Symbol: Display, Data> {
         )>,
     },
     List(Vec<Expr<Name, Symbol, Data>>, Data),
-    Ref(
-        RegionAnnotation<Symbol, Data>,
-        Box<Expr<Name, Symbol, Data>>,
-        Data,
-    ),
+    Ref(Box<Expr<Name, Symbol, Data>>, Data),
 }
 
 impl<Name: Display, Symbol: Display, Data> TreeFormat for Expr<Name, Symbol, Data> {
@@ -358,7 +487,7 @@ impl<Name: Display, Symbol: Display, Data> TreeFormat for Expr<Name, Symbol, Dat
             Expr::FunctionCall(_, _, _) => 1,
             Expr::OperatorCall(_, _) => 2,
             Expr::Lambda { .. } => 3,
-            Expr::Ref(_, _, _) => 3,
+            Expr::Ref(_, _) => 3,
             Expr::If { .. } => 4,
             Expr::Case { .. } => 4,
         }
@@ -416,7 +545,7 @@ impl<Name: Display, Symbol: Display, Data> TreeFormat for Expr<Name, Symbol, Dat
                 res.push_str("end");
                 res
             }
-            Expr::Ref(reg, expr, _) => format!("{} {}", reg, self.format_child(expr)),
+            Expr::Ref(expr, _) => format!("{}", self.format_child(expr)),
         }
     }
 }
@@ -427,12 +556,14 @@ impl<Name: Display, Symbol: Display, Data> Display for Expr<Name, Symbol, Data> 
     }
 }
 
-pub fn find_imported_modules<Name: Display, Symbol: Display, D: Copy>(
-    ast: &TopLevelBlock<Name, Symbol, D>,
-) -> Vec<(ModuleIdentifier, D)> {
+pub fn find_imported_modules<Data: Copy>(
+    ast: &TopLevelBlock<Name<Data>, IText, Data>,
+) -> Vec<ModuleName> {
     ast.0.iter().fold(Vec::new(), |mut imports, statement| {
         match statement {
-            TopLevelStatement::Import { module, data, .. } => {}
+            TopLevelStatement::Import { module, data, .. } => {
+                imports.push(ModuleName::from(module))
+            }
             _ => (),
         }
         imports

@@ -1,0 +1,1 @@
+public let main = fun () -> println "Hello World!"

@@ -1,4 +1,4 @@
-use crate::common::ModuleIdentifier;
+use crate::common::ModuleName;
 use crate::parsing::token::{Location, Span, Token};
 use crate::typechecker::TypeError;
 use codespan_reporting::diagnostic::{Diagnostic, Label, Severity};
@@ -43,10 +43,8 @@ pub enum ParserError {
     },
 }
 
-impl<'a> From<lalrpop_util::ParseError<Location, Token<'a>, crate::parsing::lexer::Error>>
-    for ParserError
-{
-    fn from(pe: ParseError<Location, Token<'a>, crate::parsing::lexer::Error>) -> Self {
+impl From<lalrpop_util::ParseError<Location, Token, crate::parsing::lexer::Error>> for ParserError {
+    fn from(pe: ParseError<Location, Token, crate::parsing::lexer::Error>) -> Self {
         match pe {
             ParseError::InvalidToken { location } => ParserError::InvalidToken { location },
             ParseError::UnrecognizedEOF { location, expected } => {
@@ -70,15 +68,15 @@ impl<'a> From<lalrpop_util::ParseError<Location, Token<'a>, crate::parsing::lexe
 #[derive(Debug)]
 pub enum CompilerError {
     GeneralError(Option<Box<dyn Error>>, String),
-    ParserError(ParserError, ModuleIdentifier),
+    ParserError(ParserError, ModuleName),
     ImportError {
-        importing_mod: ModuleIdentifier,
+        importing_mod: ModuleName,
         location: Span,
-        imported: ModuleIdentifier,
+        imported: ModuleName,
         search_dirs: Vec<PathBuf>,
     },
-    TypeError(TypeError<Span>, ModuleIdentifier),
-    MainFunctionError(ModuleIdentifier, MainFunctionErrorKind),
+    TypeError(TypeError<Span>, ModuleName),
+    MainFunctionError(ModuleName, MainFunctionErrorKind),
 }
 
 struct CompilerFile {
@@ -102,7 +100,7 @@ impl CompilerFile {
 
 struct CompilerFiles {
     file_map: HashMap<u32, CompilerFile>,
-    path_map: HashMap<ModuleIdentifier, u32>,
+    path_map: HashMap<ModuleName, u32>,
     file_id: u32,
 }
 
@@ -115,7 +113,7 @@ impl CompilerFiles {
         }
     }
 
-    fn add_module(&mut self, module: &ModuleIdentifier, path: &PathBuf, code: String) -> u32 {
+    fn add_module(&mut self, module: &ModuleName, path: &PathBuf, code: String) -> u32 {
         let id = self.file_id;
         self.file_id += 1;
         let cf = CompilerFile::new(path.clone(), code);
@@ -124,7 +122,7 @@ impl CompilerFiles {
         id
     }
 
-    fn get_module(&self, module: &ModuleIdentifier) -> Option<u32> {
+    fn get_module(&self, module: &ModuleName) -> Option<u32> {
         self.path_map.get(module).copied()
     }
 
@@ -138,27 +136,50 @@ impl<'a> codespan_reporting::files::Files<'a> for CompilerFiles {
     type Name = String;
     type Source = &'a str;
 
-    fn name(&'a self, id: Self::FileId) -> Option<Self::Name> {
-        self.get(id).map(|f| f.path.display().to_string())
+    fn name(&'a self, id: Self::FileId) -> Result<Self::Name, codespan_reporting::files::Error> {
+        self.get(id)
+            .map(|f| f.path.display().to_string())
+            .ok_or_else(|| codespan_reporting::files::Error::FileMissing)
     }
 
-    fn source(&'a self, id: Self::FileId) -> Option<Self::Source> {
-        self.get(id).map(|f| f.content.as_str())
+    fn source(
+        &'a self,
+        id: Self::FileId,
+    ) -> Result<Self::Source, codespan_reporting::files::Error> {
+        self.get(id)
+            .map(|f| f.content.as_str())
+            .ok_or_else(|| codespan_reporting::files::Error::FileMissing)
     }
 
-    fn line_index(&'a self, id: Self::FileId, byte_index: usize) -> Option<usize> {
+    fn line_index(
+        &'a self,
+        id: Self::FileId,
+        byte_index: usize,
+    ) -> Result<usize, codespan_reporting::files::Error> {
         self.get(id)
             .map(|f| f.lines.binary_search(&byte_index).unwrap_or_else(|x| x - 1))
+            .ok_or_else(|| codespan_reporting::files::Error::FileMissing)
     }
 
-    fn line_range(&'a self, id: Self::FileId, line_index: usize) -> Option<Range<usize>> {
-        let file = self.get(id)?;
-        let start = *file.lines.get(line_index).or(Some(&file.content.len()))?;
+    fn line_range(
+        &'a self,
+        id: Self::FileId,
+        line_index: usize,
+    ) -> Result<Range<usize>, codespan_reporting::files::Error> {
+        let file = self
+            .get(id)
+            .ok_or_else(|| codespan_reporting::files::Error::FileMissing)?;
+        let start = *file
+            .lines
+            .get(line_index)
+            .or(Some(&file.content.len()))
+            .ok_or_else(|| codespan_reporting::files::Error::FileMissing)?;
         let end = *file
             .lines
             .get(line_index + 1)
-            .or(Some(&file.content.len()))?;
-        Some(start..end)
+            .or(Some(&file.content.len()))
+            .ok_or_else(|| codespan_reporting::files::Error::FileMissing)?;
+        Ok(start..end)
     }
 }
 
@@ -180,7 +201,7 @@ impl ErrorContext {
         }
     }
 
-    pub fn add_file(&mut self, module: &ModuleIdentifier, path: &PathBuf, code: String) {
+    pub fn add_file(&mut self, module: &ModuleName, path: &PathBuf, code: String) {
         self.files.add_module(module, path, code);
     }
 

@@ -6,6 +6,6 @@ None
 Some e
 end
 let (t1: List Int) = Node (Empty, 2)
-publiclet main = fun () -> let x = head t1
+public let main = fun () -> let x = head t1
 in ()
 

@@ -1,9 +1,0 @@
-import List
-let new = fun _ -> let a = @a Empty
-in a
-
-publiclet main = fun () -> region test
-let (t1: @test List Int) = Node (Empty, 2)
-let h = head t1
-in ()
-

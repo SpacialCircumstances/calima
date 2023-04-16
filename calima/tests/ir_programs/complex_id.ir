@@ -1,0 +1,19 @@
+{
+    m1/v15<t0_m1 -> t1_m1 -> Unit> = fun m1/v13(a)<t0_m1> m1/v14(b)<t1_m1> -> {
+        ()
+    };
+    m1/v16(drop)<forall t0_m1 t1_m1. t0_m1 -> t1_m1 -> Unit> = $generalize m1/v15<t0_m1 -> t1_m1 -> Unit>;
+    m1/v20<t2_m1 -> t2_m1> = fun m1/v17(x)<t2_m1> -> {
+        m1/v19(a)<t2_m1> = $generalize m1/v17(x)<t2_m1>;
+        m1/v19(a)<t2_m1>
+    };
+    m1/v21(id)<forall t2_m1. t2_m1 -> t2_m1> = $generalize m1/v20<t2_m1 -> t2_m1>;
+    m1/v25<Unit -> Unit> = fun _ -> {
+        m1/v22<Bool> = m1/v21(id)<forall t2_m1. t2_m1 -> t2_m1> true;
+        m1/v23<Int> = m1/v21(id)<forall t2_m1. t2_m1 -> t2_m1> 2;
+        m1/v24<Unit> = m1/v16(drop)<forall t0_m1 t1_m1. t0_m1 -> t1_m1 -> Unit> m1/v22<Bool> m1/v23<Int>;
+        m1/v24<Unit>
+    };
+    m1/v26(main)<forall t4_m1 t11_m1. Unit -> Unit> = $generalize m1/v25<Unit -> Unit>;
+    ()
+}

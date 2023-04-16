@@ -1,3 +1,4 @@
+use crate::symbol_names::IText;
 use std::fmt::{Display, Formatter};
 use std::ops::Range;
 
@@ -8,7 +9,7 @@ pub enum NumberFormat {
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]
-pub enum Token<'input> {
+pub enum Token {
     CurlyBraceOpen,
     CurlyBraceClose,
     ParenOpen,
@@ -17,11 +18,11 @@ pub enum Token<'input> {
     SquareBracketClose,
     Period,
     Comma,
-    NameIdentifier(&'input str),
-    TypeIdentifier(&'input str),
-    OperatorIdentifier(&'input str),
-    StringLiteral(&'input str),
-    NumberLiteral((&'input str, NumberFormat)),
+    NameIdentifier(IText),
+    TypeIdentifier(IText),
+    OperatorIdentifier(IText),
+    StringLiteral(IText),
+    NumberLiteral((IText, NumberFormat)),
     BooleanLiteral(bool),
     Do,
     Let,
@@ -36,7 +37,6 @@ pub enum Token<'input> {
     Of,
     End,
     Type,
-    Region,
     Equal,
     Pipe,
     Import,
@@ -44,14 +44,13 @@ pub enum Token<'input> {
     Colon,
     Arrow,
     Backtick,
-    At,
     Apostrophe,
     Infix,
     Prefix,
     Public,
 }
 
-impl<'input> Display for Token<'input> {
+impl Display for Token {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         match self {
             Token::CurlyBraceOpen => write!(f, "{{"),
@@ -81,7 +80,6 @@ impl<'input> Display for Token<'input> {
             Token::Of => write!(f, "of"),
             Token::End => write!(f, "end"),
             Token::Type => write!(f, "type"),
-            Token::Region => write!(f, "region"),
             Token::Equal => write!(f, "="),
             Token::Pipe => write!(f, "|"),
             Token::Import => write!(f, "import"),
@@ -89,7 +87,6 @@ impl<'input> Display for Token<'input> {
             Token::Colon => write!(f, ":"),
             Token::Arrow => write!(f, "->"),
             Token::Backtick => write!(f, "`"),
-            Token::At => write!(f, "@"),
             Token::Apostrophe => write!(f, "'"),
             Token::Infix => write!(f, "infix"),
             Token::Prefix => write!(f, "prefix"),

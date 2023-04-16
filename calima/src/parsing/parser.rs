@@ -1,8 +1,7 @@
 use crate::ast::*;
-use crate::ast_common::Name;
 use crate::parsing::lexer::{Error, Lexer};
 use crate::parsing::token::{Location, Span, Token};
-use crate::symbol_names::{SymbolName, SymbolNameInterner};
+use crate::symbol_names::{IText, StringInterner};
 use lalrpop_util::ParseError;
 
 lalrpop_mod!(
@@ -18,27 +17,26 @@ fn to_data(left_loc: Location, right_loc: Location) -> Span {
     }
 }
 
-pub fn parse_type<'a>(
-    text: &'a str,
-    interner: &SymbolNameInterner,
-) -> Result<TypeAnnotation<Name<Span>, SymbolName, Span>, ParseError<Location, Token<'a>, Error>> {
-    let lexer = Lexer::new(text);
+pub fn parse_type(
+    text: &str,
+    interner: &StringInterner,
+) -> Result<TypeAnnotation<Name<Span>, IText, Span>, ParseError<Location, Token, Error>> {
+    let lexer = Lexer::new(text, interner);
     let parser = calima_parser::TypeAnnotation0Parser::new();
-    parser.parse(&to_data, interner, lexer)
+    parser.parse(&to_data, lexer)
 }
 
-pub fn parse<'a>(
-    code: &'a str,
-    interner: &SymbolNameInterner,
-) -> Result<TopLevelBlock<Name<Span>, SymbolName, Span>, ParseError<Location, Token<'a>, Error>> {
-    let lexer = Lexer::new(code);
+pub fn parse(
+    code: &str,
+    interner: &StringInterner,
+) -> Result<TopLevelBlock<Name<Span>, IText, Span>, ParseError<Location, Token, Error>> {
+    let lexer = Lexer::new(code, interner);
     let parser = calima_parser::TopLevelBlockParser::new();
     parser.parse(
         &|left_loc, right_loc| Span {
             left: left_loc,
             right: right_loc,
         },
-        interner,
         lexer,
     )
 }
@@ -46,24 +44,22 @@ pub fn parse<'a>(
 #[cfg(test)]
 mod tests {
     use crate::ast::Expr::*;
-    use crate::ast::{Block, Let, TopLevelBlock, TopLevelStatement};
-    use crate::ast_common::{BindPattern, Literal};
+    use crate::ast::{BindPattern, Block, Let, Literal, TopLevelBlock, TopLevelStatement};
     use crate::parsing::parser::parse;
     use crate::parsing::token::{Location, Span};
-    use crate::symbol_names::SymbolNameInterner;
-    use crate::typed_ast::Unit;
+    use crate::symbol_names::StringInterner;
     use goldenfile::Mint;
     use std::fs::read_dir;
     use std::io::Write;
 
     #[test]
     fn test_by_comparing_to_parsed() {
-        let mut mint_code = Mint::new("tests/parsed/");
+        let mut mint_code = Mint::new("tests/parsed_programs/");
 
-        for entry in read_dir("../examples/basic/").unwrap() {
+        for entry in read_dir("tests/test_programs/").unwrap() {
             match entry {
                 Ok(entry) => {
-                    let interner = SymbolNameInterner::new();
+                    let interner = StringInterner::new();
                     let entry_path = entry.path();
                     if entry_path.is_file() {
                         let filename = entry_path.file_name().unwrap();

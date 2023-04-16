@@ -1,1 +1,0 @@
-publiclet main = fun () -> println "Hello World!"

@@ -1,23 +1,19 @@
-use calima::{compile, CompilerArguments};
-use clap::Clap;
+use calima::compile;
+use clap::Parser;
+use std::path::PathBuf;
 
-#[derive(Clap)]
-#[clap(version = "0.1.0", author = "SpacialCircumstances")]
+#[derive(Parser)]
+#[command(author = "SpacialCircumstances", version = "0.2.0")]
 struct Options {
-    input_file: String,
-    #[clap(short, long)]
-    module_paths: Vec<String>,
-    #[clap(short, long)]
-    project_name: Option<String>,
+    main_file: PathBuf,
+    #[arg(short, long, value_name = "Module paths")]
+    module_paths: Vec<PathBuf>,
+    #[arg(short, long, value_name = "Output file")]
+    output_file: Option<PathBuf>,
 }
 
 fn main() -> Result<(), ()> {
-    let options: Options = Options::parse();
-    let file_name = &options.input_file;
-    let args = CompilerArguments::new(
-        file_name,
-        &options.module_paths,
-        options.project_name.as_ref().map(|s| s.as_str()),
-    );
-    compile(args)
+    let args = Options::parse();
+
+    compile(&args.main_file, &args.module_paths, &args.output_file)
 }
